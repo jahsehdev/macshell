@@ -16,7 +16,7 @@ bash scripts/dependencies.sh
 Daftar paket lengkap terdapat di `scripts/dependencies.sh`. Paket build utama:
 `base-devel cmake ninja pkgconf python python-pillow qt6-base qt6-declarative
 qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat gtk3 gtk4 libadwaita
-webkit2gtk-4.1 json-glib hyprland quickshell`.
+json-glib hyprland quickshell`.
 
 Photo Booth memakai Qt private development headers yang harus cocok dengan
 versi Qt Multimedia/Gui. Plugin native menggunakan header dan simbol compositor
@@ -71,7 +71,7 @@ python3 -m unittest discover -s tests -v
 ./install.sh --no-deps --test
 ```
 
-Mode `--test` membangun dua aplikasi dan menjalankan tes PTY, ekspor media,
+Mode `--test` membangun Photo Booth dan menjalankan tes ekspor media,
 encoder video, dan interaksi UI headless sebelum instalasi. Kamera fisik,
 mikrofon, SDDM, dan perilaku compositor tetap membutuhkan pengujian di desktop
 sesungguhnya. Tidak ada klaim batas RAM 500 MB dari sekadar bundling ini.

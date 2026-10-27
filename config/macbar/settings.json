@@ -42,7 +42,7 @@
     "clock"
   ],
   "weekStartsMonday": false,
-  "terminal": "tahoe-terminal",
+  "terminal": "macshell-terminal",
   "launcher": "",
   "filesCmd": "xdg-open \"$HOME\"",
   "clipboardCmd": "cliphist list | (fuzzel --dmenu || wofi --dmenu || rofi -dmenu) | cliphist decode | wl-copy",

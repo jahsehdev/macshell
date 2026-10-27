@@ -8,8 +8,6 @@ with their source; different components retain their respective licenses.
 | MacShell and MacLock base | https://github.com/0-ss/MacShell | MIT; root LICENSE preserves the upstream copyright |
 | MacTahoe GTK theme | https://github.com/vinceliuice/MacTahoe-gtk-theme | MIT; licenses/MacTahoe-gtk-MIT.txt |
 | MacTahoe icons and cursors | https://github.com/vinceliuice/MacTahoe-icon-theme | GPL-3.0; icons/MacTahoe/COPYING and licenses/MacTahoe-icons-GPL-3.0.txt |
-| xterm.js and terminal addons | https://github.com/xtermjs/xterm.js | MIT; apps/tahoe-terminal/web/vendor/LICENSE.* and pinned versions.json |
-| Tahoe Terminal | apps/tahoe-terminal | MIT; its LICENSE |
 | OpenRunde font inherited from MacShell | https://github.com/lauridskern/open-runde | Font authors' license; see licenses/OpenRunde.txt |
 
 The icon collection includes third-party application marks; inclusion does not

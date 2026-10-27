@@ -2,7 +2,7 @@
 
 Satu repo untuk desktop MacShell di **Arch Linux + Hyprland**: menu bar, Dock,
 desktop, widgets, Spotlight, Control Center, Launchpad, MacLock, **Photo Booth**,
-**Tahoe Terminal**, tema GTK/Qt/icon/cursor, dan plugin kontrol jendela native.
+tema GTK/Qt/icon/cursor, dan plugin kontrol jendela native.
 
 Installer membangun aplikasi serta plugin dari source yang ada di repo ini.
 Launchpad dan MacLock tetap memakai proses Quickshell masing-masing; seluruh
@@ -44,7 +44,7 @@ Pasang dependensi sesuai [panduan instalasi](docs/INSTALL.md), kemudian:
 ./install.sh --no-deps
 ```
 
-Tanpa `--skip-build`, Photo Booth, Tahoe Terminal, empat plugin Hyprland,
+Tanpa `--skip-build`, Photo Booth, empat plugin Hyprland,
 bridge GTK Nautilus, serta style Qt/GTK dibangun otomatis. `--skip-build`
 hanya disediakan untuk staging atau pemeriksaan payload konfigurasi.
 
@@ -54,16 +54,14 @@ hanya disediakan untuk staging atau pemeriksaan payload konfigurasi.
 | --- | --- |
 | Launchpad | Super+A |
 | Spotlight | Super+Space |
-| Terminal | Super+Q |
+| Terminal (GNOME Console) | Super+Q / `macshell-terminal` |
 | File manager | Super+E |
 | Lock screen | Super+L |
 | Screenshot | Print / Super+Shift+S |
 | Settings | Menu Apple atau Dock |
 | Photo Booth | Launchpad → Photo Booth / `tahoe-photobooth` |
-| Tahoe Terminal | Launchpad → Tahoe Terminal / `tahoe-terminal` |
 
-Detail aplikasi: [Photo Booth](apps/tahoe-photobooth/README.md) dan
-[Tahoe Terminal](apps/tahoe-terminal/README.md).
+Detail aplikasi: [Photo Booth](apps/tahoe-photobooth/README.md).
 
 ## Update dan pemulihan
 
@@ -95,7 +93,7 @@ Tidak ada restart display manager otomatis. Tema berlaku saat login berikutnya.
 ## Struktur
 
 ```text
-apps/               Photo Booth dan Tahoe Terminal beserta source/test/vendor
+apps/               Photo Booth beserta source dan test
 config/quickshell/  MacShell, Common, Launchpad, MacLock
 config/hypr/        Konfigurasi Hyprland dan aturan jendela
 bin/                Launcher, integrasi, update dan uninstall

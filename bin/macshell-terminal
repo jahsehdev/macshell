@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Use the bundled terminal, with GNOME Console as a startup fallback."""
+"""Open GNOME Console with MacShell working-directory and command arguments."""
 import os
-from pathlib import Path
 import shutil
 import sys
 
@@ -13,8 +12,7 @@ while args and args[0] in ('--dir', '--working-directory', '--workingDirectory')
     args = args[2:]
 if args[:1] in (['--execute'], ['--command'], ['--']):
     args = ['-e', *args[1:]]
-binary = Path.home() / '.local/bin/tahoe-terminal'
-executable = str(binary) if binary.exists() else shutil.which('kgx')
+executable = shutil.which('kgx')
 if not executable:
-    raise SystemExit('Run the complete MacShell installer to build Tahoe Terminal.')
+    raise SystemExit('GNOME Console (kgx) is missing. Install the gnome-console package.')
 os.execv(executable, [executable, *args])

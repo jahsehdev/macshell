@@ -3,7 +3,7 @@ set -euo pipefail
 mode=${1:-install}
 packages=(git base-devel cmake ninja pkgconf python python-pillow qt6-base qt6-declarative
     qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat gtk3 gtk4 libadwaita
-    webkit2gtk-4.1 json-glib hyprland quickshell nautilus gnome-calculator gnome-console
+    json-glib hyprland quickshell nautilus gnome-calculator gnome-console
     gnome-text-editor qt6ct kvantum networkmanager bluez bluez-utils pipewire pipewire-pulse
     wireplumber xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-user-dirs xdg-utils
     wl-clipboard cliphist grim slurp swappy wf-recorder ffmpeg brightnessctl playerctl
@@ -17,7 +17,7 @@ if [[ $mode == --check ]]; then
             printf 'MISSING %s\n' "$executable"; missing=1
         fi
     done
-    for module in hyprland gtk+-3.0 gtk4 libadwaita-1 webkit2gtk-4.1 json-glib-1.0 Qt6Core Qt6Multimedia Qt6ShaderTools; do
+    for module in hyprland gtk+-3.0 gtk4 libadwaita-1 json-glib-1.0 Qt6Core Qt6Multimedia Qt6ShaderTools; do
         if pkg-config --exists "$module"; then
             printf 'OK      %s %s\n' "$module" "$(pkg-config --modversion "$module")"
         else

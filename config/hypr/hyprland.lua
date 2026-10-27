@@ -571,7 +571,7 @@ hl.window_rule({
 })
 hl.window_rule({
     name = "macshell-titlebar-corners",
-    match = { class = "^(tahoe-terminal|TahoeTerminal|org.gnome.Console|org.gnome.Terminal|kgx|kitty|Alacritty|alacritty|foot|footclient|com.mitchellh.ghostty|ghostty|tabby|Tabby|org.macshell.PhotoBooth|Photo Booth|tahoe-photobooth)$" },
+    match = { class = "^(org.gnome.Console|org.gnome.Terminal|kgx|kitty|Alacritty|alacritty|foot|footclient|com.mitchellh.ghostty|ghostty|tabby|Tabby|org.macshell.PhotoBooth|Photo Booth|tahoe-photobooth)$" },
     rounding = 16,
 })
 

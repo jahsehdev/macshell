@@ -19,7 +19,7 @@ SETTINGS = {
     'macshell/colors.json', 'macshell/app-menu.json', 'macshell/desktop-dock.json',
     'macshell/icon-style.json', 'macshell/liquidglass.json',
     'quickshell/launchpad/settings.json', 'macshell/corners/state.json',
-    'tahoe-terminal/settings.json', 'tahoe-terminal/custom.css', 'MacShell/PhotoBooth.conf',
+    'MacShell/PhotoBooth.conf',
 }
 NATIVE = ['top-boundary', 'fullscreen-lock', 'click-focus', 'native-minimize', 'window-controls', 'nautilus/native']
 
@@ -92,7 +92,7 @@ def command(argv, **kwargs):
 
 def build_apps(staging, target_paths, args):
     staged = []
-    for app in ('tahoe-photobooth', 'tahoe-terminal'):
+    for app in ('tahoe-photobooth',):
         build = staging / 'build' / app
         command(['cmake', '-S', ROOT / 'apps' / app, '-B', build, '-G', 'Ninja',
                  '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_INSTALL_PREFIX=' + str(target_paths['PREFIX']),
@@ -232,7 +232,7 @@ def main():
     plan = plan_payload(target_paths, args)
     if args.dry_run:
         print('Repo:', ROOT)
-        print('Payload:', len(plan), 'file; aplikasi:', 'dilewati' if args.skip_build else 'Photo Booth + Tahoe Terminal + semua plugin native')
+        print('Payload:', len(plan), 'file; aplikasi:', 'dilewati' if args.skip_build else 'Photo Booth + semua plugin native')
         print('Config:', target_paths['CONFIG_HOME'])
         print('Data:', target_paths['DATA_HOME'])
         print('Preferensi lama:', 'dicadangkan dan diganti' if args.reset_settings else 'dipertahankan')
