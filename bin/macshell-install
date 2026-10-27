@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+
+state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
+manifest = json.loads((state / 'macshell/installer/manifest.json').read_text())
+source = Path(manifest['source'])
+if '--uninstall' in sys.argv or '--doctor' in sys.argv:
+    script = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'macshell/installer/install.py'
+    os.execv(sys.executable, [sys.executable, str(script), *sys.argv[1:]])
+if not (source / 'install.sh').exists():
+    raise SystemExit('Clone your MacShell repository again to update or reinstall.')
+args = [arg for arg in sys.argv[1:] if arg not in ('--local', '--update')]
+os.execv('/usr/bin/bash', ['bash', str(source / 'install.sh'), *args])

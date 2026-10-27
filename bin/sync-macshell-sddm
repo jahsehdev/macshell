@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Snapshot the current MacLock appearance into the standalone SDDM theme."""
+import configparser
+import json
+import math
+import pwd
+import shutil
+import subprocess
+from pathlib import Path
+
+
+def main():
+    home = Path('@HOME@')
+    theme = home / '.local/share/sddm/themes/macshell'
+    settings = json.loads((home / '.config/macbar/settings.json').read_text())
+    account = pwd.getpwuid(home.stat().st_uid)
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.optionxform = str
+    parser.read(theme / 'theme.conf')
+    cfg = parser['General']
+
+    def number(key, default, low, high):
+        value = settings.get(key, default)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            value = default
+        return max(low, min(high, value))
+
+    preset = settings.get('lockClockFont', 'condensed')
+    if preset not in ('condensed', 'rounded', 'serif', 'inter'):
+        preset = 'condensed'
+    material = settings.get('lockClockMaterial', 'glass')
+    intensity = 0.12 if material == 'liquid' else 0.8 if material == 'solid' else 0.6
+    cfg.update({
+        'defaultUser': account.pw_name,
+        'displayName': account.pw_gecos.split(',')[0] or account.pw_name,
+        'use24h': str(settings.get('use24h') is not False).lower(),
+        'clockFont': preset,
+        'clockWeight': str(round(number('lockClockWeight', 680, 100, 1000))),
+        'clockTall': str(settings.get('lockClockTall') is not False).lower(),
+        'clockMaterial': material if material == 'solid' else 'glass',
+        'clockIntensity': str(number('lockClockIntensity', intensity, 0, 1)),
+        'clockTint': settings.get('lockClockTint') or '#FFFFFF',
+        'clockDate': 'short' if settings.get('lockClockDate') == 'short' else 'long',
+    })
+    # Copy assets into the theme: SDDM cannot read a private home directory.
+    wallpaper = Path(settings.get('wallpaperPath') or '')
+    if not wallpaper.is_file():
+        dock = home / '.config/macdock/settings.json'
+        if dock.is_file():
+            wallpaper = Path(json.loads(dock.read_text()).get('wallpaperPath') or '')
+    if wallpaper.is_file():
+        target = theme / 'assets' / ('background' + wallpaper.suffix.lower())
+        shutil.copy2(wallpaper, target)
+        cfg['background'] = str(target.relative_to(theme))
+    for avatar in (home / '.face', home / '.face.icon', Path('/var/lib/AccountsService/icons') / account.pw_name):
+        if avatar.is_file():
+            shutil.copy2(avatar, theme / 'assets/avatar.png')
+            cfg['avatar'] = 'assets/avatar.png'
+            break
+
+    # Resolve fonts while still running as the desktop user, before sudo.
+    # Never silently bundle Noto under an SF filename if SF is unavailable.
+    fonts = (
+        ('fontTextRegular', 'SF Pro Text', 'Regular'),
+        ('fontTextSemibold', 'SF Pro Text', 'Semibold'),
+        ('fontDisplay', 'SF Pro Display', 'Semibold'),
+        ('fontDisplayMedium', 'SF Pro Display', 'Medium'),
+    )
+    missing = []
+    for key, family, style in fonts:
+        match = subprocess.run(
+            ['fc-match', '-f', '%{family}\n%{file}', f'{family}:style={style}'],
+            check=True, text=True, capture_output=True).stdout.splitlines()
+        if len(match) >= 2 and family in match[0].split(',') and Path(match[1]).is_file():
+            font = Path(match[1])
+            dest = theme / 'assets/fonts' / font.name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(font, dest)
+            cfg[key] = str(dest.relative_to(theme))
+        elif not cfg.get(key) or not (theme / cfg[key]).is_file():
+            cfg.pop(key, None)
+            missing.append(f'{family} {style}')
+
+    stage = theme / 'theme.conf.tmp'
+    with stage.open('w') as output:
+        parser.write(output, space_around_delimiters=False)
+    stage.replace(theme / 'theme.conf')
+    print(f"MacLock → SDDM: {cfg['clockFont']}, {cfg['clockMaterial']}, {cfg['background']}")
+    if missing:
+        print('Font SF belum tersedia di lingkungan ini; preview memakai fallback Qt.')
+        print('Pemasang akan mencoba membundel font SF dari sesi desktop saat dijalankan.')
+
+
+if __name__ == '__main__':
+    main()

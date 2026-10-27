@@ -1,0 +1,13 @@
+#!/bin/sh
+# Opt-in native controls in an existing Qt tab or menu row.
+case "${1:-}" in
+    qt6ct|kvantummanager|cmake-gui|qv4l2|qvidcap) macshell_qt_app=$1; shift ;;
+    *) exit 2 ;;
+esac
+macshell_qt_plugins="$HOME/.local/share/macshell/window-controls/qt/plugins"
+if [ -r "$macshell_qt_plugins/styles/libmacshellcontrols.so" ]; then
+    QT_PLUGIN_PATH="$macshell_qt_plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+    export QT_PLUGIN_PATH
+    exec "/usr/bin/$macshell_qt_app" -style MacShellControls "$@"
+fi
+exec "/usr/bin/$macshell_qt_app" "$@"

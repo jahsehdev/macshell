@@ -1,0 +1,6 @@
+[General]
+theme=MacTahoeDark
+
+[Applications]
+MacShellFinderDark=dolphin
+

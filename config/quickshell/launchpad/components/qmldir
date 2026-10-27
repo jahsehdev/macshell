@@ -1,0 +1,20 @@
+module launchpad.components
+
+Squircle 1.0 Squircle.qml
+GlassBorder 1.0 GlassBorder.qml
+IconView 1.0 IconView.qml
+SelectionPlate 1.0 SelectionPlate.qml
+PageDots 1.0 PageDots.qml
+SearchPill 1.0 SearchPill.qml
+SearchGlassContext 1.0 SearchGlassContext.qml
+SearchGlassSurface 1.0 SearchGlassSurface.qml
+AppTile 1.0 AppTile.qml
+FolderTile 1.0 FolderTile.qml
+FolderPanel 1.0 FolderPanel.qml
+ContextMenu 1.0 ContextMenu.qml
+PagedGrid 1.0 PagedGrid.qml
+LaunchpadWindow 1.0 LaunchpadWindow.qml
+LaunchpadContent 1.0 LaunchpadContent.qml
+LaunchpadBackdrop 1.0 LaunchpadBackdrop.qml
+
+SettingsPanel 1.0 SettingsPanel.qml

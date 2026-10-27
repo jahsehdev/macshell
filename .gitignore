@@ -1,0 +1,12 @@
+build/
+**/build/
+__pycache__/
+*.pyc
+*.so
+*.o
+*.a
+*.log
+*.bak*
+.DS_Store
+*.qslog
+.venv/

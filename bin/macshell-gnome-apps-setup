@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( EUID == 0 )); then
+    printf '%s\n' 'Jalankan sebagai pengguna desktop biasa; hanya pacman yang memakai sudo.' >&2
+    exit 1
+fi
+if (( $# > 1 )) || [[ "${1:-}" != "" && "${1:-}" != "--check" ]]; then
+    printf '%s\n' 'Pemakaian: macshell-gnome-apps-setup [--check]' >&2
+    exit 1
+fi
+
+gnome_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+gnome_data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+gnome_bridge="$gnome_data_home/macshell/native-minimize/native-minimize.so"
+gnome_reload="$HOME/.local/bin/macshell-minimize-reload"
+gnome_packages=(gnome-calendar gnome-clocks gnome-contacts gnome-maps loupe gnome-weather)
+
+# Reuse the installed MacTahoe configuration and its current appearance.
+# Validate the CSS import chain before downloading or changing any packages.
+python3 - "$gnome_config_home" <<'PY'
+from pathlib import Path
+from urllib.parse import unquote, urlparse
+import configparser
+import re
+import sys
+
+config = Path(sys.argv[1])
+settings = configparser.ConfigParser(interpolation=None)
+settings.read(config / 'gtk-4.0/settings.ini')
+if not settings.get('Settings', 'gtk-theme-name', fallback='').startswith('MacTahoe'):
+    raise SystemExit('Tema GTK 4 MacTahoe belum aktif; pemasangan dihentikan.')
+if settings.get('Settings', 'gtk-decoration-layout', fallback='') != 'close,minimize,maximize:':
+    raise SystemExit('Layout tombol GTK belum memakai close,minimize,maximize:; pemasangan dihentikan.')
+
+seen = set()
+def theme_imports(path):
+    path = path.resolve()
+    if path in seen:
+        return False
+    seen.add(path)
+    if not path.is_file():
+        raise SystemExit(f'Berkas tema tidak ditemukan: {path}')
+    content = path.read_text()
+    found = any(part in ('MacTahoe-Dark', 'MacTahoe-Light') for part in path.parts)
+    for imported in re.findall(r'@import\s+url\([\'\"]([^\'\"]+)[\'\"]\)', content):
+        uri = urlparse(imported)
+        if uri.scheme not in ('', 'file'):
+            raise SystemExit(f'Import tema harus lokal: {imported}')
+        target = Path(unquote(uri.path))
+        if not target.is_absolute():
+            target = path.parent / target
+        found = theme_imports(target) or found
+    return found
+
+for name in ('gtk.css', 'gtk-dark.css'):
+    seen.clear()
+    if not theme_imports(config / 'gtk-4.0' / name):
+        raise SystemExit(f'{name} belum memuat tema MacTahoe; pemasangan dihentikan.')
+print('MacTahoe GTK 4 dan layout traffic light: siap.')
+PY
+
+if [[ ! -r "$gnome_bridge" || ! -x "$gnome_reload" ]]; then
+    printf '%s\n' 'Integrasi minimize MacShell belum tersedia; pemasangan dihentikan.' >&2
+    exit 1
+fi
+
+if [[ "${1:-}" == "--check" ]]; then
+    printf '%s\n' 'Integrasi minimize tersedia. Paket yang akan dipasang:'
+    printf '  %s\n' "${gnome_packages[@]}"
+    exit 0
+fi
+
+sudo pacman -S --needed "${gnome_packages[@]}"
+pacman -Q "${gnome_packages[@]}"
+
+# Apply the native minimize capability to existing and future supported windows.
+if ! "$gnome_reload"; then
+    printf '%s\n' 'Aplikasi sudah terpasang, tetapi integrasi minimize belum berhasil dimuat ulang.' >&2
+    printf '%s\n' 'Jalankan ~/.local/bin/macshell-minimize-reload dari terminal sesi Hyprland.' >&2
+    exit 1
+fi
+
+printf '%s\n' 'Calendar, Clocks, Contacts, Maps, Image Viewer (Loupe), dan Weather siap dibuka dari Apps.'
+printf '%s\n' 'Semua memakai konfigurasi GTK 4 MacTahoe yang sudah aktif dan integrasi minimize MacShell.'

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Photo Booth
+Comment=Take photos, four-picture strips, and videos with live effects
+Exec=@CMAKE_INSTALL_PREFIX@/bin/tahoe-photobooth
+TryExec=@CMAKE_INSTALL_PREFIX@/bin/tahoe-photobooth
+Icon=@CMAKE_INSTALL_PREFIX@/share/icons/hicolor/512x512/apps/@PHOTOBOOTH_DESKTOP_ICON@
+Terminal=false
+Categories=AudioVideo;Video;
+Keywords=camera;webcam;selfie;photo;booth;video;
+StartupNotify=true
+StartupWMClass=org.macshell.PhotoBooth

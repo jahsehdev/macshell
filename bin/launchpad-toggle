@@ -1,0 +1,33 @@
+#!/bin/sh
+# Toggle the selected app menu. --launchpad is used internally by AppMenu.qml.
+PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"; export PATH
+
+if [ "${1:-}" != "--launchpad" ] && python3 - "${XDG_CONFIG_HOME:-$HOME/.config}/macshell/app-menu.json" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1]) as store:
+        mode = json.load(store).get("mode")
+except (OSError, ValueError, AttributeError):
+    mode = "launchpad"
+sys.exit(0 if mode == "spotlight" else 1)
+PY
+then
+    exec qs -c MacShell ipc call spotlight apps
+fi
+
+if qs -c launchpad ipc call launchpad toggle >/dev/null 2>&1; then
+    exit 0
+fi
+
+setsid "$HOME/.local/bin/launchpad-start" >/dev/null 2>&1 &
+
+i=0
+while [ "$i" -lt 40 ]; do
+    sleep 0.2
+    if qs -c launchpad ipc call launchpad toggle >/dev/null 2>&1; then
+        exit 0
+    fi
+    i=$((i + 1))
+done
+
+exit 1

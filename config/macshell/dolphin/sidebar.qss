@@ -1,0 +1,36 @@
+/* Native Qt Widgets styling, scoped to Dolphin's Places panel. */
+DolphinMainWindow {
+    background-color: #1c1c20;
+}
+QDockWidget#placesDock PlacesPanel {
+    background: qlineargradient(x1:0, y1:0, x2:0.65, y2:1,
+        stop:0 #34304e, stop:1 #242b42);
+    border: 1px solid rgba(197, 189, 244, 38);
+    border-radius: 12px;
+    margin: 8px 4px 8px 8px;
+    padding: 7px;
+}
+QDockWidget#placesDock PlacesPanel > QWidget#qt_scrollarea_viewport {
+    background: transparent;
+}
+QDockWidget#placesDock PlacesPanel::item {
+    border-radius: 6px;
+}
+DolphinMainWindow::separator {
+    background: transparent;
+    width: 5px;
+}
+QDockWidget#placesDock PlacesPanel::item:selected {
+    background-color: #504969;
+    color: #f3f0ff;
+    border: none;
+}
+QDockWidget#placesDock PlacesPanel::item:hover:!selected {
+    background-color: rgba(208, 199, 255, 18);
+    border: none;
+}
+
+/* Shared Continuous Corner setting. */
+QDockWidget#placesDock PlacesPanel { background:transparent; border:0; border-radius:0; border-image:url("@CONFIG_HOME@/macshell/corners/dolphin-panel.svg") 24 24 24 24 stretch stretch; }
+QDockWidget#placesDock PlacesPanel::item:selected { background:transparent; border:0; border-radius:0; border-image:url("@CONFIG_HOME@/macshell/corners/dolphin-selection.svg") 6 6 6 6 stretch stretch; }
+QDockWidget#placesDock PlacesPanel::item:hover:!selected { background:transparent; border:0; border-radius:0; border-image:url("@CONFIG_HOME@/macshell/corners/dolphin-hover.svg") 6 6 6 6 stretch stretch; }

@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Install the requested SF repositories into the current user's font directory."""
+from datetime import datetime, timezone
+from pathlib import Path
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+SOURCES = {
+    'SF-Pro': 'https://github.com/sahibjotsaggu/San-Francisco-Pro-Fonts.git',
+    'SF-Mono': 'https://github.com/supercomputra/SF-Mono-Font.git',
+}
+REQUIRED = {'SF Pro Text', 'SF Pro Display', 'SF Mono'}
+
+def run(args, **kwargs):
+    return subprocess.run(args, check=True, **kwargs)
+
+def install():
+    for executable in ['git', 'fc-scan', 'fc-cache', 'fc-match']:
+        if not shutil.which(executable):
+            raise RuntimeError(f'Required command is missing: {executable}')
+    data_dir = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
+    destination = data_dir / 'fonts/SanFrancisco'
+    records, staged, families = {}, [], set()
+    with tempfile.TemporaryDirectory(prefix='macshell-sf-fonts-') as temporary:
+        temporary = Path(temporary)
+        for label, url in SOURCES.items():
+            checkout = temporary / label
+            print(f'Downloading {label} from {url}', flush=True)
+            run(['git', '-c', 'http.lowSpeedLimit=1024', '-c', 'http.lowSpeedTime=30',
+                 'clone', '--depth', '1', '--', url, str(checkout)],
+                env={**os.environ, 'GIT_TERMINAL_PROMPT': '0'}, timeout=120)
+            revision = run(['git', '-C', str(checkout), 'rev-parse', 'HEAD'],
+                           capture_output=True, text=True).stdout.strip()
+            fonts = sorted(p for p in checkout.rglob('*.otf') if p.is_file() and not p.is_symlink())
+            if not fonts:
+                raise RuntimeError(f'No OTF fonts found in {label}')
+            records[label] = {'repository': url, 'commit': revision, 'files': {}}
+            for font in fonts:
+                found = run(['fc-scan', '--format', '%{family}\n', str(font)],
+                            capture_output=True, text=True).stdout.strip()
+                if not found:
+                    raise RuntimeError(f'Invalid font: {font.name}')
+                families.update(name.strip() for line in found.splitlines() for name in line.split(','))
+                relative = Path(label) / font.relative_to(checkout)
+                records[label]['files'][str(font.relative_to(checkout))] = hashlib.sha256(font.read_bytes()).hexdigest()
+                staged.append((font, relative))
+        missing = REQUIRED - families
+        if missing:
+            raise RuntimeError(f'Required font families missing from downloads: {sorted(missing)}')
+        # Validate both repositories before changing any installed font files.
+        backup = (data_dir / 'macshell/backups' /
+                  ('sf-font-files-' + datetime.now().strftime('%Y%m%d-%H%M%S')))
+        for source, relative in staged:
+            target = destination / relative
+            if target.exists() and source.read_bytes() != target.read_bytes():
+                saved = backup / relative
+                saved.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(target, saved)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        manifest = {'installed_at': datetime.now(timezone.utc).isoformat(), 'sources': records}
+        (destination / 'SOURCES.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    run(['fc-cache', '-f', str(destination)])
+    for family in sorted(REQUIRED):
+        actual = run(['fc-match', '--format', '%{family}', family], capture_output=True, text=True).stdout
+        if family not in [name.strip() for name in actual.split(',')]:
+            raise RuntimeError(f'Font verification failed: {family} resolves to {actual!r}')
+        print(f'Installed: {family}')
+    helper = Path.home() / '.local/bin/macshell-apply-fonts'
+    result = subprocess.run([str(helper)])
+    if result.returncode:
+        print('Fonts installed; session settings will be retried at the next login.', file=sys.stderr)
+    if shutil.which('hyprctl') and os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):
+        subprocess.run(['hyprctl', 'reload', 'config-only'], capture_output=True, timeout=10)
+    print(f'Installed {len(staged)} font files in {destination}')
+    print('Log out and log in again to refresh fonts in all running applications.')
+
+if __name__ == '__main__':
+    try:
+        install()
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        print(f'SF font installation failed: {error}', file=sys.stderr)
+        print('Check the network connection, then run this command again.', file=sys.stderr)
+        sys.exit(1)

@@ -1,0 +1,3 @@
+#!/bin/sh
+# One file-manager entry point for Super+E and Dock Trash.
+exec "$HOME/.local/bin/macshell-nautilus" "$@"

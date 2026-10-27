@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+bridge="${XDG_DATA_HOME:-$HOME/.local/share}/macshell/native-minimize/native-minimize.so"
+if [ ! -r "$bridge" ]; then
+    printf '%s\n' 'Plugin minimize MacShell tidak ditemukan.' >&2
+    exit 1
+fi
+
+# Keep applications and the desktop session running. Loading attaches the
+# updated capability to their existing windows; no application restart is needed.
+result=$(hyprctl plugin unload "$bridge" 2>&1) || {
+    printf '%s\n' "$result" >&2
+    exit 1
+}
+if [ "$result" != 'ok' ]; then
+    printf '%s\n' "$result" >&2
+    exit 1
+fi
+result=$(hyprctl plugin load "$bridge" 2>&1) || {
+    printf '%s\n' "$result" >&2
+    exit 1
+}
+if [ "$result" != 'ok' ]; then
+    printf '%s\n' "$result" >&2
+    exit 1
+fi
+printf '%s\n' 'Integrasi minimize aplikasi GNOME sudah dimuat ulang (termasuk Calendar, Clocks, Contacts, Maps, Loupe, dan Weather).'

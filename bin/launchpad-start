@@ -1,0 +1,63 @@
+#!/bin/sh
+# launchpad-start: keep the Quickshell Launchpad process alive for the session.
+# Called from the Hyprland config at login. Starts hidden; SUPER + A toggles it.
+
+NAME=launchpad
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
+PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"; export PATH
+
+if [ "${1:-}" = "--login" ]; then
+    python3 - "$CONF/quickshell/launchpad/settings.json" <<'PYCHECK'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        enabled = json.load(f).get('startAtLogin', True)
+except (OSError, ValueError):
+    enabled = True
+sys.exit(0 if enabled else 1)
+PYCHECK
+    [ "$?" -eq 0 ] || exit 0
+fi
+
+command -v qs >/dev/null 2>&1 || { echo "launchpad-start: qs (quickshell) not found in PATH" >&2; exit 1; }
+
+# wait (up to 20 s) until the Wayland socket exists
+i=0
+while [ "$i" -lt 100 ]; do
+    if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/$WAYLAND_DISPLAY" ]; then break; fi
+    i=$((i + 1)); sleep 0.2
+done
+
+# already running for this user? then there is nothing to do
+if pgrep -u "$(id -u)" -f "(^|/)(qs|quickshell)( .*)? (-c|--config) $NAME( |\$)" >/dev/null 2>&1; then exit 0; fi
+
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-Hyprland}"
+export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-Hyprland}"
+export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}"
+if [ -f "$CONF/macshell/env" ]; then set -a; . "$CONF/macshell/env"; set +a; fi
+
+# Use the same icon theme as the rest of the desktop (MacTahoe-dark here)
+# instead of Qt's fallback hicolor theme. Without this, apps whose desktop
+# entry names an icon that only exists in MacTahoe show a generic placeholder.
+if [ -z "${QS_ICON_THEME:-}" ]; then
+    t=$(sed -n 's/^gtk-icon-theme-name *= *//p' "$CONF/gtk-3.0/settings.ini" 2>/dev/null | head -n1)
+    [ -n "$t" ] && export QS_ICON_THEME="$t"
+fi
+[ -n "${QS_ICON_THEME:-}" ] || export QS_ICON_THEME=MacTahoe-dark
+
+# restart on crash, but stop when quickshell exits on purpose
+fast=0
+while :; do
+    start=$(date +%s)
+    MALLOC_CONF="${MALLOC_CONF:-dirty_decay_ms:0,muzzy_decay_ms:0}" qs -c "$NAME"
+    rc=$?
+    case "$rc" in 0|130|143) exit 0 ;; esac
+    if [ $(( $(date +%s) - start )) -lt 5 ]; then fast=$((fast + 1)); else fast=0; fi
+    if [ "$fast" -ge 5 ]; then
+        echo "launchpad-start: qs -c launchpad keeps crashing" >&2
+        command -v notify-send >/dev/null 2>&1 && notify-send -u critical "Launchpad" "Quickshell Launchpad keeps crashing. Run: qs -c launchpad"
+        exit 1
+    fi
+    sleep 1
+done

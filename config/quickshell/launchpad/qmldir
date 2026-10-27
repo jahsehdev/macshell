@@ -1,0 +1,4 @@
+module launchpad
+
+singleton Theme 1.0 Theme.qml
+singleton LaunchpadState 1.0 LaunchpadState.qml

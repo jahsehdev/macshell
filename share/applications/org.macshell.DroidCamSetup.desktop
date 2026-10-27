@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=DroidCam Setup
+Comment=Set up an optional phone camera for Photo Booth
+Exec=/usr/bin/kgx -- "@DATA_HOME@/macshell/droidcam/setup.sh"
+Icon=camera-web
+Terminal=false
+Categories=Settings;
+StartupNotify=true
+Actions=Check;
+
+[Desktop Action Check]
+Name=Check DroidCam installation
+Exec=/usr/bin/kgx -- "@DATA_HOME@/macshell/droidcam/setup.sh" --check

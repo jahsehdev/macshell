@@ -1,0 +1,18 @@
+[Desktop Entry]
+Name=Tahoe Terminal
+GenericName=Terminal Emulator
+Comment=A customizable terminal for your Hyprland desktop
+Exec=tahoe-terminal
+TryExec=tahoe-terminal
+Icon=tahoe-terminal
+Type=Application
+Categories=System;TerminalEmulator;
+Keywords=terminal;shell;console;tahoe;
+StartupWMClass=tahoe-terminal
+StartupNotify=true
+Terminal=false
+Actions=NewWindow;
+
+[Desktop Action NewWindow]
+Name=New Window
+Exec=tahoe-terminal

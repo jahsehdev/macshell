@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Apply SF session preferences after the font files have been installed."""
+from pathlib import Path
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+PREFERENCES = {
+    'org.gnome.desktop.interface': {
+        'font-name': 'SF Pro Text 10',
+        'document-font-name': 'SF Pro Text 11',
+        'monospace-font-name': 'SF Mono 11',
+    },
+    'org.gnome.desktop.wm.preferences': {'titlebar-font': 'SF Pro Text Bold 10'},
+}
+
+def run(args):
+    return subprocess.run(args, capture_output=True, text=True, timeout=10, check=True)
+
+def apply():
+    for family in ['SF Pro Text', 'SF Pro Display', 'SF Mono']:
+        found = run(['fc-match', '--format', '%{family}', family]).stdout
+        if family not in [name.strip() for name in found.split(',')]:
+            raise RuntimeError(f'{family} is not installed. Run ~/.local/bin/macshell-install-sf-fonts first.')
+    if '--check' in sys.argv:
+        print('All SF font families are installed.')
+        return
+    if not shutil.which('gsettings'):
+        raise RuntimeError('gsettings is unavailable; GTK INI and fontconfig defaults are already configured.')
+    backup_path = (Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) /
+                   'macshell/fonts/gsettings-before.json')
+    backup = json.loads(backup_path.read_text()) if backup_path.exists() else {}
+    supported = []
+    schemas = set(run(['gsettings', 'list-schemas']).stdout.splitlines())
+    for schema, settings in PREFERENCES.items():
+        if schema not in schemas:
+            continue
+        keys = set(run(['gsettings', 'list-keys', schema]).stdout.splitlines())
+        for key, value in settings.items():
+            if key not in keys:
+                continue
+            identifier = f'{schema}/{key}'
+            if identifier not in backup:
+                backup[identifier] = run(['gsettings', 'get', schema, key]).stdout.strip()
+            supported.append((schema, key, value))
+    backup_path.parent.mkdir(parents=True, exist_ok=True)
+    backup_path.write_text(json.dumps(backup, indent=2) + '\n')
+    for schema, key, value in supported:
+        result = run(['gsettings', 'set', schema, key, value])
+        if 'failed to commit' in result.stderr.lower():
+            raise RuntimeError(result.stderr.strip())
+        if run(['gsettings', 'get', schema, key]).stdout.strip() != repr(value):
+            raise RuntimeError(f'Session setting was not saved: {schema} {key}')
+    print('SF Pro desktop and SF Mono session defaults applied.')
+
+if __name__ == '__main__':
+    try:
+        apply()
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        print(f'SF font settings: {error}', file=sys.stderr)
+        sys.exit(1)

@@ -1,0 +1,16 @@
+{
+  "position": "bottom",
+  "minimizeEffect": "genie",
+  "titlebarAction": "fill",
+  "minimizeIntoApp": false,
+  "showRecentApps": false,
+  "recentLimit": 3,
+  "desktopItems": true,
+  "stageItems": false,
+  "desktopWidgets": true,
+  "stageWidgets": true,
+  "wallpaperClick": "stage",
+  "stageManager": false,
+  "stageRecent": true,
+  "stageWindows": "all"
+}

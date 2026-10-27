@@ -1,0 +1,4 @@
+
+/* MacShell continuous corners: generated Lamé SVG frames. */
+window.background, window.csd, decoration, headerbar, .titlebar { border-radius:0; }
+popover > contents, popover.background, menu, .menu, .card, frame > border { background-color:transparent; background-image:none; border:1px solid transparent; border-radius:0; box-shadow:none; border-image-source:url("file://@CONFIG_HOME@/macshell/corners/light/panel.svg"); border-image-slice:24 fill; border-image-width:24px; border-image-repeat:stretch; }

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="92" height="64" viewBox="0 0 92 64">
+  <defs>
+    <linearGradient id="sky" x2="1" y2="1"><stop stop-color="#94b3cd"/><stop offset=".48" stop-color="#2784bc"/><stop offset="1" stop-color="#063ea4"/></linearGradient>
+    <linearGradient id="wave" x2=".8" y2="1"><stop stop-color="#8ee0df"/><stop offset=".48" stop-color="#12b5d3"/><stop offset="1" stop-color="#0759d1"/></linearGradient>
+    <clipPath id="edge"><rect width="92" height="64" rx="10"/></clipPath>
+  </defs>
+  <g clip-path="url(#edge)">
+    <rect width="92" height="64" rx="10" fill="url(#sky)"/>
+    <path fill="url(#wave)" d="M92 10C63 20 67 32 37 39S8 46 2 60Q5 64 10 64H82Q92 64 92 54Z"/>
+    <path fill="none" stroke="#bbf4ee" stroke-opacity=".8" stroke-width="1.2" d="M92 11C63 21 67 33 37 40S8 47 3 60"/>
+    <path fill="#073dd7" d="M92 27C71 43 61 45 45 48S18 53 8 63Q9 64 10 64H82Q92 64 92 54Z"/>
+    <path fill="none" stroke="#78c9f5" stroke-opacity=".65" stroke-width="1.4" d="M92 28C71 44 61 46 45 49S18 54 10 64"/>
+  </g>
+</svg>

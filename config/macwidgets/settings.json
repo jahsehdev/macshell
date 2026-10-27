@@ -1,0 +1,48 @@
+{
+  "tempUnit": "F",
+  "locMode": "auto",
+  "cityName": "",
+  "widgetScale": 0.85,
+  "widgets": [
+    {
+      "id": "wmvkxjmog4je",
+      "type": "weather",
+      "style": "system",
+      "size": "small",
+      "mode": "auto",
+      "src": "",
+      "x": 36,
+      "y": 56
+    },
+    {
+      "id": "wmvkxl1zb6a6",
+      "type": "calendar",
+      "style": "system",
+      "size": "medium",
+      "mode": "auto",
+      "src": "",
+      "x": 36,
+      "y": 228
+    },
+    {
+      "id": "wmvkxl61z6mp",
+      "type": "player",
+      "style": "system",
+      "size": "medium",
+      "mode": "auto",
+      "src": "",
+      "x": 36,
+      "y": 400
+    },
+    {
+      "id": "wmvkxlhyc4c",
+      "type": "image",
+      "style": "normal",
+      "size": "small",
+      "mode": "auto",
+      "src": "@DATA_HOME@/macshell/assets/wallpapers/default.svg",
+      "x": 212,
+      "y": 56
+    }
+  ]
+}

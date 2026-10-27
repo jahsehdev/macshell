@@ -1,0 +1,15 @@
+singleton CornerTheme 1.0 CornerTheme.qml
+singleton GlassMaterial 1.0 GlassMaterial.qml
+singleton ThemeColors 1.0 ThemeColors.qml
+ColorDot 1.0 ColorDot.qml
+singleton IconStyle 1.0 IconStyle.qml
+IconStyleEffect 1.0 IconStyleEffect.qml
+singleton LaunchpadGlassState 1.0 LaunchpadGlassState.qml
+LaunchpadBackground 1.0 LaunchpadBackground.qml
+ActivityLoader 1.0 ActivityLoader.qml
+ContinuousRectangle 1.0 ContinuousRectangle.qml
+ContinuousBorder 1.0 ContinuousBorder.qml
+MenuHighlight 1.0 MenuHighlight.qml
+
+singleton DesktopPreferences 1.0 DesktopPreferences.qml
+singleton AppMenu 1.0 AppMenu.qml

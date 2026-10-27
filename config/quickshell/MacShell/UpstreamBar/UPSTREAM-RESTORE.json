@@ -1,0 +1,16 @@
+{
+  "repository": "https://github.com/0-ss/MacShell",
+  "source": "Customized snapshot of the original MacShell topbar",
+  "scope": "Topbar and Control Centre (MacBar.qml and its private dependencies)",
+  "upstream_main_sha256": "4dac819e37d1e3ad7a51aa1185666648cd739d5cb09c948fbf18bb4e7e451537",
+  "integration_changes": [
+    "Separate shader cache filename to avoid reusing modified dock shaders",
+    "Explicit zero default for the existing flatInner shader uniform",
+    "Use the existing desktop WidgetVisual when mirroring widgets into the topbar backdrop"
+  ],
+  "customizations": [
+    "Wi-Fi, Bluetooth, Sound and Notification Center match the File/Edit LGlass and MenuBorder parameters (42 px blur, 14 px corners, matching tint, rim and refraction).",
+    "Restored Spotlight gooey opening, staggered button separation, shared silhouette shader and surface handoff from the pre-reinstall configuration.",
+    "Spotlight uses one inset border with no drop shadow, hover halo or duplicate outlines; the gooey shader uses the same border-only material."
+  ]
+}

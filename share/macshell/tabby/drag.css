@@ -1,0 +1,17 @@
+/* Drag the existing tab-row background; preserve tabs and interactive controls. */
+app-root .tab-bar {
+    -webkit-app-region: drag !important;
+    user-select: none;
+}
+app-root .tab-bar > .btn-space {
+    min-width: 72px !important;
+    -webkit-app-region: drag !important;
+}
+app-root .tab-bar tab-header,
+app-root .tab-bar .btn-group,
+app-root .tab-bar window-controls,
+app-root .tab-bar button,
+app-root .tab-bar input,
+app-root .tab-bar .dropdown-menu {
+    -webkit-app-region: no-drag !important;
+}

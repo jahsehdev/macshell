@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( EUID == 0 )); then
+    printf '%s\n' 'Jalankan sebagai pengguna desktop biasa; hanya pacman yang memakai sudo.' >&2
+    exit 1
+fi
+
+calculator_theme="$HOME/.local/share/macshell/nautilus/themes/MacTahoe-Dark/gtk-4.0/gtk.css"
+calculator_gtk_config="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/gtk.css"
+if [[ ! -r "$calculator_theme" || ! -r "$calculator_gtk_config" ]]; then
+    printf '%s\n' 'Konfigurasi GTK 4 MacTahoe tidak ditemukan; pemasangan dihentikan.' >&2
+    exit 1
+fi
+
+sudo pacman -S --needed gnome-calculator
+
+# Calculator uses the existing GTK 4 MacTahoe configuration and native header.
+# Suppress Hyprbars for this app so it does not acquire a second title bar.
+python3 - <<'PY'
+import datetime
+import os
+from pathlib import Path
+import shutil
+
+config = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "hypr/hyprland.lua"
+if not config.is_file():
+    raise SystemExit("Konfigurasi Hyprland Lua tidak ditemukan.")
+text = config.read_text()
+if 'name  = "gnome-calculator-no-hyprbar"' not in text:
+    marker = "    -- Nautilus draws its own MacTahoe header and window controls.\n"
+    if text.count(marker) != 1:
+        raise SystemExit("Calculator terpasang, tetapi lokasi aturan Hyprbars berubah; konfigurasi tidak diubah.")
+    rule = r'''    -- GNOME Calculator draws its own MacTahoe header and window controls.
+    hl.window_rule({
+        name  = "gnome-calculator-no-hyprbar",
+        match = { class = "^(org\\.gnome\\.Calculator|gnome-calculator)$" },
+        ["hyprbars:no_bar"] = true,
+    })
+
+'''
+    backup = config.with_name(config.name + ".bak-calculator-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
+    shutil.copy2(config, backup)
+    temporary = config.with_name(config.name + ".calculator-tmp")
+    try:
+        temporary.write_text(text.replace(marker, rule + marker, 1))
+        shutil.copymode(config, temporary)
+        temporary.replace(config)
+    finally:
+        temporary.unlink(missing_ok=True)
+    print(f"Cadangan konfigurasi: {backup}")
+PY
+
+hyprctl reload
+gnome-calculator --version
+printf '%s\n' 'Membuka GNOME Calculator dengan konfigurasi GTK 4 MacTahoe yang sudah aktif.'
+exec gnome-calculator

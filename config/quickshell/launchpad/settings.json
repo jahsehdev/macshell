@@ -1,0 +1,23 @@
+{
+  "autoLayout": true,
+  "columns": 8,
+  "rows": 5,
+  "folderCols": 3,
+  "folderRows": 3,
+  "iconSize": 69,
+  "backgroundOpacity": 0.5463252314814815,
+  "showDock": true,
+  "startAtLogin": true,
+  "resetSearch": true,
+  "animationsEnabled": true,
+  "dropDelay": 919,
+  "scrollDebounce": 500,
+  "scrollThreshold": 60,
+  "backgroundType": "desktop",
+  "backgroundBlur": 1,
+  "customImage": "",
+  "folderBackgroundBlur": 1,
+  "folderBackgroundStyle": "liquid",
+  "dissolveSingleItemFolders": true,
+  "closeAfterRemove": true
+}

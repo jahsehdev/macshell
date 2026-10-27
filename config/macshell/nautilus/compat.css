@@ -1,0 +1,222 @@
+/* MacTahoe colors and Nautilus compatibility adjustments. */
+.nautilus-window {
+  --window-bg-color: @window_bg_color;
+  --window-fg-color: @window_fg_color;
+  --view-bg-color: @view_bg_color;
+  --view-fg-color: @view_fg_color;
+  --headerbar-bg-color: @headerbar_bg_color;
+  --headerbar-fg-color: @headerbar_fg_color;
+  --headerbar-border-color: @headerbar_border_color;
+  --headerbar-backdrop-color: @headerbar_backdrop_color;
+  --headerbar-shade-color: @headerbar_shade_color;
+  --sidebar-bg-color: @sidebar_bg_color;
+  --sidebar-fg-color: @sidebar_fg_color;
+  --sidebar-backdrop-color: @sidebar_backdrop_color;
+  --sidebar-border-color: @sidebar_border_color;
+  --sidebar-shade-color: @sidebar_shade_color;
+  --card-bg-color: @card_bg_color;
+  --card-fg-color: @card_fg_color;
+  --card-shade-color: @card_shade_color;
+  --popover-bg-color: @popover_bg_color;
+  --popover-fg-color: @popover_fg_color;
+  --popover-shade-color: @popover_shade_color;
+  --dialog-bg-color: @dialog_bg_color;
+  --dialog-fg-color: @dialog_fg_color;
+  --accent-bg-color: @accent_bg_color;
+  --accent-fg-color: @accent_fg_color;
+  --accent-color: @accent_color;
+  background-color: @window_bg_color;
+  color: @window_fg_color;
+}
+.nautilus-window .sidebar-pane { background-color: @sidebar_bg_color; }
+.nautilus-window .sidebar-pane:backdrop { background-color: @sidebar_backdrop_color; }
+/* A GTK popover has one outer transparent node and one rounded panel. */
+popover.background, popover.menu {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-image: none;
+  box-shadow: none;
+}
+popover > contents {
+  background-color: @popover_bg_color;
+  background-image: none;
+  color: @popover_fg_color;
+  border-image: none;
+  border: 1px solid alpha(@popover_fg_color, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 3px 6px alpha(black, 0.15);
+}
+popover > arrow {
+  background-color: @popover_bg_color;
+  background-image: none;
+  color: @popover_fg_color;
+  border-image: none;
+  border: 1px solid alpha(@popover_fg_color, 0.12);
+}
+/* Keep pathbar containers transparent so the location bar has one capsule. */
+.nautilus-window .nautilus-pathbar,
+.nautilus-window #NautilusPathBar {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-image: none;
+  box-shadow: none;
+  border-radius: 9999px;
+}
+.nautilus-window .nautilus-pathbar > scrolledwindow,
+.nautilus-window #NautilusPathBar > scrolledwindow {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-image: none;
+  border-radius: 9999px;
+  box-shadow: none;
+}
+.nautilus-window .nautilus-pathbar > scrolledwindow > viewport,
+.nautilus-window #NautilusPathBar > scrolledwindow > viewport {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-image: none;
+  box-shadow: none;
+}
+.nautilus-window .nautilus-pathbar > menubutton > button,
+.nautilus-window #NautilusPathBar > menubutton > button {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-image: none;
+  box-shadow: none;
+  border-radius: 9999px;
+}
+.nautilus-window .nautilus-pathbar > menubutton > button:hover,
+.nautilus-window .nautilus-pathbar > menubutton > button:checked,
+.nautilus-window #NautilusPathBar > menubutton > button:hover,
+.nautilus-window #NautilusPathBar > menubutton > button:checked {
+  background-color: alpha(@headerbar_fg_color, 0.10);
+}
+
+/* Give the header controls a consistent 40px outer height. */
+.nautilus-window headerbar .nautilus-pathbar,
+.nautilus-window headerbar #NautilusPathBar {
+  min-height: 40px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.nautilus-window headerbar .nautilus-pathbar > scrolledwindow,
+.nautilus-window headerbar #NautilusPathBar > scrolledwindow {
+  min-height: 40px;
+}
+.nautilus-window headerbar .nautilus-path-button,
+.nautilus-window headerbar #NautilusPathBar #NautilusPathButton {
+  min-height: 40px;
+  margin: 0;
+  padding: 0 10px;
+}
+.nautilus-window headerbar .nautilus-pathbar > menubutton > button,
+.nautilus-window headerbar #NautilusPathBar > menubutton > button,
+.nautilus-window headerbar > windowhandle > box > widget > box > button,
+.nautilus-window headerbar > windowhandle > box > widget > box > menubutton > button,
+.nautilus-window headerbar > windowhandle > box > widget > box > stack > button,
+.nautilus-window headerbar > windowhandle > box > widget > box > box > stack > button,
+.nautilus-window headerbar > windowhandle > box > widget > box > widget > splitbutton > button,
+.nautilus-window headerbar > windowhandle > box > widget > box > widget > splitbutton > menubutton > button {
+  min-height: 40px;
+  min-width: 40px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0;
+}
+/* The history group must not add padding around its 40px buttons. */
+.nautilus-window headerbar > windowhandle > box > widget > box.start > stack > widget > box,
+.nautilus-window headerbar > windowhandle > box > widget > box.start > box > stack > widget > box {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0;
+}
+.nautilus-window headerbar > windowhandle > box > widget > box.start > stack > widget > box > button,
+.nautilus-window headerbar > windowhandle > box > widget > box.start > box > stack > widget > box > button {
+  min-height: 40px;
+  min-width: 32px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0;
+}
+/* Keep typing a location or searching at the same height as the pathbar. */
+.nautilus-window headerbar entry.location-entry,
+.nautilus-window headerbar .nautilus-query-editor,
+.nautilus-window headerbar #NautilusQueryEditor {
+  min-height: 40px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Neutralize menu padding with the same classes used by GTK's menu button. */
+.nautilus-window headerbar .nautilus-pathbar {
+  padding: 0;
+  border-spacing: 6px;
+}
+.nautilus-window headerbar .nautilus-pathbar > menubutton.flat.popup,
+.nautilus-window headerbar .nautilus-pathbar > menubutton.flat.popup > button.toggle {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 9999px;
+}
+/* Match the outer height of history and view groups to the location bar. */
+.nautilus-window headerbar box.start stack > widget > box.horizontal,
+.nautilus-window headerbar splitbutton {
+  min-height: 40px;
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.nautilus-window headerbar box.start stack > widget > box.horizontal > button,
+.nautilus-window headerbar splitbutton > button.image-button,
+.nautilus-window headerbar splitbutton.image-button > button,
+.nautilus-window headerbar splitbutton > menubutton.popup > button.toggle,
+.nautilus-window headerbar splitbutton.image-button > menubutton.popup > button.toggle:not(.image-button) {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+.nautilus-window headerbar splitbutton > separator {
+  min-width: 1px;
+  margin: 8px 0;
+}
+
+/* Keep Dark's existing geometry in both palette variants. */
+.nautilus-window columnview.view > header > button,
+.nautilus-window treeview.view > header > button,
+.nautilus-window pathbar > button {
+  min-height: 26px;
+}
+window.nautilus-window.csd.ssd-frame headerbar {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+window.nautilus-window.csd.ssd-frame.maximized headerbar,
+window.nautilus-window.csd.ssd-frame.fullscreen headerbar {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* Let Hyprland apply 26/20/16px outer corners by window style. Native 24px
+ * cutouts otherwise remain visible on smaller titlebar windows such as Console.
+ * This only affects app frames; popovers, cards and buttons retain their shapes. */
+window.background.csd,
+window.background.csd > contents,
+window.background.csd > widget,
+window.background.csd headerbar,
+window.background.csd .titlebar {
+  border-radius: 0;
+}

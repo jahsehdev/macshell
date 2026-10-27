@@ -1,0 +1,15 @@
+{
+  "fontSize": 13,
+  "lineHeight": 1.15,
+  "opacity": 1,
+  "padding": 4,
+  "radius": 16,
+  "scrollback": 10000.0,
+  "cursorStyle": "block",
+  "palette": "classic",
+  "theme": "dark",
+  "fontFamily": "SF Mono",
+  "shell": "/usr/bin/bash",
+  "cursorBlink": true,
+  "showStatusBar": false
+}

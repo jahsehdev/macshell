@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="240" viewBox="0 0 360 240">
+  <defs>
+    <linearGradient id="metal" x2="0" y2="1"><stop stop-color="#eeeeef"/><stop offset=".4" stop-color="#babdc2"/><stop offset=".65" stop-color="#f0f1f3"/><stop offset="1" stop-color="#7c8189"/></linearGradient>
+    <linearGradient id="screen" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#163b84"/><stop offset=".5" stop-color="#368ed6"/><stop offset="1" stop-color="#8ad9ef"/></linearGradient>
+    <radialGradient id="shadow"><stop stop-opacity=".25"/><stop offset="1" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="180" cy="209" rx="164" ry="13" fill="url(#shadow)"/>
+  <rect x="56" y="30" width="248" height="170" rx="7" fill="#24262a" stroke="#81858b"/>
+  <rect x="61" y="35" width="238" height="154" rx="2" fill="url(#screen)"/>
+  <path d="M61 163c58-60 95 4 150-51 38-38 63-44 88-47v124H61z" fill="#8bd6ec" opacity=".3"/>
+  <circle cx="180" cy="32.5" r="1" fill="#8a9299"/>
+  <path d="M56 195h248l42 10H14z" fill="#d1d3d7"/>
+  <path d="M14 205h332v6q-3 6-17 6H31q-14 0-17-6z" fill="url(#metal)" stroke="#9ca0a7" stroke-width=".7"/>
+  <path d="M157 205h46l-3 4h-40z" fill="#9da2a9"/>
+</svg>

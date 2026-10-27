@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.20)
+project(MacShellControls LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_AUTOMOC ON)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+add_library(macshellcontrols MODULE controls.cpp)
+target_link_libraries(macshellcontrols PRIVATE Qt6::Widgets)
+target_compile_options(macshellcontrols PRIVATE -Wall -Wextra -Werror)
+set_target_properties(macshellcontrols PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins/styles")

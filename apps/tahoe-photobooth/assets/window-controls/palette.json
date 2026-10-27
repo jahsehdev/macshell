@@ -1,0 +1,14 @@
+{
+  "dark": {
+    "close": "#e9524a",
+    "minimize": "#f1ae1b",
+    "maximize": "#59c837",
+    "close-backdrop": "#5d5d5d"
+  },
+  "light": {
+    "close": "#fe6254",
+    "minimize": "#fdc92d",
+    "maximize": "#28d33f",
+    "close-backdrop": "#cecece"
+  }
+}

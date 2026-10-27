@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import sys
+
+state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
+manifest = json.loads((state / 'macshell/installer/manifest.json').read_text())
+source = Path(manifest['source']) / 'scripts/install-sddm.sh'
+theme = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'sddm/themes/macshell'
+if '--prepare' in sys.argv:
+    print('SDDM theme is installed in', theme)
+    raise SystemExit(0)
+os.execvp('sudo', ['sudo', 'bash', str(source), str(theme)])

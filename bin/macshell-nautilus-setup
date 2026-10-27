@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+if (( EUID == 0 )); then
+    echo 'Run this as your desktop user, without sudo; only pacman needs elevation.' >&2
+    exit 1
+fi
+nautilus_root="${XDG_DATA_HOME:-$HOME/.local/share}/macshell/nautilus"
+if ! pacman -Q nautilus gvfs >/dev/null 2>&1; then
+    sudo pacman -S --needed nautilus gvfs
+fi
+# Use the upstream project's prebuilt themes; no GNOME Shell or global upgrades.
+nautilus_stage="$(mktemp -d "${TMPDIR:-/tmp}/macshell-nautilus.XXXXXXXX")"
+trap 'rm -rf -- "$nautilus_stage"' EXIT
+for nautilus_variant in Dark Light; do
+    curl --fail --location --retry 2 --connect-timeout 15 --max-time 180 \
+        "https://raw.githubusercontent.com/vinceliuice/MacTahoe-gtk-theme/main/release/MacTahoe-${nautilus_variant}.tar.xz" \
+        --output "$nautilus_stage/MacTahoe-${nautilus_variant}.tar.xz"
+done
+python3 - "$nautilus_stage" "$nautilus_root" <<'PY'
+from pathlib import Path
+import datetime, shutil, sys, tarfile
+staging, destination = map(Path, sys.argv[1:])
+for variant in ('Dark', 'Light'):
+    with tarfile.open(staging / f'MacTahoe-{variant}.tar.xz') as archive:
+        archive.extractall(staging / 'unpacked', filter='data')
+    css = staging / 'unpacked' / f'MacTahoe-{variant}' / 'gtk-4.0/gtk.css'
+    if not css.is_file():
+        raise SystemExit(f'Unexpected upstream archive layout: {css}')
+# Publish only after both archives are validated. Keep an earlier theme directory.
+themes = destination / 'themes'
+if themes.exists():
+    previous = destination / ('themes-before-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
+    themes.rename(previous)
+(staging / 'unpacked').rename(themes) if staging.stat().st_dev == destination.stat().st_dev else shutil.copytree(staging / 'unpacked', themes)
+PY
+python3 "$nautilus_root/configure.py" activate
+printf '\nNautilus + MacTahoe siap. Buka lewat Super+E atau ikon Files di Dock.\n'

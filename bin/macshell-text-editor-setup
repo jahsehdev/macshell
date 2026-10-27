@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (( EUID == 0 )); then
+    printf '%s\n' 'Jalankan sebagai pengguna desktop biasa; hanya pacman yang memakai sudo.' >&2
+    exit 1
+fi
+
+editor_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+editor_data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+editor_theme="$editor_data_home/macshell/nautilus/themes/MacTahoe-Dark/gtk-4.0/gtk.css"
+editor_gtk_config="$editor_config_home/gtk-4.0/gtk.css"
+editor_theme_import="$editor_config_home/macshell/nautilus/theme-import.css"
+if [[ ! -r "$editor_theme" || ! -r "$editor_gtk_config" || ! -r "$editor_theme_import" ]]; then
+    printf '%s\n' 'Konfigurasi GTK 4 MacTahoe tidak ditemukan; pemasangan dihentikan.' >&2
+    exit 1
+fi
+
+sudo pacman -S --needed gnome-text-editor
+
+# The installed application reads the existing GTK 4 MacTahoe stylesheet,
+# appearance, SF Pro font, icon theme and native window controls directly.
+gnome-text-editor --version
+printf '%s\n' 'Membuka GNOME Text Editor dengan konfigurasi GTK 4 MacTahoe yang sudah aktif.'
+exec gnome-text-editor "$@"

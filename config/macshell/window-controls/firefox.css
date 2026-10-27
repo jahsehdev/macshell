@@ -1,0 +1,200 @@
+/* Original MacTahoe artwork shared with Nautilus and MacShell. */
+:is(#nav-bar, #titlebar) .titlebar-button {
+  background-size: 16px 16px !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-close,
+:is(#nav-bar, #titlebar) #titlebar-close {
+  background-image: url("light/titlebutton-close@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-close:hover,
+:is(#nav-bar, #titlebar) #titlebar-close:hover {
+  background-image: url("light/titlebutton-close-hover@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-close:active,
+:is(#nav-bar, #titlebar) #titlebar-close:active {
+  background-image: url("light/titlebutton-close-active@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-close,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-close {
+  background-image: url("light/titlebutton-close-backdrop@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-close:hover,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-close:hover {
+  background-image: url("light/titlebutton-close-backdrop-hover@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-min,
+:is(#nav-bar, #titlebar) #titlebar-min {
+  background-image: url("light/titlebutton-minimize@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-min:hover,
+:is(#nav-bar, #titlebar) #titlebar-min:hover {
+  background-image: url("light/titlebutton-minimize-hover@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-min:active,
+:is(#nav-bar, #titlebar) #titlebar-min:active {
+  background-image: url("light/titlebutton-minimize-active@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-min,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-min {
+  background-image: url("light/titlebutton-minimize-backdrop@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-min:hover,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-min:hover {
+  background-image: url("light/titlebutton-minimize-backdrop-hover@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-max,
+:is(#nav-bar, #titlebar) #titlebar-max {
+  background-image: url("light/titlebutton-maximize@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-max:hover,
+:is(#nav-bar, #titlebar) #titlebar-max:hover {
+  background-image: url("light/titlebutton-maximize-hover@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-max:active,
+:is(#nav-bar, #titlebar) #titlebar-max:active {
+  background-image: url("light/titlebutton-maximize-active@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-max,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-max {
+  background-image: url("light/titlebutton-maximize-backdrop@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-max:hover,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-max:hover {
+  background-image: url("light/titlebutton-maximize-backdrop-hover@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-restore,
+:is(#nav-bar, #titlebar) #titlebar-restore,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max {
+  background-image: url("light/titlebutton-restore@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-restore:hover,
+:is(#nav-bar, #titlebar) #titlebar-restore:hover,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max:hover,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max:hover {
+  background-image: url("light/titlebutton-restore-hover@2.png") !important;
+}
+:is(#nav-bar, #titlebar) .titlebar-restore:active,
+:is(#nav-bar, #titlebar) #titlebar-restore:active,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max:active,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max:active {
+  background-image: url("light/titlebutton-restore-active@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-restore,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-restore,
+:root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max,
+:root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max {
+  background-image: url("light/titlebutton-restore-backdrop@2.png") !important;
+}
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-restore:hover,
+:root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-restore:hover,
+:root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max:hover,
+:root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max:hover {
+  background-image: url("light/titlebutton-restore-backdrop-hover@2.png") !important;
+}
+@media (prefers-color-scheme: dark) {
+  :is(#nav-bar, #titlebar) .titlebar-close,
+  :is(#nav-bar, #titlebar) #titlebar-close {
+    background-image: url("dark/titlebutton-close-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-close:hover,
+  :is(#nav-bar, #titlebar) #titlebar-close:hover {
+    background-image: url("dark/titlebutton-close-hover-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-close:active,
+  :is(#nav-bar, #titlebar) #titlebar-close:active {
+    background-image: url("dark/titlebutton-close-active-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-close,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-close {
+    background-image: url("dark/titlebutton-close-backdrop-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-close:hover,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-close:hover {
+    background-image: url("dark/titlebutton-close-backdrop-hover-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-min,
+  :is(#nav-bar, #titlebar) #titlebar-min {
+    background-image: url("dark/titlebutton-minimize-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-min:hover,
+  :is(#nav-bar, #titlebar) #titlebar-min:hover {
+    background-image: url("dark/titlebutton-minimize-hover-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-min:active,
+  :is(#nav-bar, #titlebar) #titlebar-min:active {
+    background-image: url("dark/titlebutton-minimize-active-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-min,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-min {
+    background-image: url("dark/titlebutton-minimize-backdrop-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-min:hover,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-min:hover {
+    background-image: url("dark/titlebutton-minimize-backdrop-hover-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-max,
+  :is(#nav-bar, #titlebar) #titlebar-max {
+    background-image: url("dark/titlebutton-maximize-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-max:hover,
+  :is(#nav-bar, #titlebar) #titlebar-max:hover {
+    background-image: url("dark/titlebutton-maximize-hover-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-max:active,
+  :is(#nav-bar, #titlebar) #titlebar-max:active {
+    background-image: url("dark/titlebutton-maximize-active-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-max,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-max {
+    background-image: url("dark/titlebutton-maximize-backdrop-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-max:hover,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-max:hover {
+    background-image: url("dark/titlebutton-maximize-backdrop-hover-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-restore,
+  :is(#nav-bar, #titlebar) #titlebar-restore,
+  :root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max,
+  :root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max {
+    background-image: url("dark/titlebutton-restore-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-restore:hover,
+  :is(#nav-bar, #titlebar) #titlebar-restore:hover,
+  :root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max:hover,
+  :root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max:hover {
+    background-image: url("dark/titlebutton-restore-hover-dark@2.png") !important;
+  }
+  :is(#nav-bar, #titlebar) .titlebar-restore:active,
+  :is(#nav-bar, #titlebar) #titlebar-restore:active,
+  :root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max:active,
+  :root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max:active {
+    background-image: url("dark/titlebutton-restore-active-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-restore,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-restore,
+  :root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max,
+  :root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max {
+    background-image: url("dark/titlebutton-restore-backdrop-dark@2.png") !important;
+  }
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) .titlebar-restore:hover,
+  :root:-moz-window-inactive :is(#nav-bar, #titlebar) #titlebar-restore:hover,
+  :root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) .titlebar-max:hover,
+  :root:-moz-window-inactive:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) :is(#nav-bar, #titlebar) #titlebar-max:hover {
+    background-image: url("dark/titlebutton-restore-backdrop-hover-dark@2.png") !important;
+  }
+}
+
+
+/* Expanded Firefox windows have no native CSD cutouts beneath the compositor. */
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]),
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) body,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) #navigator-toolbox,
+:root:is([sizemode="maximized"], [sizemode="fullscreen"], [inFullscreen]) #nav-bar {
+    border-radius: 0 !important;
+    clip-path: none !important;
+}
