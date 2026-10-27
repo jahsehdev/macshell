@@ -1,14 +1,14 @@
 # MacShell
 
-Satu repo untuk desktop MacShell di **Arch Linux + Hyprland**: menu bar, Dock,
-desktop, widgets, Spotlight, Control Center, Launchpad, MacLock, **Photo Booth**,
-tema GTK/Qt/icon/cursor, dan plugin kontrol jendela native.
+A complete MacShell desktop for **Arch Linux + Hyprland** in one repository:
+menu bar, Dock, desktop, widgets, Spotlight, Control Center, Launchpad, MacLock,
+**Photo Booth**, GTK/Qt themes, icons, cursors, and native window-control plugins.
 
-Installer membangun aplikasi serta plugin dari source yang ada di repo ini.
-Launchpad dan MacLock tetap memakai proses Quickshell masing-masing; seluruh
-komponen dipasang dan dikelola oleh satu installer.
+The installer builds the application and plugins from the source included here.
+Launchpad and MacLock each run in their own Quickshell process. All components
+are installed and managed by a single installer.
 
-## Instalasi melalui Git
+## Installation from Git
 
 ```bash
 git clone https://github.com/jahsehdev/macshell.git
@@ -16,41 +16,42 @@ cd macshell
 ./install.sh
 ```
 
-Jalankan sebagai pengguna biasa. Installer memakai `sudo` untuk paket sistem,
-mencadangkan file konfigurasi yang diganti, lalu memasang seluruh komponen ke
-home pengguna. Keluar dan masuk kembali ke sesi **Hyprland** setelah selesai.
-Konfigurasi Hyprland lengkap disertakan; konfigurasi lama dicadangkan.
+Run the installer as your regular user. It uses `sudo` to install system
+packages, backs up configuration files it replaces, and installs all components
+in your home directory. Log out and back into **Hyprland** when installation
+finishes. A complete Hyprland configuration is included; your previous
+configuration is backed up.
 
 ```bash
-./install.sh --dry-run          # lihat rencana tanpa perubahan
-./install.sh --doctor           # periksa dependensi
-./install.sh --no-deps          # dependensi sudah dipasang manual
-./install.sh --test             # build dan jalankan tes aplikasi
-./install.sh --yes              # package manager noninteraktif
+./install.sh --dry-run          # preview the installation without making changes
+./install.sh --doctor           # check dependencies
+./install.sh --no-deps          # use dependencies you have already installed
+./install.sh --test             # build and run application tests
+./install.sh --yes              # run the package manager noninteractively
 ```
 
-Pengaturan yang sudah ada seperti pin Dock, tema, layout Launchpad, kamera,
-dan preferensi aplikasi dipertahankan. Untuk memakai default paket:
+Existing preferences, including Dock pins, themes, Launchpad layouts, camera
+settings, and application preferences, are preserved. To use the bundled defaults:
 
 ```bash
 ./install.sh --reset-settings
 ```
 
-## Instalasi manual
+## Manual installation
 
-Pasang dependensi sesuai [panduan instalasi](docs/INSTALL.md), kemudian:
+Install the dependencies listed in the [installation guide](docs/INSTALL.md), then run:
 
 ```bash
 ./install.sh --no-deps
 ```
 
-Tanpa `--skip-build`, Photo Booth, empat plugin Hyprland,
-bridge GTK Nautilus, serta style Qt/GTK dibangun otomatis. `--skip-build`
-hanya disediakan untuk staging atau pemeriksaan payload konfigurasi.
+By default, the installer builds Photo Booth, four Hyprland plugins, the
+Nautilus GTK bridge, and the Qt/GTK styles automatically. Use `--skip-build`
+only for staging or inspecting the configuration files.
 
-## Pemakaian
+## Usage
 
-| Aksi | Shortcut/perintah |
+| Action | Shortcut / command |
 | --- | --- |
 | Launchpad | Super+A |
 | Spotlight | Super+Space |
@@ -58,63 +59,65 @@ hanya disediakan untuk staging atau pemeriksaan payload konfigurasi.
 | File manager | Super+E |
 | Lock screen | Super+L |
 | Screenshot | Print / Super+Shift+S |
-| Settings | Menu Apple atau Dock |
+| Settings | Apple menu or Dock |
 | Photo Booth | Launchpad → Photo Booth / `tahoe-photobooth` |
 
-Detail aplikasi: [Photo Booth](apps/tahoe-photobooth/README.md).
+Application details: [Photo Booth](apps/tahoe-photobooth/README.md).
 
-## Update dan pemulihan
+## Updates and recovery
 
 ```bash
 git pull --ff-only
 ./install.sh
-# atau: macshell-update
+# or: macshell-update
 
 ./uninstall.sh
-# atau: macshell-uninstall
+# or: macshell-uninstall
 ```
 
-Manifest dan cadangan berada di
-`~/.local/state/macshell/installer/`. Uninstall mengembalikan file lama;
-file yang sudah diubah pengguna dipertahankan. File media dan layout sesi
-pengguna tidak menjadi bagian dari repo.
+The installation manifest and backups are stored in
+`~/.local/state/macshell/installer/`. Uninstalling restores previous files
+and preserves files you have modified. Personal media and session layouts
+are not included in this repository.
 
-## Login screen SDDM
+## SDDM login screen
 
-Tema SDDM ikut dipasang ke home pengguna. Aktivasi sistem dilakukan terpisah
-karena memerlukan akses root:
+The SDDM theme is installed in your home directory. Activate it separately
+with the following command, which uses `sudo` for system changes:
 
 ```bash
 install-macshell-sddm
 ```
 
-Tidak ada restart display manager otomatis. Tema berlaku saat login berikutnya.
+The theme takes effect at the next login. The display manager is not restarted
+automatically.
 
-## Struktur
+## Repository structure
 
 ```text
-apps/               Photo Booth beserta source dan test
+apps/               Photo Booth source and tests
 config/quickshell/  MacShell, Common, Launchpad, MacLock
-config/hypr/        Konfigurasi Hyprland dan aturan jendela
-bin/                Launcher, integrasi, update dan uninstall
-share/macshell/     Source plugin native dan integrasi aplikasi
-themes/ dan icons/  Tema desktop lengkap
-extras/sddm/        Tema login
-scripts/            Installer, dependensi, SDDM
-tests/              Tes installer
+config/hypr/        Hyprland configuration and window rules
+bin/                Launchers, integrations, update and uninstall helpers
+share/macshell/     Native plugin source and application integrations
+themes/ and icons/  Desktop themes, icons, and cursors
+extras/sddm/        Login theme
+scripts/            Installer, dependencies, and SDDM setup
+tests/              Installer tests
 ```
 
-Dukungan otomatis ditargetkan pada Arch Linux dan turunannya, Hyprland dengan
-konfigurasi Lua (0.55+), Qt 6.9+ dan compiler C++26 untuk plugin Hyprland.
-Plugin harus dibangun ulang sesudah upgrade ABI Hyprland.
+Automatic installation targets Arch Linux and its derivatives, Hyprland with
+Lua configuration support (0.55+), Qt 6.9+, and a C++26 compiler for the Hyprland
+plugins. Rebuild the plugins after a Hyprland ABI upgrade.
 
-San Francisco fonts tidak dibundel; sistem memakai font fallback jika keluarga
-font tersebut belum terpasang. Wallpaper default berupa SVG milik paket dan
-bisa diganti dari Settings. Helper opsional `macshell-install-sf-fonts` juga
-tersedia untuk pengguna yang ingin menyiapkan font tersebut sendiri.
+San Francisco fonts are not bundled. The system uses fallback fonts when
+those families are unavailable. The included default wallpaper is an SVG
+that you can replace in Settings. An optional `macshell-install-sf-fonts`
+helper is available for users who want to install those fonts separately.
 
-Paket ini memuat kustomisasi dari [0-ss/MacShell](https://github.com/0-ss/MacShell),
-tema [MacTahoe GTK](https://github.com/vinceliuice/MacTahoe-gtk-theme), dan
+This distribution includes customizations of
+[0-ss/MacShell](https://github.com/0-ss/MacShell),
+[MacTahoe GTK](https://github.com/vinceliuice/MacTahoe-gtk-theme), and
 [MacTahoe icons](https://github.com/vinceliuice/MacTahoe-icon-theme).
-Lihat [THIRD_PARTY.md](THIRD_PARTY.md) untuk lisensi masing-masing komponen.
-Ini adalah proyek Linux independen, tidak berafiliasi dengan Apple.
+See [THIRD_PARTY.md](THIRD_PARTY.md) for component licenses.
+This is an independent Linux project and is not affiliated with Apple.
