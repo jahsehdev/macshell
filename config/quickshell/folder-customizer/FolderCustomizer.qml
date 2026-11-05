@@ -161,6 +161,7 @@ FocusScope {
         x: 13; y: 166; spacing: 8
         FolderButton {
             id: restoreButton
+            objectName: "restoreFolderButton"
             width: 25; height: 29; hint: "Restore the original folder icon"
             dark: panel.dark; subtle: true
             enabled: panel.ready && !panel.busy && panel.customized
