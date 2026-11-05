@@ -10,17 +10,114 @@ are installed and managed by a single installer.
 
 ## Installation from Git
 
+**Install the dependencies before installing the MacShell configuration.**
+The supported automatic package setup targets Arch Linux and its derivatives.
+Run the commands below as your regular desktop user; only package installation
+uses `sudo`.
+
+### 1. Check requirements and download the repository
+
+- Hyprland with Lua configuration support (0.55+) and matching plugin headers.
+- Qt 6.9+ and a Quickshell build with Wayland, Hyprland, PAM, PipeWire, MPRIS,
+  UPower, system-tray, and notification support.
+- A C/C++ toolchain supporting C++26 (`-std=c++2c`), CMake, Ninja, and pkg-config.
+- A working Wayland session, session D-Bus, and access to `sudo` for packages.
+
 ```bash
+sudo pacman -S --needed git python
 git clone https://github.com/jahsehdev/macshell.git
 cd macshell
-./install.sh
 ```
 
-Run the installer as your regular user. It uses `sudo` to install system
-packages, backs up configuration files it replaces, and installs all components
-in your home directory. Log out and back into **Hyprland** when installation
-finishes. A complete Hyprland configuration is included; your previous
-configuration is backed up.
+### 2. Install dependencies first
+
+Install the package list maintained by [scripts/dependencies.sh](scripts/dependencies.sh).
+This step installs packages and prepares the wallpaper backend; it does not
+copy the MacShell configuration into your home directory.
+
+```bash
+bash scripts/dependencies.sh
+```
+
+The config also uses the following runtime packages. Install them explicitly
+so audio playback/capture, the media visualizer, power controls, MacLock
+authentication, timer sounds, and immediate Trash updates are available:
+
+```bash
+sudo pacman -S --needed \
+  pipewire-audio libpulse upower power-profiles-daemon \
+  hyprlock libcanberra inotify-tools
+```
+
+`hyprlock` supplies `/etc/pam.d/hyprlock`, which MacLock uses through Quickshell's
+PAM module. MacLock itself runs in Quickshell. `inotify-tools` enables immediate
+Trash updates; without it, the Dock falls back to polling.
+
+The package groups used by the installer and config are:
+
+| Component | Arch Linux packages |
+| --- | --- |
+| Download, build, and Python helpers | `git base-devel cmake ninja pkgconf python python-pillow` |
+| Compositor and shell | `hyprland quickshell` |
+| Qt/QML, media, shaders, and Wayland | `qt6-base qt6-declarative qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat` |
+| GTK and native integrations | `gtk3 gtk4 libadwaita json-glib librsvg fontconfig` |
+| File manager and bundled application launchers | `nautilus gvfs gnome-calculator gnome-console gnome-text-editor` |
+| Qt appearance | `qt6ct kvantum` |
+| Network and Bluetooth | `networkmanager bluez bluez-utils` |
+| Audio, microphone, and output visualizer | `pipewire pipewire-pulse pipewire-audio wireplumber libpulse` |
+| Desktop portals and XDG helpers | `xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-user-dirs xdg-utils` |
+| Clipboard history | `wl-clipboard cliphist` |
+| Screenshots and screen recording | `grim slurp swappy wf-recorder ffmpeg` |
+| Brightness and media keys | `brightnessctl playerctl` |
+| Battery reporting and power profiles | `upower power-profiles-daemon` |
+| MacLock authentication | `hyprlock` |
+| Fonts and emoji | `inter-font noto-fonts noto-fonts-emoji` |
+| Notifications, sounds, and filesystem watching | `libnotify libcanberra inotify-tools` |
+| JSON and HTTP helpers | `jq curl` |
+
+The dependency helper installs its declared package list and attempts to install
+`awww` for the wallpaper picker. It checks pacman first, then uses `yay`, `paru`,
+or a user-owned AUR build when needed. The additional runtime command above
+covers config features that are not all included in that package list.
+
+Photo Booth requires Qt GUI and Multimedia private development headers matching
+the installed Qt libraries. The Nautilus folder menu also needs the
+`libnautilus-extension-4` development files, supplied by Arch's Nautilus package.
+On other distributions, install the equivalent development packages separately;
+see the [installation guide](docs/INSTALL.md).
+
+### 3. Verify dependencies, then install the configuration
+
+```bash
+./install.sh --doctor
+./install.sh --no-deps
+```
+
+`--doctor` checks the main executables, development modules, and Pillow; it does
+not check every optional feature or whether system services are running. Fix any
+reported `MISSING` items before running the configuration installer.
+
+The installer builds Photo Booth, the Hyprland plugins, the Nautilus bridges,
+and the Qt/GTK styles before copying the payload. It backs up replaced files
+and installs the components in your home directory. A complete Hyprland
+configuration is included. Log out and back into **Hyprland** after installation.
+
+For a fresh Arch installation using NetworkManager and BlueZ, start their
+services so the network and Bluetooth controls can work:
+
+```bash
+sudo systemctl enable --now NetworkManager bluetooth
+```
+
+Audio controls require a running PipeWire/WirePlumber user session. Battery and
+power controls use UPower and power-profiles-daemon. Keep the service setup
+appropriate for your existing system.
+
+### Installer options
+
+Running `./install.sh` without `--no-deps` runs the dependency helper before
+building and copying files. After completing step 2, use `--no-deps` as shown
+above to proceed directly to configuration installation.
 
 ```bash
 ./install.sh --dry-run          # preview the installation without making changes
@@ -37,17 +134,30 @@ settings, and application preferences, are preserved. To use the bundled default
 ./install.sh --reset-settings
 ```
 
-## Manual installation
+### Optional feature dependencies
 
-Install the dependencies listed in the [installation guide](docs/INSTALL.md), then run:
+Install these only for the corresponding features. They are separate from the
+core package setup above, and local AI/speech models are downloaded or imported
+separately.
 
-```bash
-./install.sh --no-deps
-```
+| Feature | Additional dependency |
+| --- | --- |
+| Local Luma AI inference | A compatible `llama-server` runtime and supported GGUF model; configured through Settings → Luma AI |
+| Local OCR / Visual Intelligence | `tesseract tesseract-data-eng tesseract-data-ind` |
+| Offline speech transcription | whisper.cpp's `whisper-cli`, a compatible local GGML model, and `pw-record` from `pipewire-audio` |
+| Offline read-aloud | `espeak-ng` |
+| Android device connection and mirroring | `android-tools scrcpy`; enable USB debugging and authorize the computer on the device |
+| Extra GNOME applications | `gnome-calendar gnome-clocks gnome-contacts gnome-maps loupe gnome-weather`; provided by `macshell-gnome-apps-setup` |
+| DroidCam camera input | DroidCam, matching kernel headers, DKMS, V4L2 loopback, and Android tools; see [DroidCam setup](share/macshell/droidcam/README.md) |
+| SDDM login theme | `sddm`; activate separately with `install-macshell-sddm` |
+| Tabby terminal integration | Tabby and its separate setup dependencies; see [Tabby integration](share/macshell/tabby/README.md) |
 
-By default, the installer builds Photo Booth, four Hyprland plugins, the
-Nautilus GTK bridge, and the Qt/GTK styles automatically. Use `--skip-build`
-only for staging or inspecting the configuration files.
+The default terminal launcher uses GNOME Console (`kgx`, supplied by
+`gnome-console`). Applications mentioned in window rules or existing Dock pins
+are installed separately when you want to use them.
+
+Use `--skip-build` only for staging or inspecting configuration files. A normal
+installation needs the compiled applications and native plugins.
 
 ## Usage
 
