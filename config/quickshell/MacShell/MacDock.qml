@@ -429,263 +429,49 @@ Scope {
         font.weight: header ? Font.DemiBold : Font.Normal
     }
 
-    // iOS 26 toggle switch: a wide, flat capsule track with a wide pill knob (not a circle).
-    // Every size derives from ONE value, `height` (= track height, default 32):
-    //   track 2.30H wide with radius H/2 (perfect capsule)
-    //   knob 1.26H x 0.80H, radius knobHeight/2, inset 0.10H from the track edge
-    // Pressing stretches the knob into a slight glass lens, growing towards the free space
-    // so it always stays inside the track.
-    // NOTE: the fill property is called `tint`, not `onColor` — QML treats `on<Capital>`
-    // names as signal handlers, which silently turned the track black.
+    // Same capsule, thumb and motion as Launchpad's SettingsPanel.ToggleRow.
+    // Keep the controlled checked/toggled API shared by every Settings page.
     component SSwitch: Item {
         id: sw
         required property var t
         property bool checked: false
         property bool animationsEnabled: true
-        property color tint: t.accent           // follows the Accent colour picked in Appearance
+        property color tint: t.accent
+        property string accessibleLabel: {
+            let item = parent;
+            while (item) {
+                if (typeof item.title === "string" && item.title) return item.title;
+                item = item.parent;
+            }
+            return "Toggle";
+        }
         signal toggled(bool value)
-
-        height: 22
-        width: 2.30 * height
+        width: 58; height: 27
         opacity: enabled ? 1 : 0.4
 
-        // ── ratios (everything scales with `height`) ──
-        readonly property real knobInset: 0.10 * height
-        readonly property real knobW: 1.26 * height
-        readonly property real knobH: 0.80 * height
-        // liquid: pressing stretches the lens, a fast drag stretches it along the travel,
-        // and `jellyOff` adds a damped wobble while the knob settles after a toggle
-        readonly property real wobble: dragStretch + jellyOff
-        readonly property real effKnobW: knobW * (pressed ? 1.14 : 1.0) * (1.0 + wobble)
-        readonly property real effKnobH: knobH * (pressed ? 1.04 : 1.0) * (1.0 - wobble * 0.55)
-        readonly property real travel: width - 2 * knobInset - effKnobW  // knob x range
-        readonly property real knobX: dragging ? dragX
-                                              : (checked ? width - knobInset - effKnobW : knobInset)
-
-        // ── colours ──
-        readonly property color offFill: t.dark ? Qt.rgba(120 / 255, 120 / 255, 128 / 255, 0.32) : "#E9E9EB"
-        readonly property color fill: checked ? tint : offFill
-        readonly property color rimOnDim: Qt.darker(tint, 1.12)
-        readonly property color rimOn: Qt.rgba(rimOnDim.r, rimOnDim.g, rimOnDim.b, 0.9)
-        readonly property color rimOff: t.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.06)
-
-        // ── interaction state ──
-        property bool pressed: false
-        property bool dragging: false
-        property real dragX: 0
-        property real pressX: 0
-        property real grabDx: 0
-        property real vel: 0                    // px per ms, for flick toggles
-        property bool moved: false
-        property real lastX: 0
-        property real lastT: 0
-
-        // ── liquid glass state ──
-        property real glass: 0                  // 0 = flat white pill, 1 = full glass coat
-        property real sweep: -0.35              // position of the travelling specular band
-        property real jellyOff: 0               // damped wobble offset, settles back to 0
-        property real dragStretch: 0             // stretch that follows the pointer speed
-        property bool ready: false               // the initial `checked` binding must not flash
-
-        Behavior on glass { NumberAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 150 : 0); easing.type: Easing.OutQuad } }
-        Behavior on dragStretch { NumberAnimation { duration: root.reduceMotion ? 0 : 140; easing.type: Easing.OutQuad } }
-
-        Component.onCompleted: sw.ready = true
-        // a toggle (click, flick or drag-release) runs the glass coat + the specular sweep
-        onCheckedChanged: if (sw.ready && !sw.dragging) { sw.pulseGlass(560, true); jellyDelay.restart(); }
-
-        function pulseGlass(hold, doSweep) {
-            sw.glass = 1;
-            glassTimer.interval = hold;
-            glassTimer.restart();
-            if (doSweep) sweepAnim.restart();
-        }
-        function startJelly() { jellyAnim.restart(); }
-
-        Timer { id: glassTimer; interval: 560; onTriggered: sw.glass = 0 }
-        Timer { id: jellyDelay; interval: 215; onTriggered: sw.startJelly() }
-
-        // damped "jelly" settle: one overshoot, one rebound, then rest
-        SequentialAnimation {
-            id: jellyAnim
-            NumberAnimation { target: sw; property: "jellyOff"; from: 0;     to: 0.10;  duration: root.reduceMotion ? 0 : 90;  easing.type: Easing.OutQuad }
-            NumberAnimation { target: sw; property: "jellyOff"; from: 0.10;  to: -0.06; duration: root.reduceMotion ? 0 : 120; easing.type: Easing.InOutQuad }
-            NumberAnimation { target: sw; property: "jellyOff"; from: -0.06; to: 0.028; duration: root.reduceMotion ? 0 : 115; easing.type: Easing.InOutQuad }
-            NumberAnimation { target: sw; property: "jellyOff"; from: 0.028; to: 0;     duration: root.reduceMotion ? 0 : 115; easing.type: Easing.InOutQuad }
-        }
-        // light sweeping across the pill, so the glass catches the light while it travels
-        NumberAnimation {
-            id: sweepAnim
-            target: sw; property: "sweep"
-            from: -0.35; to: 1.35
-            duration: root.reduceMotion ? 0 : 560
-            easing.type: Easing.InOutCubic
-        }
-
-        // ── track ──
-        Corners.ContinuousRectangle { cornerSmoothing: 0;
-            id: rail
+        AbstractButton {
+            id: switchButton
+            objectName: "settingsSwitchButton"
             anchors.fill: parent
-            radius: height / 2
-            color: (sw.pressed || ma.containsMouse) ? Qt.lighter(sw.fill, sw.pressed ? 1.04 : 1.02) : sw.fill
-            Behavior on color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 250 : 0); easing.type: Easing.OutCubic } }
-        }
-
-        // thin rim just inside the edge: darker green when on, light edge when off
-        Corners.ContinuousRectangle { cornerSmoothing: 0;
-            anchors.fill: parent
-            radius: rail.radius
-            color: "transparent"
-            border.width: Math.max(1, (sw.checked ? 0.033 : 0.025) * sw.height)
-            border.color: sw.checked ? sw.rimOn : sw.rimOff
-            Behavior on border.color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 250 : 0); easing.type: Easing.OutCubic } }
-        }
-
-        // very faint inset shadow along the top inside edge, for a slightly sunken track
-        Corners.ContinuousRectangle { cornerSmoothing: 0;
-            anchors.fill: parent
-            radius: rail.radius
-            opacity: sw.checked ? 0.5 : 1.0
-            Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 250 : 0) } }
-            gradient: Gradient {
-                GradientStop { position: 0.0;  color: Qt.rgba(0, 0, 0, 0.07) }
-                GradientStop { position: 0.35; color: Qt.rgba(0, 0, 0, 0.0) }
-            }
-        }
-
-        // ── knob ──
-        Item {
-            id: knobHolder
-            x: sw.knobX
-            y: (sw.height - sw.effKnobH) / 2
-            width: sw.effKnobW
-            height: sw.effKnobH
-
-            Behavior on x {
-                enabled: sw.animationsEnabled && !sw.dragging
-                NumberAnimation {
-                    duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 260)
-                    easing.type: sw.pressed ? Easing.OutQuad : Easing.OutBack
-                    easing.overshoot: 1.1
-                }
-            }
-            Behavior on width {
-                enabled: sw.animationsEnabled && !sw.dragging && !jellyAnim.running
-                NumberAnimation {
-                    duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 220)
-                    easing.type: sw.pressed ? Easing.OutQuad : Easing.OutBack
-                    easing.overshoot: 1.2
-                }
-            }
-            Behavior on height {
-                enabled: sw.animationsEnabled && !sw.dragging && !jellyAnim.running
-                NumberAnimation {
-                    duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 220)
-                    easing.type: sw.pressed ? Easing.OutQuad : Easing.OutBack
-                    easing.overshoot: 1.2
-                }
-            }
-            Behavior on y {
-                enabled: sw.animationsEnabled
-                NumberAnimation { duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 220); easing.type: Easing.OutQuad }
-            }
-
-            // frosted white capsule. It goes slightly translucent while the glass coat is
-            // on, so the accent track bleeds through and the pill reads as a lens.
-            Corners.ContinuousRectangle { cornerSmoothing: 0;
-                anchors.fill: parent
+            checkable: true
+            checked: sw.checked
+            focusPolicy: Qt.StrongFocus
+            Accessible.name: sw.accessibleLabel
+            onToggled: sw.toggled(checked)
+            background: Corners.ContinuousRectangle {
+                cornerSmoothing: 0
                 radius: height / 2
-                color: Qt.rgba(1, 1, 1, 1.0 - 0.10 * sw.glass - (sw.pressed ? 0.04 : 0.0))
-                border.width: 1
-                border.color: sw.pressed ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(0, 0, 0, 0.05)
-                Behavior on color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 150 : 0) } }
-                Behavior on border.color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 150 : 0) } }
-            }
-
-            // liquid glass coat: fresnel rim, accent-tinted thickness at the bottom edge
-            // and a specular band that sweeps across while the knob travels.
-            ShaderEffect {
-                anchors.fill: parent
-                visible: sw.glass > 0.002
-                blending: true
-                fragmentShader: Qt.resolvedUrl("knobglass.frag.qsb")
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property real radius: height / 2
-                property vector4d tint: Qt.vector4d(sw.tint.r, sw.tint.g, sw.tint.b, 1.0)
-                property real glass: sw.glass
-                property real sweep: sw.sweep
-                property real press: sw.pressed ? 1.0 : 0.0
-            
-                property real squircle: 0
-            }
-        }
-
-        // ── mouse: click anywhere to toggle, drag the knob 1:1 with snap-to-nearest + flick ──
-        MouseArea {
-            id: ma
-            anchors.fill: parent
-            enabled: sw.enabled
-            hoverEnabled: true
-            preventStealing: true
-            cursorShape: Qt.PointingHandCursor
-            onPressed: mouse => {
-                var kx = sw.knobX;                       // grab offset before the press stretches the knob
-                sw.pressX = mouse.x;
-                sw.moved = false;
-                sw.vel = 0;
-                sw.lastX = mouse.x;
-                sw.lastT = Date.now();
-                sw.grabDx = (mouse.x >= kx && mouse.x <= kx + sw.knobW) ? mouse.x - kx : sw.knobW / 2;
-                sw.dragX = kx;
-                sw.pressed = true;
-            }
-            onPositionChanged: mouse => {
-                if (!sw.pressed) return;
-                if (!sw.moved && Math.abs(mouse.x - sw.pressX) > 4) {
-                    sw.moved = true;
-                    sw.dragging = true;
-                    sw.jellyOff = 0;
-                    jellyAnim.stop();
-                    sw.glass = 1;                 // the glass coat only shows while the knob travels
-                    glassTimer.stop();
-                }
-                if (!sw.dragging) return;
-                sw.dragX = Math.max(sw.knobInset,
-                                    Math.min(sw.knobInset + sw.travel, mouse.x - sw.grabDx));
-                var now = Date.now();
-                var dt = now - sw.lastT;
-                if (dt > 0) {
-                    sw.vel = sw.vel * 0.6 + ((mouse.x - sw.lastX) / dt) * 0.4;
-                    sw.lastX = mouse.x;
-                    sw.lastT = now;
-                    sw.dragStretch = Math.min(0.11, Math.abs(sw.vel) * 0.09);   // stretch with the flick speed
+                color: switchButton.checked ? sw.tint : (sw.t.dark ? "#444448" : "#c3c3ca")
+                Behavior on color { ColorAnimation { duration: sw.animationsEnabled && !root.reduceMotion ? 140 : 0 } }
+                Corners.ContinuousRectangle {
+                    cornerSmoothing: 0
+                    width: switchButton.down ? 37 : 34; height: 23; radius: height / 2
+                    x: switchButton.checked ? parent.width - width - 2 : 2; y: 2
+                    color: switchButton.checked ? "#e0ecff" : "#e2e2e4"
+                    Behavior on x { NumberAnimation { duration: sw.animationsEnabled && !root.reduceMotion ? 160 : 0; easing.type: Easing.OutCubic } }
+                    Behavior on width { NumberAnimation { duration: sw.animationsEnabled && !root.reduceMotion ? 100 : 0 } }
                 }
             }
-            onReleased: mouse => {
-                var target = sw.checked;
-                if (sw.dragging) {
-                    var frac = (sw.dragX - sw.knobInset) / Math.max(1, sw.travel);
-                    if (sw.vel > 0.35) target = true;            // quick flick right
-                    else if (sw.vel < -0.35) target = false;     // quick flick left
-                    else target = frac > 0.5;                    // snap to the nearest side
-                } else if (!sw.moved) {
-                    target = !sw.checked;                        // a drag under 4px counts as a click
-                }
-                var wasDragging = sw.dragging;
-                sw.pressed = false;
-                sw.dragging = false;
-                sw.dragStretch = 0;
-                if (target !== sw.checked) {
-                    // fallback fade in case the parent never applies the new value
-                    glassTimer.interval = 900;
-                    glassTimer.restart();
-                    sw.toggled(target);        // onCheckedChanged then fires the glass, sweep and jelly
-                } else if (wasDragging) {
-                    sw.pulseGlass(220, false); // state unchanged: just let the coat fade out
-                    sw.startJelly();           // ...and settle the stretch with a small wobble
-                }
-            }
-            onCanceled: { sw.pressed = false; sw.dragging = false; sw.dragStretch = 0; }
         }
     }
 
