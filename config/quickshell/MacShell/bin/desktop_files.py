@@ -22,7 +22,7 @@ import time
 from urllib.parse import quote, unquote, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "folder-customizer/bin"))
-from folder_customizer import Folder, custom_icon
+from folder_customizer import Folder, custom_icon, read_state
 
 
 def desktop_directory():
@@ -197,13 +197,21 @@ class DesktopFiles:
                 return {"event": "result", "action": action, "message": ""}
             if target.exists() or target.is_symlink():
                 raise FileExistsError("An item with that name already exists.")
-            # renameat2(RENAME_NOREPLACE) also protects against a concurrent
-            # Dolphin rename/copy between checking and committing the new name.
-            libc = ctypes.CDLL(None, use_errno=True)
-            result = libc.renameat2(-100, os.fsencode(source), -100, os.fsencode(target), 1)
-            if result != 0:
-                code = ctypes.get_errno()
-                raise OSError(code, os.strerror(code))
+            if source.is_dir() and read_state(source):
+                # GIO carries the custom-icon metadata to the new URI. Always
+                # answer "no" if another item races our initial collision check.
+                result = subprocess.run(["gio", "move", "-i", "-T", "--", str(source), str(target)],
+                                        input="n\n", capture_output=True, text=True, timeout=30)
+                if result.returncode or source.exists():
+                    raise OSError(result.stderr.strip() or "Could not rename the folder without overwriting an item.")
+            else:
+                # renameat2(RENAME_NOREPLACE) also protects against a concurrent
+                # file-manager rename/copy between checking and committing.
+                libc = ctypes.CDLL(None, use_errno=True)
+                result = libc.renameat2(-100, os.fsencode(source), -100, os.fsencode(target), 1)
+                if result != 0:
+                    code = ctypes.get_errno()
+                    raise OSError(code, os.strerror(code))
             if source.name in self.positions:
                 self.positions[target.name] = self.positions.pop(source.name)
                 self.save()

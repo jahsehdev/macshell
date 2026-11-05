@@ -200,8 +200,8 @@ class Folder:
                     else:
                         os.removexattr(fd, ATTRIBUTE)
                     raise
-            # The desktop's parent-directory inotify watch observes IN_ATTRIB.
-            os.utime(fd, None)
+            # xattr changes emit IN_ATTRIB for the desktop's directory watch;
+            # preserve the folder's content-modification timestamp.
             return self.status()
         finally:
             os.close(fd)

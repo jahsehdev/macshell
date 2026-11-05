@@ -3,21 +3,21 @@ set -euo pipefail
 mode=${1:-install}
 packages=(git base-devel cmake ninja pkgconf python python-pillow qt6-base qt6-declarative
     qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat gtk3 gtk4 libadwaita
-    json-glib librsvg fontconfig hyprland quickshell nautilus gnome-calculator gnome-console
+    json-glib librsvg fontconfig hyprland quickshell nautilus gvfs gnome-calculator gnome-console
     gnome-text-editor qt6ct kvantum networkmanager bluez bluez-utils pipewire pipewire-pulse
     wireplumber xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-user-dirs xdg-utils
     wl-clipboard cliphist grim slurp swappy wf-recorder ffmpeg brightnessctl playerctl
     inter-font noto-fonts noto-fonts-emoji libnotify jq curl)
 if [[ $mode == --check ]]; then
     missing=0
-    for executable in qs Hyprland cmake ninja pkg-config python3 jq ffmpeg nautilus; do
+    for executable in qs Hyprland cmake ninja pkg-config python3 jq ffmpeg nautilus gio rsvg-convert fc-match; do
         if command -v "$executable" >/dev/null; then
             printf 'OK      %s\n' "$executable"
         else
             printf 'MISSING %s\n' "$executable"; missing=1
         fi
     done
-    for module in hyprland gtk+-3.0 gtk4 libadwaita-1 json-glib-1.0 Qt6Core Qt6Multimedia Qt6ShaderTools; do
+    for module in hyprland gtk+-3.0 gtk4 libadwaita-1 json-glib-1.0 libnautilus-extension-4 Qt6Core Qt6Multimedia Qt6ShaderTools; do
         if pkg-config --exists "$module"; then
             printf 'OK      %s %s\n' "$module" "$(pkg-config --modversion "$module")"
         else

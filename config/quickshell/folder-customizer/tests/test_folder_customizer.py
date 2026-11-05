@@ -38,6 +38,7 @@ class FolderTests(unittest.TestCase):
         self.folder = module.Folder(self.path, self.meta)
 
     def test_apply_creates_real_png_and_metadata(self):
+        modified = self.path.stat().st_mtime_ns
         result = self.folder.apply(dict(color='#FFD43B', symbol='cutlery'))
         self.assertEqual(result['settings']['color'], '#ffd43b')
         icon = Path(module.read_state(self.path)['icon'])
@@ -46,6 +47,7 @@ class FolderTests(unittest.TestCase):
         self.assertEqual(self.meta.value, icon.as_uri())
         self.assertEqual(module.custom_icon(self.path), icon.as_uri())
         self.assertEqual(list(self.path.iterdir()), [])
+        self.assertEqual(self.path.stat().st_mtime_ns, modified)
 
     def test_clear_restores_original_after_multiple_edits(self):
         self.folder.apply(dict(color='#ff453a'))
