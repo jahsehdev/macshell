@@ -59,6 +59,8 @@ Window {
             const menu = findChild(surface, "folderContextMenu");
             verify(menu.entries.some(function(row) { return row.palette === true; }));
             verify(menu.entries.some(function(row) { return row.action === "customize"; }));
+            for (const action of ["open", "folder", "rename", "trash", "customize"])
+                verify(findChild(menu, "desktopMenuIcon-" + action) !== null);
             menu.chosen("folderColor:#ffd43b");
             compare(desktop.requests[0].action, "customize");
             compare(desktop.requests[0].color, "#ffd43b");

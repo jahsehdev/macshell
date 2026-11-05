@@ -40,9 +40,18 @@ Corners.ContinuousRectangle {
                     x: 7; y: 4; width: parent.width - 14; height: 1
                     color: menu.dark ? "#30FFFFFF" : "#25000000"
                 }
+                DesktopMenuIcon {
+                    objectName: "desktopMenuIcon-" + action
+                    x: 8; anchors.verticalCenter: parent.verticalCenter
+                    width: 14; height: 14
+                    action: row.modelData.action || ""
+                    visible: action !== ""
+                    color: hit.containsMouse && row.allowed ? "white" : (menu.dark ? "#b8b8c0" : "#77777c")
+                    opacity: row.allowed ? 1 : 0.4
+                }
                 Text {
-                    x: 9; anchors.verticalCenter: parent.verticalCenter
-                    text: (row.modelData.icon ? row.modelData.icon + "   " : "") + (row.modelData.label || "")
+                    x: 31; anchors.verticalCenter: parent.verticalCenter
+                    text: row.modelData.label || ""
                     font.family: menu.fontFamily
                     font.pixelSize: 13
                     color: hit.containsMouse && row.allowed ? "white" : (menu.dark ? "#F2F2F5" : "#242428")

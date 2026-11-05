@@ -156,12 +156,6 @@ FocusScope {
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideMiddle
     }
-    FolderButton {
-        objectName: "closeCustomizer"
-        x: 11; y: 9; width: 25; height: 25
-        text: "×"; hint: "Close customization"; subtle: true; dark: panel.dark
-        onClicked: panel.dismissed()
-    }
     Row {
         id: palette
         x: 13; y: 166; spacing: 8

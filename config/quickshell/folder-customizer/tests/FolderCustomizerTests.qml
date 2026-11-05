@@ -89,7 +89,9 @@ Window {
             mouseClick(findChild(panel, "clearFolderButton"));
             compare(panel.customized, false);
             compare(panel.symbolValue, "");
-            mouseClick(findChild(panel, "closeCustomizer"));
+            verify(findChild(panel, "closeCustomizer") === null);
+            panel.forceActiveFocus();
+            keyClick(Qt.Key_Escape);
             compare(dismissSpy.count, 1);
         }
         function test_06_light_preview() {

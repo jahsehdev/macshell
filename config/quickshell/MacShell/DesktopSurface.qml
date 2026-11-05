@@ -62,7 +62,7 @@ FocusScope {
         if (selectedFolder()) entries = entries.concat([
             { separator: true },
             { palette: true },
-            { label: "Customize Folder…", action: "customize", icon: "◇" }
+            { label: "Customize Folder…", action: "customize" }
         ]);
         showMenu(entries, x, y);
     }

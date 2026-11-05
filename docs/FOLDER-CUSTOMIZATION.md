@@ -10,6 +10,9 @@ alternative emblems; either can be combined with a folder color.
 **Clear** restores the folder's previous custom icon, or the system folder icon
 when no previous icon was set. Escape dismisses an open picker before closing
 the customization panel. The interface follows MacShell's light/dark palette.
+The popover has no close button; use Escape or click outside it on the desktop.
+Desktop context-menu actions have aligned outline icons, including the tag
+symbol for Customize Folder, a pencil for Rename, and a bin for Move to Trash.
 
 The panel layout follows the supplied macOS Tahoe references: preview and name
 above the color circles, scrollable symbol categories below a separator, and
