@@ -1,5 +1,7 @@
 """Exercise the actual Typography picker and shared Settings dropdown in Qt Quick."""
+import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -12,6 +14,15 @@ def typography_picker():
     source = (SHELL / 'MacDock.qml').read_text()
     start = source.rindex('SPopUp {', 0, source.index('id: typographyFont'))
     end, depth = start + len('SPopUp {'), 1
+    while depth:
+        depth += (source[end] == '{') - (source[end] == '}')
+        end += 1
+    return source[start:end]
+
+
+def root_function(source, name):
+    start = source.index('    function ' + name + '(')
+    end, depth = source.index('{', start) + 1, 1
     while depth:
         depth += (source[end] == '{') - (source[end] == '}')
         end += 1
@@ -34,13 +45,31 @@ ShellRoot {
         color: darkMode ? "#252529" : "#ededf0"
         property bool darkMode: false
         property string fontFamily: "SF Pro Display"
-        property int saves: 0
-        function setLook(key, value) { compareKey = key; fontFamily = value; saves++; }
-        property string compareKey: ""
+        property string fontStyleName: ""
+        LOOK_FUNCTION
+        SAVE_FUNCTION
+        APPLY_FUNCTION
+        SETTINGS_PROPERTIES
+        QtObject {
+            id: settingsStore
+            property string saved: ""
+            function setText(text) { saved = text; }
+        }
+        QtObject {
+            id: bar
+            property string fontFamily: "SF Pro Display"
+            property string fontStyleName: ""
+        }
+        Text {
+            id: sample
+            x: 30; y: 20; text: "Typography preview"; color: pal.text
+            font.family: root.fontFamily; font.styleName: root.fontStyleName; font.pixelSize: 16
+        }
         QtObject {
             id: pal
             property bool dark: root.darkMode
             property string fam: root.fontFamily
+            property string fontStyleName: root.fontStyleName
             property color accent: "#0a84ff"
             property color text: dark ? "#f5f5f7" : "#1d1d1f"
             property color text2: dark ? "#a0a0a5" : "#77777c"
@@ -84,48 +113,55 @@ ShellRoot {
                 findChild(plain, "settingsPopupMenu").close();
                 wait(220);
                 root.fontFamily = "SF Pro Display";
-                root.saves = 0; changes.clear();
+                root.fontStyleName = ""; changes.clear();
             }
-            function test_01_lists_all_installed_sf_families_and_retains_selection() {
+            function optionIndex(family, style) { return typographyFont.model.indexOf(family + " " + style); }
+            function currentLabel() { return root.fontFamily + " " + (root.fontStyleName || "Regular"); }
+            function test_01_lists_all_installed_sf_faces_and_retains_selection() {
                 tryVerify(() => typographyFont.fontFiles.length > 0);
                 const installed = Qt.fontFamilies().filter(f => /^SF(?:\\s|$)/i.test(f)).sort();
                 verify(installed.length >= 4);
                 compare(typographyFont.sfFamilies, installed);
                 for (const family of ["SF Mono", "SF Pro Display", "SF Pro Rounded", "SF Pro Text"])
-                    verify(typographyFont.model.indexOf(family) >= 0, family);
-                compare(typographyFont.model[typographyFont.current], "SF Pro Display");
+                    verify(optionIndex(family, "Regular") >= 0, family);
+                compare(typographyFont.model[typographyFont.current], "SF Pro Display Regular");
+                const pairs = typographyFont.fontOptions.map(option => option.family + " " + option.style).sort();
+                compare(pairs, EXPECTED_FACES);
             }
             function test_02_search_is_case_insensitive_and_enter_saves_original_family() {
-                open(); field.text = "  rOuNdEd  ";
+                open(); field.text = "  rOuNdEd MeDiUm  ";
                 tryCompare(list, "count", 1);
-                compare(typographyFont.filteredIndices[0], typographyFont.model.indexOf("SF Pro Rounded"));
+                compare(typographyFont.filteredIndices[0], optionIndex("SF Pro Rounded", "Medium"));
                 keyClick(Qt.Key_Return);
                 compare(root.fontFamily, "SF Pro Rounded");
-                compare(root.compareKey, "fontFamily");
-                compare(root.saves, 1);
-                compare(changes.signalArguments[0][0], typographyFont.model.indexOf("SF Pro Rounded"));
+                compare(root.fontStyleName, "Medium");
+                compare(bar.fontFamily, "SF Pro Rounded");
+                compare(bar.fontStyleName, "Medium");
+                compare(changes.count, 1);
+                compare(changes.signalArguments[0][0], optionIndex("SF Pro Rounded", "Medium"));
             }
             function test_03_mouse_selection_maps_filtered_index() {
-                open(); field.text = "mono";
+                open(); field.text = "mono bold italic";
                 tryCompare(list, "count", 1); wait(20);
                 mouseClick(list, list.width / 2, 16);
                 compare(root.fontFamily, "SF Mono");
-                compare(root.saves, 1);
+                compare(root.fontStyleName, "Bold Italic");
+                compare(changes.count, 1);
             }
             function test_04_no_results_then_reopen_resets_query_and_escape_dismisses() {
                 open(); field.text = "unavailable font";
                 tryCompare(list, "count", 0);
                 keyClick(Qt.Key_Return);
-                compare(root.saves, 0); compare(popup.visible, true);
+                compare(changes.count, 0); compare(popup.visible, true);
                 keyClick(Qt.Key_Escape);
                 tryCompare(popup, "visible", false);
                 open(); compare(field.text, "");
                 compare(list.count, typographyFont.model.length);
-                compare(typographyFont.model[typographyFont.filteredIndices[list.currentIndex]], root.fontFamily);
+                compare(typographyFont.model[typographyFont.filteredIndices[list.currentIndex]], currentLabel());
             }
             function test_05_arrow_navigation_and_system_fallback() {
                 open(); field.text = "pro";
-                tryCompare(list, "count", 3);
+                tryCompare(list, "count", typographyFont.fontOptions.filter(option => option.family.includes("Pro")).length);
                 keyClick(Qt.Key_Down);
                 compare(list.currentIndex, 1);
                 keyClick(Qt.Key_Up); compare(list.currentIndex, 0);
@@ -133,6 +169,7 @@ ShellRoot {
                 tryCompare(list, "count", 1);
                 keyClick(Qt.Key_Return);
                 compare(root.fontFamily, "sans-serif");
+                compare(root.fontStyleName, "");
                 compare(typographyFont.model[typographyFont.current], "System");
             }
             function test_06_regular_dropdown_keeps_indices_without_search() {
@@ -177,16 +214,49 @@ ShellRoot {
                 compare(typographyFont.qtFamilies.length, 0);
                 compare(typographyFont.sfFamilies, ["SF Mono", "SF Pro Display", "SF Pro Rounded", "SF Pro Text"]);
                 open();
-                compare(list.count, 5);
-                compare(typographyFont.model[typographyFont.current], "SF Pro Display");
+                compare(list.count, typographyFont.fontOptions.length + 1);
+                compare(typographyFont.model[typographyFont.current], "SF Pro Display Regular");
                 const registry = findChild(typographyFont, "sfFontRegistry");
                 compare(registry.count, typographyFont.fontFiles.length);
                 for (let i = 0; i < registry.count; i++)
                     tryCompare(registry.objectAt(i), "status", FontLoader.Ready);
-                field.text = "rounded";
+                field.text = "rounded medium";
                 tryCompare(list, "count", 1);
                 keyClick(Qt.Key_Return);
                 compare(root.fontFamily, "SF Pro Rounded");
+            }
+            function test_10_selected_face_saves_loads_and_resets_to_regular() {
+                const regular = grabImage(sample);
+                open(); field.text = "display bold italic";
+                tryCompare(list, "count", 1);
+                keyClick(Qt.Key_Return);
+                compare(root.fontFamily, "SF Pro Display");
+                compare(root.fontStyleName, "Bold Italic");
+                compare(sample.font.styleName, "Bold Italic");
+                tryCompare(sample.fontInfo, "styleName", "Bold Italic");
+                compare(sample.fontInfo.family, "SF Pro Display");
+                wait(20);
+                const styled = grabImage(sample);
+                let changed = regular.width !== styled.width || regular.height !== styled.height;
+                if (!changed)
+                    for (let y = 0; y < styled.height && !changed; y++)
+                        for (let x = 0; x < styled.width; x++)
+                            if (regular.pixel(x, y) !== styled.pixel(x, y)) { changed = true; break; }
+                verify(changed, "Selecting Bold Italic must change the rendered glyphs");
+                grabImage(root.contentItem).save("ARTIFACT/bold-italic.png");
+                root.saveSettings();
+                const saved = JSON.parse(settingsStore.saved);
+                compare(saved.fontFamily, "SF Pro Display");
+                compare(saved.fontStyleName, "Bold Italic");
+                root.fontFamily = "SF Mono"; root.fontStyleName = "Medium";
+                root.applySettings(saved);
+                compare(root.fontFamily, "SF Pro Display");
+                compare(root.fontStyleName, "Bold Italic");
+                compare(typographyFont.model[typographyFont.current], "SF Pro Display Bold Italic");
+                open(); field.text = "display regular";
+                tryCompare(list, "count", 2);
+                keyClick(Qt.Key_Return);
+                compare(root.fontStyleName, "Regular");
             }
         }
     }
@@ -201,6 +271,14 @@ ShellRoot {
         qml = qml.replace('PICKER', picker)
         source = (SHELL / 'MacDock.qml').read_text()
         qml = qml.replace('CARD', component(source, 'SCard')).replace('ROW', component(source, 'SRow'))
+        save = root_function(source, 'saveSettings')
+        properties = sorted(set(re.findall(r'\b(\w+):', save)) - {'fontFamily', 'fontStyleName', 'darkMode'})
+        qml = qml.replace('SETTINGS_PROPERTIES', '\n'.join('property var ' + key + ': null' for key in properties))
+        qml = qml.replace('LOOK_FUNCTION', root_function(source, 'setLook'))
+        qml = qml.replace('SAVE_FUNCTION', save).replace('APPLY_FUNCTION', root_function(source, 'applySettings'))
+        fontconfig = subprocess.check_output(['fc-list', '--format', '%{family[0]}\t%{style[0]}\n'], text=True)
+        faces = sorted(set(line.replace('\t', ' ') for line in fontconfig.splitlines() if re.match(r'^SF(?:\s|$)', line)))
+        qml = qml.replace('EXPECTED_FACES', json.dumps(faces))
         with tempfile.TemporaryDirectory(prefix='macshell-typography-fonts-') as directory:
             directory = Path(directory)
             for name, target in [('Common', SHELL.parent / 'Common'), ('SPopUp.qml', SHELL / 'SPopUp.qml')]:
@@ -218,7 +296,7 @@ ShellRoot {
                                     capture_output=True, text=True, timeout=25)
             output = result.stdout + result.stderr
             self.assertEqual(result.returncode, 0, output)
-            self.assertIn('TOTALS 10 passed, 0 failed', output, output)
+            self.assertIn('TOTALS 11 passed, 0 failed', output, output)
             for failure in ('FAIL!', 'TypeError', 'ReferenceError', 'WARN qml:', 'ERROR qml:'):
                 self.assertNotIn(failure, output)
 

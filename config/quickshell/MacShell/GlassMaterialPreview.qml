@@ -68,7 +68,7 @@ Column {
                         text: "Welcome to Apple Park"
                         wrapMode: Text.WordWrap
                         color: preview.t.dark ? "#eeeeeb" : "#191918"
-                        font.family: preview.t.fam
+                        font.family: preview.t.fam; font.styleName: preview.t.fontStyleName || ""
                         font.pixelSize: Math.max(17, page.width * 0.049)
                         font.weight: Font.Bold
                     }
@@ -78,7 +78,7 @@ Column {
                         text: "One Apple Park Way, Cupertino, CA 95014, United States"
                         wrapMode: Text.WordWrap
                         color: preview.t.dark ? "#b8b8b4" : "#65645f"
-                        font.family: preview.t.fam
+                        font.family: preview.t.fam; font.styleName: preview.t.fontStyleName || ""
                         font.pixelSize: Math.max(12, page.width * 0.032)
                         lineHeight: 1.25
                     }
@@ -153,7 +153,7 @@ Column {
                 text: "Search"
                 color: preview.ink
                 opacity: 0.8
-                font.family: preview.t.fam
+                font.family: preview.t.fam; font.styleName: preview.t.fontStyleName || ""
                 font.pixelSize: parent.height * 0.37
                 font.weight: Font.Medium
             }
@@ -258,7 +258,7 @@ Column {
         text: "Turn off Reduce transparency to adjust Liquid Glass."
         wrapMode: Text.WordWrap
         color: preview.t.text2
-        font.family: preview.t.fam
+        font.family: preview.t.fam; font.styleName: preview.t.fontStyleName || ""
         font.pixelSize: 11
     }
 

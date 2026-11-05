@@ -21,6 +21,6 @@ Common.ContinuousRectangle {
     activeFocusOnTab: true
     Keys.onReturnPressed: clicked()
     Keys.onSpacePressed: clicked()
-    Text { id: label; anchors.centerIn: parent; text: root.text; color: root.primary ? "white" : root.t.text; font.family: root.t.fam; font.pixelSize: 13 }
+    Text { id: label; anchors.centerIn: parent; text: root.text; color: root.primary ? "white" : root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 13 }
     MouseArea { id: mouse; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.clicked() }
 }

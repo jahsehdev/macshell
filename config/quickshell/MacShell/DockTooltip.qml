@@ -10,6 +10,7 @@ Item {
     id: tip
     property string text: ""
     property string fontFamily: "SF Pro Text"
+    property string fontStyleName: ""
     property real maxWidth: 360
     property real pointerX: width / 2
     property bool pointerUp: false
@@ -228,7 +229,7 @@ Item {
         font.weight: tip.highContrast ? Font.DemiBold : Font.Normal
         style: tip.highContrast ? Text.Raised : Text.Normal
         styleColor: tip.dark ? "#B3000000" : "#AAFFFFFF"
-        font.family: tip.fontFamily
+        font.family: tip.fontFamily; font.styleName: tip.fontStyleName
         horizontalAlignment: Text.AlignHCenter
     }
 }

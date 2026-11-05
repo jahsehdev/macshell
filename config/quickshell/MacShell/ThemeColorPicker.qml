@@ -39,7 +39,7 @@ Row {
                 visible: swatch.selected
                 text: swatch.modelData.name
                 color: picker.t.text2
-                font.family: picker.t.fam
+                font.family: picker.t.fam; font.styleName: picker.t.fontStyleName || ""
                 font.pixelSize: 10
             }
             MouseArea {

@@ -10,6 +10,7 @@ Rectangle {
     property bool dark: false
     property color accent: "#0a84ff"
     property string fontFamily: "SF Pro Text"
+    property string fontStyleName: ""
     property string category: "all"
     property string query: ""
     property string message: "Drag controls to Control Center or the menu bar."
@@ -92,7 +93,7 @@ Rectangle {
             id: search
             objectName: "controlSearch"
             x: 33; width: parent.width - x - (text.length ? 31 : 10); anchors.verticalCenter: parent.verticalCenter
-            font.family: gallery.fontFamily; font.pixelSize: 12
+            font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12
             color: gallery.foreground
             clip: true; selectByMouse: true
             onTextChanged: { gallery.query = text; actions.visible = false; catalogScroll.contentY = 0; }
@@ -155,7 +156,7 @@ Rectangle {
                             x: 43; anchors.verticalCenter: parent.verticalCenter; width: parent.width - x - 6
                             text: categoryItem.modelData.label; wrapMode: Text.WordWrap
                             color: categoryItem.current ? "#ffffff" : gallery.foreground
-                            font.family: gallery.fontFamily; font.pixelSize: 12
+                            font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12
                             font.weight: categoryItem.current ? Font.Medium : Font.Normal
                         }
                     }
@@ -174,14 +175,14 @@ Rectangle {
         x: gallery.contentLeft; y: 25
         width: gallery.width - x - 20
         text: gallery.heading; color: gallery.foreground
-        font.family: gallery.fontFamily; font.pixelSize: gallery.compact ? 22 : 24; font.weight: Font.DemiBold
+        font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: gallery.compact ? 22 : 24; font.weight: Font.DemiBold
         elide: Text.ElideRight
     }
     Text {
         x: gallery.contentLeft; y: 60
         width: gallery.width - x - 20
         text: gallery.query.trim() !== "" ? "Find a control, then choose where it belongs." : "Personalize Control Center and your menu bar."
-        color: gallery.secondary; font.family: gallery.fontFamily; font.pixelSize: 12
+        color: gallery.secondary; font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12
         wrapMode: Text.WordWrap
     }
     Flickable {
@@ -208,7 +209,7 @@ Rectangle {
                     id: demoTitle
                     x: 14; y: 17; width: parent.width * 0.5 - 23
                     text: "What’s New"; color: gallery.foreground
-                    font.family: gallery.fontFamily; font.pixelSize: 14; font.weight: Font.DemiBold
+                    font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 14; font.weight: Font.DemiBold
                 }
                 Text {
                     id: demoDescription
@@ -216,7 +217,7 @@ Rectangle {
                     width: demoTitle.width
                     text: "Control Center is more flexible than ever. Resize and rearrange controls to make it your own. Add your favorites to the menu bar."
                     wrapMode: Text.WordWrap; color: gallery.foreground
-                    font.family: gallery.fontFamily; font.pixelSize: 12; lineHeight: 1.1
+                    font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12; lineHeight: 1.1
                 }
                 ControlsPreview {
                     objectName: "controlsDesktopPreview"
@@ -234,7 +235,7 @@ Rectangle {
                     Text {
                         visible: gallery.category === "all"
                         text: section.modelData.label; color: gallery.secondary
-                        font.family: gallery.fontFamily; font.pixelSize: 12; font.weight: Font.Medium
+                        font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12; font.weight: Font.Medium
                     }
                     Flow {
                         id: controlsFlow
@@ -285,7 +286,7 @@ Rectangle {
                                         visible: card.pill || card.square
                                         x: card.pill ? 52 : 15; y: card.square ? parent.height - height - 16 : (parent.height-height)/2
                                         width: parent.width - x - 14; text: card.modelData.label
-                                        color: "#ffffff"; font.family: gallery.fontFamily; font.pixelSize: 14; font.weight: Font.Medium
+                                        color: "#ffffff"; font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 14; font.weight: Font.Medium
                                         wrapMode: Text.WordWrap
                                     }
                                     Rectangle {
@@ -300,7 +301,7 @@ Rectangle {
                                     visible: !card.pill && !card.square
                                     y: 74; width: parent.width; text: card.modelData.label
                                     horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                                    color: gallery.secondary; font.family: gallery.fontFamily; font.pixelSize: 12
+                                    color: gallery.secondary; font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12
                                 }
                                 MouseArea {
                                     id: cardMouse
@@ -346,7 +347,7 @@ Rectangle {
                 width: parent.width; height: 120; verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                 text: "No controls found.\nTry a different search."
-                color: gallery.secondary; font.family: gallery.fontFamily; font.pixelSize: 14
+                color: gallery.secondary; font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 14
             }
         }
     }
@@ -357,7 +358,7 @@ Rectangle {
         text: gallery.message; color: gallery.secondary
         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
         verticalAlignment: Text.AlignVCenter
-        font.family: gallery.fontFamily; font.pixelSize: 12
+        font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12
     }
     Button {
         id: doneButton
@@ -369,7 +370,7 @@ Rectangle {
         scale: down ? 0.96 : 1
         Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
         background: ControlSurface { dark: gallery.dark; prominent: true; hovered: doneButton.hovered; pressed: doneButton.down; focusVisible: doneButton.visualFocus }
-        contentItem: Text { text: doneButton.text; color: "white"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.family: gallery.fontFamily; font.pixelSize: 14; font.weight: Font.Medium }
+        contentItem: Text { text: doneButton.text; color: "white"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 14; font.weight: Font.Medium }
         Keys.onReturnPressed: clicked()
         Keys.onEnterPressed: clicked()
         onClicked: gallery.finished()
@@ -422,7 +423,7 @@ Rectangle {
                     }
                     contentItem: Item {
                         ControlIcon { x: 10; anchors.verticalCenter: parent.verticalCenter; width: 18; height: 18; kind: actionButton.modelData.icon; color: actionButton.hovered || actionButton.visualFocus ? "white" : gallery.secondary }
-                        Text { x: 38; width: parent.width - x - 8; anchors.verticalCenter: parent.verticalCenter; text: actionButton.modelData.label; elide: Text.ElideRight; color: actionButton.hovered || actionButton.visualFocus ? "white" : gallery.foreground; font.family: gallery.fontFamily; font.pixelSize: 12 }
+                        Text { x: 38; width: parent.width - x - 8; anchors.verticalCenter: parent.verticalCenter; text: actionButton.modelData.label; elide: Text.ElideRight; color: actionButton.hovered || actionButton.visualFocus ? "white" : gallery.foreground; font.family: gallery.fontFamily; font.styleName: gallery.fontStyleName; font.pixelSize: 12 }
                     }
                     onClicked: gallery.applyAction(modelData.action)
                 }

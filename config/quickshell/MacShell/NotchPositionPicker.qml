@@ -57,11 +57,11 @@ Item {
                         }
                         Text {
                             x: 9; y: 3; text: "Finder"
-                            color: "#343E48"; font.family: picker.t.fam; font.pixelSize: 8; font.weight: Font.Medium
+                            color: "#343E48"; font.family: picker.t.fam; font.styleName: picker.t.fontStyleName || ""; font.pixelSize: 8; font.weight: Font.Medium
                         }
                         Text {
                             anchors.right: parent.right; anchors.rightMargin: 9; y: 3; text: "9:41"
-                            color: "#343E48"; font.family: picker.t.fam; font.pixelSize: 8
+                            color: "#343E48"; font.family: picker.t.fam; font.styleName: picker.t.fontStyleName || ""; font.pixelSize: 8
                         }
                         Item {
                             width: 172; height: tile.modelData.mode === "attached" ? 28 : 32
@@ -113,7 +113,7 @@ Item {
                         }
                         Text {
                             text: tile.modelData.label
-                            color: picker.t.text; font.family: picker.t.fam; font.pixelSize: 12
+                            color: picker.t.text; font.family: picker.t.fam; font.styleName: picker.t.fontStyleName || ""; font.pixelSize: 12
                             font.weight: tile.selected ? Font.Medium : Font.Normal
                         }
                     }

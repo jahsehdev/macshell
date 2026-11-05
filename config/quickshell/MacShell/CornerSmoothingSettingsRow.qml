@@ -25,20 +25,20 @@ Item {
             width: parent.width
             text: "Dock Continuous Corner"
             color: row.t.text
-            font.family: row.t.fam; font.pixelSize: 13
+            font.family: row.t.fam; font.styleName: row.t.fontStyleName || ""; font.pixelSize: 13
         }
         Text {
             width: parent.width
             text: "Dock corner smoothing · " + Math.round(row.host.cornerSquircle * 100) + "%"
             color: row.t.text2
-            font.family: row.t.fam; font.pixelSize: 12
+            font.family: row.t.fam; font.styleName: row.t.fontStyleName || ""; font.pixelSize: 12
             wrapMode: Text.WordWrap
         }
         Text {
             width: parent.width
             text: "Other UI uses default continuous corners."
             color: row.t.text2
-            font.family: row.t.fam; font.pixelSize: 11
+            font.family: row.t.fam; font.styleName: row.t.fontStyleName || ""; font.pixelSize: 11
             wrapMode: Text.WordWrap
         }
     }
@@ -65,11 +65,11 @@ Item {
         }
         Text {
             y: 27; text: "Rounded"
-            color: row.t.text2; font.family: row.t.fam; font.pixelSize: 11
+            color: row.t.text2; font.family: row.t.fam; font.styleName: row.t.fontStyleName || ""; font.pixelSize: 11
         }
         Text {
             y: 27; anchors.right: parent.right; text: "Squircle"
-            color: row.t.text2; font.family: row.t.fam; font.pixelSize: 11
+            color: row.t.text2; font.family: row.t.fam; font.styleName: row.t.fontStyleName || ""; font.pixelSize: 11
         }
     }
     Component.onCompleted: console.log("[corner-settings] visible control ready", width, height)

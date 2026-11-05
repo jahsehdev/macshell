@@ -6,6 +6,7 @@ Item {
     required property rect region
     property string statusText: "REC 0:00"
     property string fontFamily: "SF Pro Text"
+    property string fontStyleName: ""
     visible: region.width > 0 && region.height > 0
     clip: true
 
@@ -58,7 +59,7 @@ Item {
             width: parent.width - 31
             text: root.statusText + "  \u00b7  " + Math.round(root.region.width) + " \u00d7 " + Math.round(root.region.height)
             color: "white"
-            font.family: root.fontFamily
+            font.family: root.fontFamily; font.styleName: root.fontStyleName
             font.pixelSize: 11
             font.weight: Font.DemiBold
             elide: Text.ElideRight

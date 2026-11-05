@@ -23,16 +23,16 @@ Column {
             Row {
                 spacing: 10
                 Image { width: 48; height: 48; source: Qt.resolvedUrl("assets/luma-ai.png"); sourceSize: Qt.size(144, 144); fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true }
-                Text { anchors.verticalCenter: parent.verticalCenter; text: "Luma AI"; font.family: root.t.fam; font.pixelSize: 27; font.weight: Font.DemiBold; color: root.t.text }
+                Text { anchors.verticalCenter: parent.verticalCenter; text: "Luma AI"; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 27; font.weight: Font.DemiBold; color: root.t.text }
             }
-            Text { width: parent.width; text: "A little help, right here on your MacShell."; font.family: root.t.fam; font.pixelSize: 14; color: root.t.text2; wrapMode: Text.WordWrap }
-            Text { width: parent.width; text: "Chat, write, summarize and open your apps. Install a model to get started. Conversations stay on this device and work offline after installation."; font.family: root.t.fam; font.pixelSize: 13; color: root.t.text2; wrapMode: Text.WordWrap }
+            Text { width: parent.width; text: "A little help, right here on your MacShell."; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 14; color: root.t.text2; wrapMode: Text.WordWrap }
+            Text { width: parent.width; text: "Chat, write, summarize and open your apps. Install a model to get started. Conversations stay on this device and work offline after installation."; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 13; color: root.t.text2; wrapMode: Text.WordWrap }
             Row {
                 spacing: 8
                 LumaButton { t: root.t; text: root.controller.ready ? "Open Luma AI" : "Preview Luma AI"; primary: true; onClicked: root.controller.open("") }
                 LumaButton { t: root.t; text: "Release memory"; visible: root.controller.loaded; enabled: !root.controller.busy; onClicked: root.controller.send({action: "unload"}) }
             }
-            Text { text: root.controller.loaded ? "Model loaded · released automatically after 90 seconds idle" : "Model not loaded · no inference running"; color: root.t.text2; font.family: root.t.fam; font.pixelSize: 11; width: parent.width; wrapMode: Text.WordWrap }
+            Text { text: root.controller.loaded ? "Model loaded · released automatically after 90 seconds idle" : "Model not loaded · no inference running"; color: root.t.text2; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 11; width: parent.width; wrapMode: Text.WordWrap }
         }
     }
     Common.ContinuousRectangle {
@@ -58,11 +58,11 @@ Column {
         id: voiceConfigure
         stdout: StdioCollector { onStreamFinished: { try { const result = JSON.parse(text); voiceStatus.text = result.error || (result.stt ? "Offline dictation ready." : "Speech model saved. Install whisper-cli and pw-record to enable dictation."); } catch(e) { voiceStatus.text = "Could not configure the speech model."; } } }
     }
-    Text { text: "Local models"; leftPadding: 12; color: root.t.text; font.family: root.t.fam; font.pixelSize: 14; font.weight: Font.DemiBold }
+    Text { text: "Local models"; leftPadding: 12; color: root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 14; font.weight: Font.DemiBold }
     Text {
         width: parent.width; leftPadding: 12; rightPadding: 12
         text: "Official Gemma 3 weights are gated on Hugging Face. Accept the Gemma terms on the model page, download the GGUF file, then choose Import GGUF if the in-app download is blocked."
-        color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.pixelSize: 11
+        color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 11
     }
     Repeater {
         model: root.controller.catalog
@@ -73,9 +73,9 @@ Column {
             color: root.t.card
             Column {
                 id: details; x: 16; y: 16; width: parent.width - 32; spacing: 9
-                Text { text: card.modelData.name + (card.modelData.id === "gemma-3-1b" ? " · Recommended" : "") + (card.modelData.installed && card.modelData.id === root.controller.selectedModel ? "  ✓ Active" : "") + (card.modelData.installed && !card.modelData.verified ? "  · Unverified" : ""); color: root.t.text; font.family: root.t.fam; font.pixelSize: 15; font.weight: Font.DemiBold }
-                Text { width: parent.width; text: card.modelData.family + " " + card.modelData.params + " · " + card.modelData.size + " download · " + card.modelData.ram + "+ RAM suggested"; wrapMode: Text.WordWrap; color: root.t.text2; font.family: root.t.fam; font.pixelSize: 12 }
-                Text { width: parent.width; text: card.modelData.id === "gemma-3-1b" ? "Fastest option for everyday chat and short writing tasks." : "More capable responses, with higher memory use."; wrapMode: Text.WordWrap; color: root.t.text2; font.family: root.t.fam; font.pixelSize: 12 }
+                Text { text: card.modelData.name + (card.modelData.id === "gemma-3-1b" ? " · Recommended" : "") + (card.modelData.installed && card.modelData.id === root.controller.selectedModel ? "  ✓ Active" : "") + (card.modelData.installed && !card.modelData.verified ? "  · Unverified" : ""); color: root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 15; font.weight: Font.DemiBold }
+                Text { width: parent.width; text: card.modelData.family + " " + card.modelData.params + " · " + card.modelData.size + " download · " + card.modelData.ram + "+ RAM suggested"; wrapMode: Text.WordWrap; color: root.t.text2; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 12 }
+                Text { width: parent.width; text: card.modelData.id === "gemma-3-1b" ? "Fastest option for everyday chat and short writing tasks." : "More capable responses, with higher memory use."; wrapMode: Text.WordWrap; color: root.t.text2; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 12 }
                 Row {
                     spacing: 8
                     LumaButton {
@@ -109,22 +109,22 @@ Column {
         visible: root.controller.busy === "install" || root.controller.busy === "import"
         Column {
             id: progressCol; x: 14; y: 14; width: parent.width - 28; spacing: 10
-            Text { text: root.controller.stage; width: parent.width; wrapMode: Text.WordWrap; color: root.t.text; font.family: root.t.fam; font.pixelSize: 13 }
+            Text { text: root.controller.stage; width: parent.width; wrapMode: Text.WordWrap; color: root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 13 }
             Rectangle { width: parent.width; height: 5; radius: 2.5; color: root.t.track
                 Rectangle { width: parent.width * root.controller.progress; height: 5; radius: 2.5; color: root.t.accent }
             }
             Row { spacing: 12
                 LumaButton { t: root.t; text: "Cancel"; onClicked: root.controller.send({action: "stop"}) }
-                Text { text: Math.round(root.controller.progress * 100) + "%"; color: root.t.text2; font.family: root.t.fam; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                Text { text: Math.round(root.controller.progress * 100) + "%"; color: root.t.text2; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
             }
         }
     }
-    Text { text: root.controller.error; visible: text !== ""; width: parent.width; wrapMode: Text.Wrap; color: root.t.danger; font.family: root.t.fam; font.pixelSize: 13 }
-    Text { text: "Personal context"; leftPadding: 12; color: root.t.text; font.family: root.t.fam; font.pixelSize: 14; font.weight: Font.DemiBold }
+    Text { text: root.controller.error; visible: text !== ""; width: parent.width; wrapMode: Text.Wrap; color: root.t.danger; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 13 }
+    Text { text: "Personal context"; leftPadding: 12; color: root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 14; font.weight: Font.DemiBold }
     Text {
         width: parent.width; leftPadding: 12; rightPadding: 12
         text: "Let Luma find your notes, calendar events and files in folders you choose. Everything is indexed and searched on this device; nothing leaves it. Sources are off by default."
-        color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.pixelSize: 11
+        color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 11
     }
     Common.ContinuousRectangle {
         width: parent.width; height: ctxCard.implicitHeight + 32; radius: 16; cornerSmoothing: 0
@@ -141,7 +141,7 @@ Column {
                         width: parent.width - 150
                         text: modelData.label + "  ·  " + modelData.status
                               + (modelData.items > 0 ? "  ·  " + modelData.items + (modelData.kind === "files" ? " files" : " items") : "")
-                        color: root.t.text; font.family: root.t.fam; font.pixelSize: 13
+                        color: root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 13
                     }
                     // simplified iOS-style switch (the dock's SSwitch is not importable from here)
                     Item {
@@ -176,7 +176,7 @@ Column {
             Text {
                 width: parent.width
                 text: "Folders to index (files source, comma separated)"
-                color: root.t.text2; font.family: root.t.fam; font.pixelSize: 11
+                color: root.t.text2; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 11
                 visible: (ctx.sources.find(s => s.kind === "files") || {}).enabled
             }
             Row {
@@ -188,7 +188,7 @@ Column {
                     TextInput {
                         id: foldersInput
                         anchors.fill: parent; anchors.margins: 8; verticalAlignment: TextInput.AlignVCenter
-                        color: root.t.text; font.family: root.t.fam; font.pixelSize: 12
+                        color: root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 12
                         selectByMouse: true
                         text: {
                             var f = ctx.sources.find(s => s.kind === "files");
@@ -204,24 +204,24 @@ Column {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: ctx.lastResult !== "" ? "Last index: " + ctx.lastResult : ""
-                    color: root.t.text2; font.family: root.t.fam; font.pixelSize: 11; width: parent.width - 140; wrapMode: Text.WordWrap
+                    color: root.t.text2; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 11; width: parent.width - 140; wrapMode: Text.WordWrap
                 }
             }
             Text {
                 width: parent.width
                 text: ctx.error !== "" ? ctx.error : "Mail joins when MacShell Mail arrives (planned stage GG-16)."
                 color: ctx.error !== "" ? root.t.danger : root.t.text2
-                font.family: root.t.fam; font.pixelSize: 11; wrapMode: Text.WordWrap
+                font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 11; wrapMode: Text.WordWrap
             }
         }
     }
-    Text { text: "Your device, your conversations"; leftPadding: 12; color: root.t.text; font.family: root.t.fam; font.pixelSize: 14; font.weight: Font.DemiBold }
+    Text { text: "Your device, your conversations"; leftPadding: 12; color: root.t.text; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 14; font.weight: Font.DemiBold }
     Common.ContinuousRectangle {
         width: root.width; height: privacy.implicitHeight + 32; radius: 16; color: root.t.card
         Column {
             id: privacy; x: 16; y: 16; width: parent.width - 32; spacing: 10
-            Text { width: parent.width; text: "No cloud account or API key. Internet is used only to install models and their runtime. Luma does not read your screen or clipboard. Personal context — notes, calendar events and folders you explicitly add above — is off by default: you turn each source on yourself, and indexing and search stay on this device."; color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.pixelSize: 12 }
-            Text { width: parent.width; text: "The first installation also downloads a CPU runtime. Downloads and imports are checked against pinned Gemma SHA-256 values and recorded in a local provenance manifest. Cancelled downloads can resume when you retry. Larger models need more RAM than their download size."; color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.pixelSize: 12 }
+            Text { width: parent.width; text: "No cloud account or API key. Internet is used only to install models and their runtime. Luma does not read your screen or clipboard. Personal context — notes, calendar events and folders you explicitly add above — is off by default: you turn each source on yourself, and indexing and search stay on this device."; color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 12 }
+            Text { width: parent.width; text: "The first installation also downloads a CPU runtime. Downloads and imports are checked against pinned Gemma SHA-256 values and recorded in a local provenance manifest. Cancelled downloads can resume when you retry. Larger models need more RAM than their download size."; color: root.t.text2; wrapMode: Text.WordWrap; font.family: root.t.fam; font.styleName: root.t.fontStyleName || ""; font.pixelSize: 12 }
             LumaButton { t: root.t; text: root.clearPending ? "Confirm delete history" : "Delete all conversations"; enabled: !root.controller.busy; onClicked: { if (root.clearPending) { root.controller.send({action: "clear_history"}); root.clearPending = false; } else root.clearPending = true; } }
             LumaButton { t: root.t; text: "Keep conversations"; visible: root.clearPending; onClicked: root.clearPending = false }
         }

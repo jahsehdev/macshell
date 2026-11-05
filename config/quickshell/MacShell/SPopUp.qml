@@ -15,6 +15,7 @@ Item {
     property string accessibleLabel: ""
     property bool searchable: false
     property string searchPlaceholder: "Search"
+    property real minimumMenuWidth: 180
     signal opening()
     readonly property var filteredIndices: {
         const query = searchable ? searchField.text.trim().toLocaleLowerCase() : "";
@@ -45,7 +46,7 @@ Item {
         anchors.right: chev.left; anchors.rightMargin: 7; anchors.verticalCenter: parent.verticalCenter
         width: parent.width - 30; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
         text: pu.model[pu.current] !== undefined ? pu.model[pu.current] : ""
-        color: pu.t.text; font.family: pu.t.fam; font.pixelSize: 13
+        color: pu.t.text; font.family: pu.t.fam; font.styleName: pu.t.fontStyleName || ""; font.pixelSize: 13
     }
     Corners.ColorDot {
         visible: pu.colorSwatches.length > 0
@@ -87,7 +88,7 @@ Item {
         readonly property real rowH: pu.searchable ? 32 : 26
         readonly property real searchH: pu.searchable ? 44 : 0
         readonly property real resultsH: Math.max(pu.filteredIndices.length, pu.searchable ? 1 : 0) * rowH
-        width: Math.max(pu.width, pu.searchable ? 248 : 180)
+        width: Math.max(pu.width, pu.minimumMenuWidth, pu.searchable ? 248 : 180)
         x: pu.width - width
         // macOS: the current item sits right on the button; if that would leave the window, the menu shifts to fit,
         // and a menu taller than the window scrolls (no separate popup window: those fought Hyprland's pointer grabs)
@@ -140,7 +141,7 @@ Item {
                 Accessible.name: pu.searchPlaceholder
                 color: pu.t.text; placeholderTextColor: pu.t.text2
                 selectionColor: pu.t.accent
-                font.family: pu.t.fam; font.pixelSize: 13
+                font.family: pu.t.fam; font.styleName: pu.t.fontStyleName || ""; font.pixelSize: 13
                 selectByMouse: true
                 onTextChanged: results.currentIndex = pu.filteredIndices.length ? 0 : -1
                 Keys.onDownPressed: pu.moveSelection(1)
@@ -199,7 +200,7 @@ Item {
                         x: pu.colorSwatches.length > 0 ? 49 : 26; anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - x - 8; elide: Text.ElideRight
                         text: pu.model[row.modelData]
-                        color: row.highlighted ? "white" : pu.t.text; font.family: pu.t.fam; font.pixelSize: 13
+                        color: row.highlighted ? "white" : pu.t.text; font.family: pu.t.fam; font.styleName: pu.t.fontStyleName || ""; font.pixelSize: 13
                     }
                     Corners.ColorDot {
                         visible: pu.colorSwatches.length > 0
@@ -219,7 +220,7 @@ Item {
                 y: menu.searchH; width: parent.width; height: menu.rowH
                 text: "No results"
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                color: pu.t.text2; font.family: pu.t.fam; font.pixelSize: 13
+                color: pu.t.text2; font.family: pu.t.fam; font.styleName: pu.t.fontStyleName || ""; font.pixelSize: 13
             }
         }
     }

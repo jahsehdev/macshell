@@ -297,6 +297,7 @@ Scope {
     }
     property bool showTrash: true
     property string fontFamily: "SF Pro Text"  // installed by macshell-install-sf-fonts
+    property string fontStyleName: ""
     onFontFamilyChanged: if (fontFamily.indexOf("Inter") === 0) fontFamily = "SF Pro Text"
     property bool magnificationEnabled: true
     property bool showLabels: true       // hover tooltips
@@ -392,7 +393,7 @@ Scope {
                 text: r.title
                 elide: Text.ElideRight
                 color: r.t.text
-                font.family: r.t.fam
+                font.family: r.t.fam; font.styleName: r.t.fontStyleName || ""
                 font.pixelSize: 14
             }
             Text {
@@ -401,7 +402,7 @@ Scope {
                 text: r.subtitle
                 wrapMode: Text.WordWrap
                 color: r.t.text2
-                font.family: r.t.fam
+                font.family: r.t.fam; font.styleName: r.t.fontStyleName || ""
                 font.pixelSize: 12
             }
         }
@@ -425,7 +426,7 @@ Scope {
         bottomPadding: header ? 2 : 0
         wrapMode: Text.WordWrap
         color: header ? t.text : t.text2
-        font.family: t.fam
+        font.family: t.fam; font.styleName: t.fontStyleName || ""
         font.pixelSize: header ? 14 : 12
         font.weight: header ? Font.DemiBold : Font.Normal
     }
@@ -502,12 +503,12 @@ Scope {
         Text {
             visible: s.leftLabel !== ""
             y: 33; text: s.leftLabel
-            color: s.t.text2; font.family: s.t.fam; font.pixelSize: 11
+            color: s.t.text2; font.family: s.t.fam; font.styleName: s.t.fontStyleName || ""; font.pixelSize: 11
         }
         Text {
             visible: s.rightLabel !== ""
             y: 33; x: s.width - implicitWidth; text: s.rightLabel
-            color: s.t.text2; font.family: s.t.fam; font.pixelSize: 11
+            color: s.t.text2; font.family: s.t.fam; font.styleName: s.t.fontStyleName || ""; font.pixelSize: 11
         }
     }
 
@@ -547,7 +548,7 @@ Scope {
                         anchors.centerIn: parent
                         text: parent.modelData
                         color: g.t.text
-                        font.family: g.t.fam
+                        font.family: g.t.fam; font.styleName: g.t.fontStyleName || ""
                         font.pixelSize: 12
                         font.weight: parent.index === g.current ? Font.Medium : Font.Normal
                     }
@@ -575,7 +576,7 @@ Scope {
             anchors.centerIn: parent
             text: b.text
             color: b.destructive ? b.t.danger : b.t.text
-            font.family: b.t.fam
+            font.family: b.t.fam; font.styleName: b.t.fontStyleName || ""
             font.pixelSize: 13
         }
         MouseArea { id: ma; anchors.fill: parent; onClicked: b.clicked() }
@@ -649,7 +650,7 @@ Scope {
             anchors.horizontalCenter: parent.horizontalCenter
             text: tile.label
             color: tile.selected ? tile.t.text : tile.t.text2
-            font.family: tile.t.fam
+            font.family: tile.t.fam; font.styleName: tile.t.fontStyleName || ""
             font.pixelSize: 12
             font.weight: tile.selected ? Font.DemiBold : Font.Normal
         }
@@ -885,6 +886,7 @@ Scope {
             id: pal
             readonly property bool dark: root.darkMode
             readonly property string fam: root.fontFamily
+            readonly property string fontStyleName: root.fontStyleName
             readonly property color accent: root.accent
             readonly property real materialOpacity: Math.max(0, Math.min(1, root.effGlassOpacity))
             readonly property color content: dark ? Qt.rgba(0.09, 0.10, 0.11, 0.50 + materialOpacity * 0.35)
@@ -1038,7 +1040,7 @@ Scope {
                         selectByMouse: true
                         color: pal.text
 
-                        font.family: pal.fam
+                        font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                         font.pixelSize: 13
                         onTextChanged: prefsWindow.query = text
                     }
@@ -1048,7 +1050,7 @@ Scope {
                         visible: searchInput.text === ""
                         text: "Search"
                         color: pal.text3
-                        font.family: pal.fam
+                        font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                         font.pixelSize: 13
                     }
                     Corners.ContinuousRectangle { cornerSmoothing: 0;   // clear button
@@ -1092,8 +1094,8 @@ Scope {
                     Column {
                         x: 60; anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - x - 10
-                        Text { width: parent.width; elide: Text.ElideRight; text: root.userName; color: prefsWindow.cur === acct.idx && prefsWindow.active ? "white" : pal.text; font.family: pal.fam; font.pixelSize: 14; font.weight: Font.DemiBold }
-                        Text { text: "Local Account"; color: prefsWindow.cur === acct.idx && prefsWindow.active ? Qt.rgba(1, 1, 1, 0.8) : pal.text2; font.family: pal.fam; font.pixelSize: 11 }
+                        Text { width: parent.width; elide: Text.ElideRight; text: root.userName; color: prefsWindow.cur === acct.idx && prefsWindow.active ? "white" : pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Text { text: "Local Account"; color: prefsWindow.cur === acct.idx && prefsWindow.active ? Qt.rgba(1, 1, 1, 0.8) : pal.text2; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 11 }
                     }
                     MouseArea { id: acctMa; anchors.fill: parent; hoverEnabled: true; onClicked: prefsWindow.go(acct.idx) }
                 }
@@ -1169,7 +1171,7 @@ Scope {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: navRow.p.name
                                 color: navRow.sel ? "white" : pal.text
-                                font.family: pal.fam
+                                font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                 font.pixelSize: 14
                             }
                             MouseArea {
@@ -1189,7 +1191,7 @@ Scope {
                         horizontalAlignment: Text.AlignHCenter
                         text: "No Results"
                         color: pal.text2
-                        font.family: pal.fam
+                        font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                         font.pixelSize: 12
                     }
                 }
@@ -1273,7 +1275,7 @@ Scope {
                     anchors.verticalCenter: parent.verticalCenter
                     text: prefsWindow.panes[prefsWindow.cur].name
                     color: pal.text
-                    font.family: pal.fam
+                    font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                 }
@@ -1453,7 +1455,7 @@ Scope {
                                 selectByMouse: true
                                 color: pal.text
 
-                                font.family: pal.fam
+                                font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                 font.pixelSize: 12
                                 text: root.hub && root.hub.widgets ? root.hub.widgets.cityName : ""
                                 onEditingFinished: { if (root.hub && root.hub.widgets) root.hub.widgets.cityName = text; }
@@ -1761,7 +1763,7 @@ Scope {
                                     selectByMouse: true
                                     color: pal.text
 
-                                    font.family: pal.fam
+                                    font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                     font.pixelSize: 12
                                     text: root.bar ? root.bar.barCustomLogoPath : ""
                                     onTextEdited: { if (root.bar) root.bar.barCustomLogoPath = text; }
@@ -1779,7 +1781,7 @@ Scope {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "~/Pictures/logo.png"
                                     color: pal.text3
-                                    font.family: pal.fam
+                                    font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                     font.pixelSize: 12
                                 }
                             }
@@ -1991,7 +1993,7 @@ Scope {
                                     selectByMouse: true
                                     color: pal.text
 
-                                    font.family: pal.fam
+                                    font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                     font.pixelSize: 12
                                     text: root.bar ? root.bar.screenshotDir : ""
                                     onTextEdited: { if (root.bar) root.bar.screenshotDir = text; }
@@ -2002,7 +2004,7 @@ Scope {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "~/Pictures/Screenshots"
                                     color: pal.text3
-                                    font.family: pal.fam
+                                    font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                     font.pixelSize: 12
                                 }
                             }
@@ -2309,7 +2311,7 @@ Scope {
                             selectByMouse: true
                             persistentSelection: true
                             color: pal.text
-                            font.family: pal.fam
+                            font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                             font.pixelSize: 12
                             Component.onCompleted: selectAll()
                         }
@@ -2466,7 +2468,7 @@ Scope {
                                 anchors.centerIn: parent
                                 text: root.reduceTransparency ? "Reduced transparency" : "Liquid Glass"
                                 color: pal.dark ? "white" : "#1d1d1f"
-                                font.family: pal.fam
+                                font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                 font.pixelSize: 12
                                 font.weight: Font.DemiBold
                             }
@@ -2533,7 +2535,7 @@ Scope {
                                     anchors.centerIn: parent
                                     text: "Light"
                                     color: Corners.DesktopPreferences.increaseContrast ? "#000000" : "#3A3A3C"
-                                    font.family: pal.fam; font.pixelSize: 12; font.weight: Font.Medium
+                                    font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 12; font.weight: Font.Medium
                                 }
                             }
                             Rectangle {
@@ -2545,7 +2547,7 @@ Scope {
                                     anchors.centerIn: parent
                                     text: "Dark"
                                     color: Corners.DesktopPreferences.increaseContrast ? "#FFFFFF" : "#D8D8DC"
-                                    font.family: pal.fam; font.pixelSize: 12; font.weight: Font.Medium
+                                    font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 12; font.weight: Font.Medium
                                 }
                             }
                         }
@@ -2574,16 +2576,45 @@ Scope {
                                     if (families.indexOf(entry.family) < 0) families.push(entry.family);
                                 return families.sort();
                             }
-                            model: sfFamilies.concat(["System"])
+                            readonly property var fontOptions: {
+                                const options = [];
+                                const seen = new Set();
+                                for (const entry of fontFiles) {
+                                    const key = entry.family + "\t" + entry.style;
+                                    if (!seen.has(key)) {
+                                        seen.add(key);
+                                        options.push({ family: entry.family, style: entry.style });
+                                    }
+                                }
+                                for (const family of qtFamilies)
+                                    if (!options.some(option => option.family === family)) options.push({ family: family, style: "Regular" });
+                                const weights = ["ultralight", "thin", "light", "regular", "medium", "semibold", "bold", "heavy", "black"];
+                                function rank(style) {
+                                    const weight = weights.indexOf(style.toLowerCase().replace(/\s+italic$/, ""));
+                                    return (weight < 0 ? weights.length : weight) * 2 + (/italic/i.test(style) ? 1 : 0);
+                                }
+                                return options.sort((a, b) => a.family.localeCompare(b.family) || rank(a.style) - rank(b.style) || a.style.localeCompare(b.style));
+                            }
+                            model: fontOptions.map(option => option.family + " " + option.style).concat(["System"])
                             searchable: true
                             searchPlaceholder: "Search fonts"
-                            width: 190
-                            current: sfFamilies.indexOf(root.fontFamily) >= 0 ? sfFamilies.indexOf(root.fontFamily) : sfFamilies.length
-                            onPicked: i => root.setLook("fontFamily", i < typographyFont.sfFamilies.length ? typographyFont.sfFamilies[i] : "sans-serif")
+                            minimumMenuWidth: 320
+                            width: 250
+                            current: {
+                                const exact = fontOptions.findIndex(option => option.family === root.fontFamily && option.style === (root.fontStyleName || "Regular"));
+                                if (exact >= 0) return exact;
+                                const regular = fontOptions.findIndex(option => option.family === root.fontFamily && option.style === "Regular");
+                                return regular >= 0 ? regular : fontOptions.length;
+                            }
+                            onPicked: i => {
+                                const option = typographyFont.fontOptions[i];
+                                root.setLook("fontFamily", option ? option.family : "sans-serif");
+                                root.setLook("fontStyleName", option ? option.style : "");
+                            }
                             onOpening: sfFontScan.running = true
                             Process {
                                 id: sfFontScan
-                                command: ["fc-list", "--format", "%{family[0]}\t%{file}\n"]
+                                command: ["fc-list", "--format", "%{family[0]}\t%{style[0]}\t%{file}\n"]
                                 running: true
                                 stdout: StdioCollector {
                                     onStreamFinished: {
@@ -2591,9 +2622,9 @@ Scope {
                                         const files = new Set();
                                         for (const line of text.split("\n")) {
                                             const parts = line.split("\t");
-                                            if (parts.length !== 2 || !/^SF(?:\s|$)/i.test(parts[0]) || !parts[1] || files.has(parts[1])) continue;
-                                            files.add(parts[1]);
-                                            entries.push({ family: parts[0], file: parts[1] });
+                                            if (parts.length !== 3 || !/^SF(?:\s|$)/i.test(parts[0]) || !parts[2] || files.has(parts[2])) continue;
+                                            files.add(parts[2]);
+                                            entries.push({ family: parts[0], style: parts[1] || "Regular", file: parts[2] });
                                         }
                                         entries.sort((a, b) => a.file.localeCompare(b.file));
                                         if (JSON.stringify(entries) !== JSON.stringify(typographyFont.fontFiles)) typographyFont.fontFiles = entries;
@@ -3039,7 +3070,7 @@ Scope {
                                 width: 120; height: 10; radius: 5; color: pal.track; anchors.verticalCenter: parent.verticalCenter
                                 Corners.ContinuousRectangle { width: parent.width * batPane.pct / 100; height: parent.height; radius: 5; color: batPane.pct <= 20 && !batPane.charging ? "#FF453A" : "#30D158" }
                             }
-                            Text { text: batPane.pct + "%"; color: pal.text; font.family: pal.fam; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: batPane.pct + "%"; color: pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
                     SRow {
@@ -3232,7 +3263,7 @@ Scope {
                         x: 14; anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - 220; wrapMode: Text.WordWrap
                         text: "Keep these display settings? Reverting in " + root.revertLeft + " s."
-                        color: pal.text; font.family: pal.fam; font.pixelSize: 13; font.weight: Font.DemiBold
+                        color: pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13; font.weight: Font.DemiBold
                     }
                     Row {
                         anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
@@ -3523,7 +3554,7 @@ Scope {
                                         }
                                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (root.bar) root.bar.applyLockClockPreset(tile.modelData.id) }
                                     }
-                                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: tile.modelData.name; color: tile.sel ? pal.accent : pal.text; font.family: pal.fam; font.pixelSize: 12; font.weight: tile.sel ? Font.DemiBold : Font.Normal }
+                                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: tile.modelData.name; color: tile.sel ? pal.accent : pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 12; font.weight: tile.sel ? Font.DemiBold : Font.Normal }
                                 }
                             }
                         }
@@ -3641,13 +3672,13 @@ Scope {
                             layer.enabled: true; layer.effect: MultiEffect { maskEnabled: true; maskSource: upMask; maskThresholdMin: 0.5; maskSpreadAtMin: 1.0 }
                         }
                     }
-                    Text { anchors.top: upic.bottom; anchors.topMargin: 8; anchors.horizontalCenter: parent.horizontalCenter; text: root.userName; color: pal.text; font.family: pal.fam; font.pixelSize: 17; font.weight: Font.DemiBold }
+                    Text { anchors.top: upic.bottom; anchors.topMargin: 8; anchors.horizontalCenter: parent.horizontalCenter; text: root.userName; color: pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 17; font.weight: Font.DemiBold }
                 }
                 SCard {
                     t: pal
-                    SRow { t: pal; title: "Full name"; Text { text: root.userName; color: pal.text2; font.family: pal.fam; font.pixelSize: 13 } }
-                    SRow { t: pal; title: "Account name"; Text { text: Quickshell.env("USER"); color: pal.text2; font.family: pal.fam; font.pixelSize: 13 } }
-                    SRow { t: pal; title: "Home folder"; Text { text: Quickshell.env("HOME"); color: pal.text2; font.family: pal.fam; font.pixelSize: 13 } }
+                    SRow { t: pal; title: "Full name"; Text { text: root.userName; color: pal.text2; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13 } }
+                    SRow { t: pal; title: "Account name"; Text { text: Quickshell.env("USER"); color: pal.text2; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13 } }
+                    SRow { t: pal; title: "Home folder"; Text { text: Quickshell.env("HOME"); color: pal.text2; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13 } }
                     SRow {
                         t: pal; title: "Picture"
                         subtitle: "Used on the lock screen and here"
@@ -3805,18 +3836,18 @@ Scope {
                             Text {
                                 width: parent.width; elide: Text.ElideRight
                                 text: wpPane.curPath !== "" ? wpPane.nameOf(wpPane.curPath) : "No wallpaper"
-                                color: pal.text; font.family: pal.fam; font.pixelSize: 15; font.weight: Font.DemiBold
+                                color: pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 15; font.weight: Font.DemiBold
                             }
                             Text {
                                 width: parent.width
                                 text: wpPane.curVideo !== "" ? "Animated wallpaper" : "Picture"
-                                color: pal.text2; font.family: pal.fam; font.pixelSize: 12
+                                color: pal.text2; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 12
                             }
                             Text {
                                 width: parent.width; wrapMode: Text.WordWrap
                                 visible: wpPane.curVideo !== ""
                                 text: "Plays on every display and pauses behind fullscreen windows. The Liquid Glass and the lock screen use it too."
-                                color: pal.text3; font.family: pal.fam; font.pixelSize: 11
+                                color: pal.text3; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 11
                             }
                             Row {
                                 spacing: 8
@@ -3893,7 +3924,7 @@ Scope {
                                 verticalAlignment: TextInput.AlignVCenter
                                 color: pal.text
 
-                                font.family: pal.fam
+                                font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                 font.pixelSize: 12
                                 clip: true
                                 selectByMouse: true
@@ -3904,7 +3935,7 @@ Scope {
                                 verticalAlignment: Text.AlignVCenter
                                 text: "Search wallpapers"
                                 color: pal.text3
-                                font.family: pal.fam
+                                font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                                 font.pixelSize: 12
                                 visible: wpSearchInput.text === "" && !wpSearchInput.activeFocus
                                 MouseArea { anchors.fill: parent; onClicked: wpSearchInput.forceActiveFocus() }
@@ -3997,7 +4028,7 @@ Scope {
                                             id: wtBadge
                                             anchors.centerIn: parent
                                             text: "\u25B6  Animated"
-                                            color: "white"; font.family: pal.fam; font.pixelSize: 9; font.weight: Font.DemiBold
+                                            color: "white"; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 9; font.weight: Font.DemiBold
                                         }
                                     }
                                 }
@@ -4043,7 +4074,7 @@ Scope {
                                 elide: Text.ElideMiddle
                                 text: wt.modelData.name
                                 color: wt.cur ? pal.text : pal.text2
-                                font.family: pal.fam; font.pixelSize: 11
+                                font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 11
                             }
                     }
                 }
@@ -4083,7 +4114,7 @@ Scope {
                             horizontalAlignment: Text.AlignHCenter
                             text: "macshell"
                             color: pal.text
-                            font.family: pal.fam
+                            font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                             font.pixelSize: 21
                             font.weight: Font.DemiBold
                         }
@@ -4093,7 +4124,7 @@ Scope {
                             horizontalAlignment: Text.AlignHCenter
                             text: "Version 0.1.8 \u2022 Hyprland \u2022 Quickshell"
                             color: pal.text2
-                            font.family: pal.fam
+                            font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                             font.pixelSize: 12
                         }
                     }
@@ -4107,7 +4138,7 @@ Scope {
                         Text {
                             text: "~/.config/macdock"
                             color: pal.text2
-                            font.family: pal.fam
+                            font.family: pal.fam; font.styleName: pal.fontStyleName || ""
                             font.pixelSize: 13
                         }
                     }
@@ -4192,13 +4223,13 @@ Scope {
                                 x: 70; anchors.verticalCenter: parent.verticalCenter
                                 width: parent.width - 70 - 90
                                 spacing: 2
-                                Text { text: cr.modelData.name; color: pal.text; font.family: pal.fam; font.pixelSize: 13; font.weight: Font.DemiBold }
-                                Text { width: parent.width; text: cr.modelData.role; wrapMode: Text.WordWrap; color: pal.text2; font.family: pal.fam; font.pixelSize: 11 }
+                                Text { text: cr.modelData.name; color: pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                Text { width: parent.width; text: cr.modelData.role; wrapMode: Text.WordWrap; color: pal.text2; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 11 }
                             }
                             Text {
                                 anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
                                 text: "@" + cr.modelData.gh
-                                color: pal.accent; font.family: pal.fam; font.pixelSize: 12
+                                color: pal.accent; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 12
                                 font.underline: crMa.containsMouse
                                 MouseArea { id: crMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/" + cr.modelData.gh]) }
                             }
@@ -4210,7 +4241,7 @@ Scope {
                     horizontalAlignment: Text.AlignHCenter
                     topPadding: 4
                     text: "Designed by Apple in California.\nRebuilt on Linux by two people who could not afford the Mac."
-                    color: pal.text3; font.family: pal.fam; font.pixelSize: 11
+                    color: pal.text3; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 11
                 }
 
                 // (keep scrolling…)
@@ -4230,18 +4261,18 @@ Scope {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter; y: 64
                             text: "Protect your MacShell with AppleCare+"
-                            color: pal.text; font.family: pal.fam; font.pixelSize: 17; font.weight: Font.DemiBold
+                            color: pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 17; font.weight: Font.DemiBold
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter; y: 90
                             width: parent.width - 60; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                             text: "Unlimited repairs for accidental damage, 24/7 priority access to Apple experts, and battery service coverage. Same price as for a MacBook Pro."
-                            color: pal.text2; font.family: pal.fam; font.pixelSize: 12
+                            color: pal.text2; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 12
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter; y: 136
                             text: "$279.00 for 3 years or $99.99/yr."
-                            color: pal.text; font.family: pal.fam; font.pixelSize: 13; font.weight: Font.Medium
+                            color: pal.text; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13; font.weight: Font.Medium
                         }
                         Corners.ContinuousRectangle { cornerSmoothing: 0;
                             anchors.horizontalCenter: parent.horizontalCenter; y: 166
@@ -4249,7 +4280,7 @@ Scope {
                             color: careMa.pressed ? Qt.darker(pal.accent, 1.15) : pal.accent
                             scale: careMa.pressed ? 0.96 : 1
                             Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 180; easing.type: Easing.OutQuint } }
-                            Text { anchors.centerIn: parent; text: "Add AppleCare+"; color: "white"; font.family: pal.fam; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            Text { anchors.centerIn: parent; text: "Add AppleCare+"; color: "white"; font.family: pal.fam; font.styleName: pal.fontStyleName || ""; font.pixelSize: 13; font.weight: Font.DemiBold }
                             MouseArea { id: careMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor }
                         }
                     }
@@ -4329,14 +4360,14 @@ Scope {
         Quickshell.execDetached(["sh", "-c", "rm -f \"$HOME/.config/maclock/settings.json\""]);
         iconSize = 52; magnification = 1.7; magnificationEnabled = true;
         spacing = 6; margin = 6; cornerRadius = 18; cornerSquircle = 0;
-        darkMode = true; appearanceMode = "dark"; glassOpacity = 0.42; glassBlur = 5; glassLiquid = 1.0; dockStyle = "blur"; fontFamily = "SF Pro Text";
+        darkMode = true; appearanceMode = "dark"; glassOpacity = 0.42; glassBlur = 5; glassLiquid = 1.0; dockStyle = "blur"; fontFamily = "SF Pro Text"; fontStyleName = "";
         hideMode = "smart"; hideDelay = 450; monitor = "";
         showTrash = true; showLabels = true; showIndicators = true; bounceOnLaunch = true; showThumbs = true; windowCapture = true;
     }
 
     // ── settings persistence (~/.config/macdock/settings.json) ──
     readonly property string settingsSig: [dockEnabled, settingsEnabled, iconSize, magnification, magnificationEnabled, spacing, margin,
-        cornerRadius, cornerSquircle, darkMode, appearanceMode, glassOpacity, glassBlur, glassLiquid, dockStyle, wallpaperPath, String(accent), fontFamily, hideMode, hideDelay, monitor,
+        cornerRadius, cornerSquircle, darkMode, appearanceMode, glassOpacity, glassBlur, glassLiquid, dockStyle, wallpaperPath, String(accent), fontFamily, fontStyleName, hideMode, hideDelay, monitor,
         showTrash, showLabels, showIndicators, bounceOnLaunch, showThumbs, windowCapture, iconTint, iconTintColor, iconTintStrength].join("|")
     property bool settingsReady: false
     onSettingsSigChanged: if (settingsReady) saveTimer.restart()
@@ -4350,7 +4381,7 @@ Scope {
             spacing: spacing, margin: margin, cornerRadius: cornerRadius, cornerSquircle: cornerSquircle,
             darkMode: darkMode, appearanceMode: appearanceMode, glassOpacity: glassOpacity, dockStyle: dockStyle, wallpaperPath: wallpaperPath, glassDebug: glassDebug,
             glassRim: glassRim, glassGrain: glassGrain, glassLiquid: glassLiquid, glassBlur: glassBlur,
-            accent: String(accent), fontFamily: fontFamily,
+            accent: String(accent), fontFamily: fontFamily, fontStyleName: fontStyleName,
             hideMode: hideMode, hideDelay: hideDelay, monitor: monitor,
             showTrash: showTrash, showLabels: showLabels, showIndicators: showIndicators,
             bounceOnLaunch: bounceOnLaunch, showThumbs: showThumbs, windowCapture: windowCapture,
@@ -4364,7 +4395,7 @@ Scope {
         if (typeof o.cornerSquircle === "number" && isFinite(o.cornerSquircle))
             root.cornerSquircle = Math.max(0, Math.min(1, o.cornerSquircle));
         var keys = ["dockEnabled", "settingsEnabled", "iconSize", "magnification", "magnificationEnabled", "spacing", "margin", "cornerRadius",
-                    "darkMode", "appearanceMode", "glassOpacity", "dockStyle", "wallpaperPath", "glassDebug", "glassRim", "glassGrain", "glassLiquid", "glassBlur", "accent", "fontFamily", "hideMode", "hideDelay", "monitor",
+                    "darkMode", "appearanceMode", "glassOpacity", "dockStyle", "wallpaperPath", "glassDebug", "glassRim", "glassGrain", "glassLiquid", "glassBlur", "accent", "fontFamily", "fontStyleName", "hideMode", "hideDelay", "monitor",
                     "showTrash", "showLabels", "showIndicators", "bounceOnLaunch", "showThumbs", "windowCapture", "iconTint", "iconTintColor", "iconTintStrength"];
         for (var i = 0; i < keys.length; i++) {
             if (["accent", "iconTint", "iconTintColor", "iconTintStrength"].indexOf(keys[i]) >= 0 || o[keys[i]] === undefined) continue;
@@ -5951,7 +5982,7 @@ Scope {
                                     pointerX: cell.width / 2 - x
                                     y: cell.height - img.height - img.lift - height - 10
                                     text: cell.isSep ? "" : ((cell.modelData.kind === "win" && cell.modelData.tl && cell.modelData.tl.title) ? cell.modelData.tl.title : cell.modelData.name)
-                                    fontFamily: root.fontFamily
+                                    fontFamily: root.fontFamily; fontStyleName: root.fontStyleName
                                     frosted: true
                                     liquid: false
                                     dark: root.dockDark
@@ -6230,7 +6261,7 @@ Scope {
                                           : mi.off ? (root.dockDark ? Qt.rgba(1, 1, 1, 0.4) : Qt.rgba(0, 0, 0, 0.35))
                                           : (root.dockDark ? "white" : "#1d1d1f")
                                     font.pixelSize: 13
-                                    font.family: root.fontFamily
+                                    font.family: root.fontFamily; font.styleName: root.fontStyleName
                                 }
                                 MouseArea {
                                     id: mia

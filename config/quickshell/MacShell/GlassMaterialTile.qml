@@ -106,7 +106,7 @@ FocusScope {
         anchors.horizontalCenter: parent.horizontalCenter
         text: tile.label
         color: tile.selected ? tile.t.text : tile.t.text2
-        font.family: tile.t.fam
+        font.family: tile.t.fam; font.styleName: tile.t.fontStyleName || ""
         font.pixelSize: 12
         font.weight: tile.selected ? Font.DemiBold : Font.Normal
     }

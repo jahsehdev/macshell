@@ -7,6 +7,7 @@ FocusScope {
     required property var controller
     property bool dark: true
     property string fontFamily: "SF Pro Text"
+    property string fontStyleName: ""
     property color accent: "#007aff"
     property bool externalSurface: false
     property real revealProgress: 1
@@ -85,7 +86,7 @@ FocusScope {
         placeholderTextColor: root.secondary
         color: root.foreground
         selectionColor: root.accent
-        font.family: root.fontFamily; font.pixelSize: 14
+        font.family: root.fontFamily; font.styleName: root.fontStyleName; font.pixelSize: 14
         background: null
         leftPadding: 0; rightPadding: 0
         enabled: root.controller.ready && !root.controller.busy
@@ -126,14 +127,14 @@ FocusScope {
             Text {
                 visible: root.lastPrompt !== ""
                 width: parent.width; text: root.lastPrompt
-                color: root.secondary; font.family: root.fontFamily; font.pixelSize: 12
+                color: root.secondary; font.family: root.fontFamily; font.styleName: root.fontStyleName; font.pixelSize: 12
                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                 textFormat: Text.PlainText
             }
             TextEdit {
                 width: parent.width; height: contentHeight
                 text: root.bodyText; color: root.foreground
-                font.family: root.fontFamily; font.pixelSize: 14
+                font.family: root.fontFamily; font.styleName: root.fontStyleName; font.pixelSize: 14
                 wrapMode: TextEdit.Wrap; readOnly: true; selectByMouse: true
                 textFormat: TextEdit.PlainText
                 selectionColor: root.accent
@@ -142,7 +143,7 @@ FocusScope {
                 visible: root.controller.error !== ""
                 width: parent.width; text: root.controller.error
                 color: root.dark ? "#ffabab" : "#a52d2d"
-                font.family: root.fontFamily; font.pixelSize: 12; wrapMode: Text.WordWrap
+                font.family: root.fontFamily; font.styleName: root.fontStyleName; font.pixelSize: 12; wrapMode: Text.WordWrap
                 textFormat: Text.PlainText
             }
             PanelButton {
@@ -161,7 +162,7 @@ FocusScope {
             width: Math.max(0, parent.width - fullButton.width - newButton.width - 16)
             anchors.verticalCenter: parent.verticalCenter
             text: "Luma AI · On device"; color: root.secondary
-            font.family: root.fontFamily; font.pixelSize: 10; elide: Text.ElideRight
+            font.family: root.fontFamily; font.styleName: root.fontStyleName; font.pixelSize: 10; elide: Text.ElideRight
         }
         PanelButton {
             id: newButton

@@ -16,6 +16,7 @@ Item {
     property bool captureActive: false
     property bool inView: true
     property string fontFamily: "SF Pro Text"
+    property string fontStyleName: ""
     readonly property string address: String(entry.addr || "").replace(/^0x/, "")
     readonly property bool closing: !!(hub && address && hub.closingWins[address])
     readonly property bool quiet: !!(hub && (hub.captureQuiet || hub.glassHold))
@@ -55,7 +56,7 @@ Item {
         x: 40; y: 12; width: parent.width - x - 14; height: 20
         text: card.entry.title || card.entry.name || ""
         elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
-        color: card.ink; font.family: card.fontFamily; font.pixelSize: 12
+        color: card.ink; font.family: card.fontFamily; font.styleName: card.fontStyleName; font.pixelSize: 12
         font.weight: card.selected ? Font.DemiBold : Font.Normal
     }
     Item {
