@@ -18,6 +18,11 @@ if [ "${1:-}" = "--reload" ]; then
     done
 fi
 nautilus_bridge="${XDG_DATA_HOME:-$HOME/.local/share}/macshell/nautilus/native/window-controls.so"
+folder_bridge="${XDG_DATA_HOME:-$HOME/.local/share}/macshell/folder-customizer/native/folder-menu.so"
+if [ -r "$folder_bridge" ]; then
+    LD_PRELOAD="$folder_bridge${LD_PRELOAD:+:$LD_PRELOAD}"
+    export LD_PRELOAD
+fi
 if [ -r "$nautilus_bridge" ]; then
     LD_PRELOAD="$nautilus_bridge${LD_PRELOAD:+:$LD_PRELOAD}"
     export LD_PRELOAD

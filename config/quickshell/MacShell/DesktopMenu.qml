@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import "Common" as Corners
 import QtQuick
+import QtQuick.Controls
 
 Corners.ContinuousRectangle {
     id: menu
@@ -27,7 +28,7 @@ Corners.ContinuousRectangle {
                 id: row
                 required property var modelData
                 width: rows.width
-                height: modelData.separator ? 9 : 29
+                height: modelData.separator ? 9 : modelData.palette ? 32 : 29
                 readonly property bool allowed: modelData.enabled !== false
                 Corners.MenuHighlight {
                     anchors.fill: parent
@@ -41,7 +42,7 @@ Corners.ContinuousRectangle {
                 }
                 Text {
                     x: 9; anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.label || ""
+                    text: (row.modelData.icon ? row.modelData.icon + "   " : "") + (row.modelData.label || "")
                     font.family: menu.fontFamily
                     font.pixelSize: 13
                     color: hit.containsMouse && row.allowed ? "white" : (menu.dark ? "#F2F2F5" : "#242428")
@@ -50,9 +51,30 @@ Corners.ContinuousRectangle {
                 MouseArea {
                     id: hit
                     anchors.fill: parent
-                    enabled: row.allowed && !row.modelData.separator
+                    enabled: row.allowed && !row.modelData.separator && !row.modelData.palette
                     hoverEnabled: true
                     onClicked: menu.chosen(row.modelData.action)
+                }
+                Row {
+                    visible: row.modelData.palette === true
+                    anchors.centerIn: parent
+                    spacing: 9
+                    Repeater {
+                        model: row.modelData.palette ? ["#ff453a", "#ff9f0a", "#ffd43b", "#30c85a", "#0a84ff", "#bf5af2", "#929296"] : []
+                        delegate: Button {
+                            id: swatch
+                            required property string modelData
+                            width: 17; height: 24
+                            Accessible.name: "Folder color " + modelData
+                            background: Rectangle {
+                                anchors.centerIn: parent; width: 15; height: 15; radius: 8
+                                color: swatch.modelData
+                                border.width: swatch.hovered || swatch.activeFocus ? 2 : 1
+                                border.color: swatch.hovered || swatch.activeFocus ? "white" : "#20000000"
+                            }
+                            onClicked: menu.chosen("folderColor:" + modelData)
+                        }
+                    }
                 }
             }
         }

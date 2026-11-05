@@ -21,6 +21,9 @@ import tempfile
 import time
 from urllib.parse import quote, unquote, urlparse
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "folder-customizer/bin"))
+from folder_customizer import Folder, custom_icon
+
 
 def desktop_directory():
     config = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
@@ -85,6 +88,7 @@ class DesktopFiles:
             fallback = "folder" if directory else mime.split("/", 1)[0] + "-x-generic"
             items.append({"name": path.name, "path": str(path), "url": path.as_uri(),
                           "directory": directory, "icon": icon, "fallback": fallback,
+                          "customIcon": custom_icon(path) if directory else "",
                           "image": not directory and mime.startswith("image/"),
                           "position": self.positions.get(path.name)})
         return {"event": "files", "directory": str(self.desktop), "items": items}
@@ -171,6 +175,12 @@ class DesktopFiles:
 
     def command(self, request):
         action = request.get("action")
+        if action == "customize":
+            folder = Folder(self.entry(request["name"]))
+            settings = folder.status()["settings"]
+            settings["color"] = request["color"]
+            folder.apply(settings)
+            return {"event": "result", "action": action, "message": "Folder color updated."}
         if action == "copy":
             copied, errors = [], []
             for value in request.get("urls", []):

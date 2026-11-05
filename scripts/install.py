@@ -21,7 +21,7 @@ SETTINGS = {
     'quickshell/launchpad/settings.json', 'macshell/corners/state.json',
     'MacShell/PhotoBooth.conf',
 }
-NATIVE = ['top-boundary', 'fullscreen-lock', 'click-focus', 'native-minimize', 'window-controls', 'nautilus/native']
+NATIVE = ['top-boundary', 'fullscreen-lock', 'click-focus', 'native-minimize', 'window-controls', 'nautilus/native', 'folder-customizer/native']
 
 
 def exists(path):

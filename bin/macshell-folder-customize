@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+if [ "$#" -ne 1 ] || [ ! -d "$1" ] || [ -L "$1" ]; then
+    echo 'Usage: macshell-folder-customize /path/to/folder' >&2
+    exit 1
+fi
+MACSHELL_CUSTOMIZE_FOLDER=$(realpath -- "$1")
+export MACSHELL_CUSTOMIZE_FOLDER
+exec qs -p "${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/folder-customizer"

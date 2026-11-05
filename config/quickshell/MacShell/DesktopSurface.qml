@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import "Common" as Corners
 import QtQuick
+import "FolderCustomization" as Folders
 
 FocusScope {
     id: surface
@@ -17,6 +18,19 @@ FocusScope {
     property real pointerY: 0
     property bool selecting: false
     property var originalSelection: []
+    property string customizePath: ""
+
+    function selectedFolder() {
+        if (desktop.selected.length !== 1) return null;
+        return desktop.items.find(function(file) { return file.name === desktop.selected[0] && file.directory; }) || null;
+    }
+    function customizeFolder() {
+        const folder = selectedFolder();
+        if (!folder) return;
+        closeMenu();
+        customizePath = folder.path;
+        customizer.active = true;
+    }
 
     function closeMenu() { context.visible = false; }
     function showMenu(entries, x, y) {
@@ -28,13 +42,20 @@ FocusScope {
     }
     function openFileMenu(x, y) {
         widgetTarget = "";
-        showMenu([
+        customizer.active = false;
+        var entries = [
             { label: "Open", action: "open" },
             { label: "Show in Files", action: "folder" },
             { separator: true },
             { label: "Rename…", action: "rename", enabled: desktop.selected.length === 1 },
             { label: "Move to Trash", action: "trash" }
-        ], x, y);
+        ];
+        if (selectedFolder()) entries = entries.concat([
+            { separator: true },
+            { palette: true },
+            { label: "Customize Folder…", action: "customize", icon: "◇" }
+        ]);
+        showMenu(entries, x, y);
     }
     function openWidgetMenu(id, x, y) {
         widgetTarget = id;
@@ -166,6 +187,7 @@ FocusScope {
     }
     DesktopMenu {
         id: context
+        objectName: "folderContextMenu"
         parent: surface.overlay || surface
         dark: surface.dark
         fontFamily: surface.fam
@@ -178,9 +200,38 @@ FocusScope {
             else if (action === "trash") surface.desktop.trashSelected();
             else if (action === "rename" && surface.desktop.selected.length === 1) surface.startRename(surface.desktop.selected[0]);
             else if (action === "open") surface.desktop.selected.forEach(function(name) { surface.desktop.open(name); });
+            else if (action === "customize") surface.customizeFolder();
+            else if (action.indexOf("folderColor:") === 0 && surface.selectedFolder()) surface.desktop.send({ action: "customize", name: surface.selectedFolder().name, color: action.slice(12) });
             else if (action === "removeWidget") surface.widgets.removeWidget(surface.widgetTarget);
             else if (action === "small" || action === "medium" || action === "large") surface.widgets.setSize(surface.widgetTarget, action);
             else if (action === "wallpaper" && surface.widgets.hub) surface.widgets.hub.openSettings("wallpaper");
+        }
+    }
+
+    MouseArea {
+        parent: surface.overlay || surface
+        anchors.fill: parent
+        visible: customizer.active
+        z: 125
+        acceptedButtons: Qt.AllButtons
+        onPressed: customizer.active = false
+    }
+    Loader {
+        id: customizer
+        objectName: "folderCustomizerLoader"
+        parent: surface.overlay || surface
+        active: false
+        z: 126
+        x: Math.max(12, Math.min(surface.width - 410, context.x - 365))
+        y: Math.max(12, Math.min(surface.height - 716, context.y - 145))
+        sourceComponent: Folders.FolderCustomizer {
+            folderPath: surface.customizePath
+            dark: surface.dark
+            fontFamily: surface.fam
+            height: Math.min(704, surface.height - 24)
+            onDismissed: { customizer.active = false; surface.forceActiveFocus(); }
+            onChanged: surface.desktop.send({ action: "refresh" })
+            Component.onCompleted: forceActiveFocus()
         }
     }
 

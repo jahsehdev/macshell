@@ -3,7 +3,7 @@ set -euo pipefail
 mode=${1:-install}
 packages=(git base-devel cmake ninja pkgconf python python-pillow qt6-base qt6-declarative
     qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat gtk3 gtk4 libadwaita
-    json-glib hyprland quickshell nautilus gnome-calculator gnome-console
+    json-glib librsvg fontconfig hyprland quickshell nautilus gnome-calculator gnome-console
     gnome-text-editor qt6ct kvantum networkmanager bluez bluez-utils pipewire pipewire-pulse
     wireplumber xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-user-dirs xdg-utils
     wl-clipboard cliphist grim slurp swappy wf-recorder ffmpeg brightnessctl playerctl

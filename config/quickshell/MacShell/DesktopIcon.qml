@@ -29,9 +29,9 @@ Item {
         Image {
             id: image
             x: 20; y: 6; width: 64; height: 64
-            source: icon.file.directory && Corners.IconStyle.folderSource("folder") !== "" ? Corners.IconStyle.folderSource("folder")
+            source: icon.file.customIcon || (icon.file.directory && Corners.IconStyle.folderSource("folder") !== "" ? Corners.IconStyle.folderSource("folder")
                 : icon.file.image ? icon.file.url : (Quickshell.iconPath(icon.file.icon, true)
-                || Quickshell.iconPath(icon.file.fallback, true) || Quickshell.iconPath("text-x-generic"))
+                || Quickshell.iconPath(icon.file.fallback, true) || Quickshell.iconPath("text-x-generic")))
             layer.enabled: !icon.file.image && !icon.file.directory && Corners.IconStyle.effectMode !== 0
             layer.effect: Corners.IconStyleEffect {}
             sourceSize: Qt.size(128, 128)
