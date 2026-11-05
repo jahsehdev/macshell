@@ -160,9 +160,19 @@ FocusScope {
         id: palette
         x: 13; y: 166; spacing: 8
         FolderButton {
-            width: 25; height: 29; text: "◇"; hint: "Restore the original folder icon"
+            id: restoreButton
+            width: 25; height: 29; hint: "Restore the original folder icon"
             dark: panel.dark; subtle: true
             enabled: panel.ready && !panel.busy && panel.customized
+            contentItem: Item {
+                Image {
+                    anchors.centerIn: parent
+                    width: 20; height: 20
+                    sourceSize: Qt.size(60, 60)
+                    opacity: restoreButton.enabled ? 1 : 0.4
+                    source: panel.symbolSource({ svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="$COLOR" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h9l9 9q1 1 0 2l-7 7q-1 1-2 0l-9-9ZM9 7a2 2 0 1 1-4 0 2 2 0 1 1 4 0"/></svg>' }, panel.secondary)
+                }
+            }
             onClicked: panel.clear()
         }
         Repeater {
