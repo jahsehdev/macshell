@@ -141,5 +141,20 @@ Window {
             scroll.contentY = scroll.contentHeight - scroll.height;
             verify(scroll.contentY > 100);
         }
+        function test_11_tail_is_a_single_continuous_surface() {
+            const surface = findChild(panel, "folderPopoverSurface");
+            surface.shadow = false;
+            panel.dark = false;
+            wait(50);
+            let image = grabImage(surface);
+            const y = Math.round(surface.tailY);
+            compare(image.pixel(surface.bodyWidth - 3, y), image.pixel(surface.bodyWidth + 3, y));
+            panel.dark = true;
+            wait(50);
+            image = grabImage(surface);
+            compare(image.pixel(surface.bodyWidth - 3, y), image.pixel(surface.bodyWidth + 3, y));
+            verify(surface.outline.indexOf(" C ") >= 0);
+            surface.shadow = true;
+        }
     }
 }

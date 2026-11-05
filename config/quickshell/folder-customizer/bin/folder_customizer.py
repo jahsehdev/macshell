@@ -23,6 +23,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 ATTRIBUTE = "user.macshell.folder-customization"
+ART_VERSION = "art-v2"
 COLORS = ["#ffd43b", "#ff453a", "#ff9f0a", "#30c85a", "#0a84ff", "#bf5af2", "#929296"]
 
 
@@ -63,8 +64,9 @@ def read_state(path):
 def custom_icon(path):
     """Cheap read for directory listings; no GIO process for every folder."""
     state = read_state(path)
-    icon = state.get("icon", "")
-    return Path(icon).as_uri() if isinstance(icon, str) and Path(icon).is_absolute() and Path(icon).is_file() else ""
+    # A new renderer gets a new URI, so Qt/GTK cannot reuse the old dark or
+    # broken texture. Missing cached artwork is recreated from folder settings.
+    return artwork(state).as_uri() if state else ""
 
 
 def default_color():
@@ -81,26 +83,43 @@ def shade(color, lightness):
     return "#" + "".join(f"{round(c * 255):02x}" for c in colorsys.hls_to_rgb(h, lightness, s))
 
 
+def folder_svg(color):
+    """Tint the bundled folder material while preserving the selected lightness."""
+    target_h, target_l, target_s = colorsys.rgb_to_hls(*(int(color[i:i+2], 16) / 255 for i in (1, 3, 5)))
+
+    def tint(match):
+        rgb = tuple(int(match[0][i:i+2], 16) / 255 for i in (1, 3, 5))
+        h, lightness, saturation = colorsys.rgb_to_hls(*rgb)
+        if not (0.46 <= h <= 0.69 and saturation > .2):
+            return match[0]  # retain the paper lip, shadows and highlights
+        lightness = max(.04, min(.98, target_l + (lightness - .52) * .72))
+        rgb = colorsys.hls_to_rgb(target_h, lightness, target_s * .95)
+        return "#" + "".join(f"{round(c * 255):02x}" for c in rgb)
+
+    template = (ROOT / "assets/folder.svg").read_text()
+    template = re.sub(r"#[0-9a-fA-F]{6}(?![0-9a-fA-F])", tint, template)
+    return template.replace('width="64" height="64"', 'width="256" height="256"')
+
+
 def render(value):
     value = normalize(value)
     color = value["color"]
-    # Original layered folder artwork, with a paper lip and a restrained emboss.
+    # Use the same folder geometry/material as the rest of MacShell.
     emblem = ""
     if value["symbol"]:
+        lightness = colorsys.rgb_to_hls(*(int(color[i:i+2], 16) / 255 for i in (1, 3, 5)))[1]
+        ink = shade(color, min(.9, lightness + .38) if lightness < .33 else max(.12, lightness - .19))
         svg = next(s["svg"] for s in symbols() if s["id"] == value["symbol"])
+        # Padding keeps cap/join extents and fine marks inside the viewport.
+        svg = svg.replace('viewBox="0 0 24 24"', 'viewBox="-2 -2 28 28"')
         svg = svg.replace('<svg ', '<svg x="88" y="104" width="80" height="80" ')
-        emblem = '<g opacity="0.55">' + svg.replace("$COLOR", shade(color, 0.31)) + '</g>'
+        emblem = '<g opacity="0.68">' + svg.replace("$COLOR", ink) + '</g>'
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-<defs><linearGradient id="back" x2="0" y2="1"><stop stop-color="{shade(color, .66)}"/><stop offset="1" stop-color="{shade(color, .40)}"/></linearGradient>
-<linearGradient id="front" x2="0" y2="1"><stop stop-color="{shade(color, .68)}"/><stop offset=".18" stop-color="{shade(color, .56)}"/><stop offset="1" stop-color="{shade(color, .45)}"/></linearGradient></defs>
-<rect x="18" y="65" width="220" height="146" rx="14" fill="#000" opacity=".08"/>
-<path d="M18 61Q18 47 32 47H84Q91 47 97 53L108 63H224Q238 63 238 77V194Q238 208 224 208H32Q18 208 18 194Z" fill="url(#back)"/>
-<rect x="27" y="76" width="202" height="122" rx="5" fill="#fff" opacity=".9"/>
-<rect x="18" y="84" width="220" height="124" rx="12" fill="url(#front)"/>
-<path d="M30 85H226Q237 85 237 97" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2"/>
-<path d="M30 207H226" stroke="#000" stroke-opacity=".12" stroke-width="2"/>{emblem}</svg>'''
-    result = subprocess.run(["rsvg-convert"], input=svg.encode(), capture_output=True, check=True, timeout=10)
-    image = Image.open(io.BytesIO(result.stdout)).convert("RGBA")
+{folder_svg(color)}{emblem}</svg>'''
+    # Supersample SVG details, then downsample once with premultiplied alpha.
+    result = subprocess.run(["rsvg-convert", "--width", "512", "--height", "512"],
+                            input=svg.encode(), capture_output=True, check=True, timeout=10)
+    image = Image.open(io.BytesIO(result.stdout)).convert("RGBA").resize((256, 256), Image.Resampling.LANCZOS)
     if value["emoji"]:
         result = subprocess.run(["fc-match", "-f", "%{file}", "Noto Color Emoji"],
                                 capture_output=True, text=True, check=True, timeout=5)
@@ -117,11 +136,16 @@ def render(value):
     return image
 
 
-def artwork(value):
+def artwork_path(value, version=ART_VERSION):
     value = normalize(value)
     data = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
-    digest = hashlib.sha256((json.dumps(value, sort_keys=True) + "art-v1").encode()).hexdigest()
-    target = data / "macshell/folder-icons" / (digest + ".png")
+    digest = hashlib.sha256((json.dumps(value, sort_keys=True) + version).encode()).hexdigest()
+    return data / "macshell/folder-icons" / (digest + ".png")
+
+
+def artwork(value):
+    value = normalize(value)
+    target = artwork_path(value, ART_VERSION)
     if not target.is_file():
         image = render(value)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -169,6 +193,34 @@ class Folder:
         return dict(event="state", path=str(self.path), name=self.path.name or "/",
                     settings=value, customized=bool(state), icon=artwork(value).as_uri(), symbols=symbols())
 
+    def repair_artwork(self):
+        """Migrate saved folders to the new texture URI, retaining original icons."""
+        state = read_state(self.path)
+        if not state or state.get("icon") == str(artwork(state)):
+            return False
+        self.refresh_legacy_cache()
+        self.apply(normalize(state))
+        return True
+
+    def refresh_legacy_cache(self):
+        """Repair owned v1 PNGs even when the current session cannot reach GVfs."""
+        state = read_state(self.path)
+        if not state or state.get("icon") != str(artwork_path(state, "art-v1")):
+            return False
+        legacy = artwork_path(state, "art-v1")
+        data = artwork(state).read_bytes()
+        if legacy.is_file() and legacy.read_bytes() == data:
+            return False
+        fd, name = tempfile.mkstemp(prefix=".folder-repair-", dir=legacy.parent)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(data)
+            os.replace(name, legacy)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
+        return True
+
     def apply(self, value=None, clear=False):
         # Serialize independent panels operating on the same directory.
         fd = os.open(self.path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -208,7 +260,15 @@ class Folder:
 
 
 def serve(folder):
+    repair_error = ""
+    try:
+        folder.repair_artwork()
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        # Still show the corrected preview and allow retrying if GVfs is down.
+        repair_error = str(error)
     print(json.dumps(folder.status()), flush=True)
+    if repair_error:
+        print(json.dumps(dict(event="error", message=repair_error)), flush=True)
     for line in sys.stdin:
         try:
             request = json.loads(line)
@@ -234,11 +294,14 @@ def main():
     parser.add_argument("--serve", action="store_true")
     parser.add_argument("--color")
     parser.add_argument("--clear", action="store_true")
+    parser.add_argument("--repair-cache", action="store_true")
     args = parser.parse_args()
     try:
         folder = Folder(args.folder)
         if args.serve:
             serve(folder)
+        elif args.repair_cache:
+            print(json.dumps(dict(event="repaired", changed=folder.refresh_legacy_cache())))
         elif args.clear:
             print(json.dumps(folder.apply(clear=True)))
         elif args.color:

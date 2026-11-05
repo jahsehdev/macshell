@@ -261,6 +261,14 @@ def serve(files):
         else:
             os.close(watch_fd)
             watch_fd = -1
+    # Refresh legacy GIO icon URIs in the user's desktop session on startup.
+    # One failed migration must not hide other files or stop the desktop worker.
+    for path in files.desktop.iterdir():
+        if not path.is_symlink() and path.is_dir() and read_state(path):
+            try:
+                Folder(path).repair_artwork()
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                emit({"event": "result", "action": "repairArtwork", "error": str(error)})
     emit(files.listing())
     buffered, dirty_at = b"", 0
     previous_mtime = files.desktop.stat().st_mtime_ns

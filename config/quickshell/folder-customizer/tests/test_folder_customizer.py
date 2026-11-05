@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import colorsys
 import os
 from pathlib import Path
 import tempfile
@@ -128,6 +129,69 @@ class FolderTests(unittest.TestCase):
         self.assertEqual(first, module.artwork(dict(color='#ffd43b', symbol='cutlery')))
         self.assertEqual(module.read_state(self.path), {})
         self.assertEqual(self.meta.value, 'file:///previous-icon.png')
+
+    def test_custom_color_lightness_is_preserved(self):
+        light = module.render(dict(color='#eeeeee')).getpixel((64, 155))
+        dark = module.render(dict(color='#222222')).getpixel((64, 155))
+        self.assertGreater(min(light[:3]), 225)
+        self.assertLess(max(dark[:3]), 95)
+        self.assertLess(max(light[:3]) - min(light[:3]), 2)
+        for color in module.COLORS:
+            pixel = module.render(dict(color=color)).getpixel((64, 155))
+            target = colorsys.rgb_to_hls(*(int(color[i:i+2], 16)/255 for i in (1, 3, 5)))[1]
+            actual = colorsys.rgb_to_hls(*(c/255 for c in pixel[:3]))[1]
+            self.assertGreaterEqual(actual, target - .02, color)
+            self.assertEqual(pixel[3], 255)
+
+    def test_every_symbol_has_an_intact_centered_export(self):
+        from PIL import ImageChops
+        base = module.render(dict(color='#0a84ff')).convert('RGB')
+        for symbol in module.symbols():
+            with self.subTest(symbol=symbol['id']):
+                image = module.render(dict(color='#0a84ff', symbol=symbol['id']))
+                self.assertEqual(image.size, (256, 256))
+                bbox = ImageChops.difference(base, image.convert('RGB')).getbbox()
+                self.assertIsNotNone(bbox)
+                self.assertGreaterEqual(bbox[0], 86)
+                self.assertGreaterEqual(bbox[1], 102)
+                self.assertLessEqual(bbox[2], 170)
+                self.assertLessEqual(bbox[3], 186)
+
+    def test_legacy_icon_uri_is_upgraded_and_original_is_retained(self):
+        with patch.object(module, 'ART_VERSION', 'art-v1'):
+            self.folder.apply(dict(color='#ff453a', symbol='cake'))
+        old = module.read_state(self.path)
+        self.assertTrue(self.folder.repair_artwork())
+        new = module.read_state(self.path)
+        self.assertNotEqual(old['icon'], new['icon'])
+        self.assertEqual(new['previousIcon'], 'file:///previous-icon.png')
+        self.assertEqual(self.meta.value, Path(new['icon']).as_uri())
+        self.assertFalse(self.folder.repair_artwork())
+        self.folder.apply(clear=True)
+        self.assertEqual(self.meta.value, 'file:///previous-icon.png')
+
+    def test_missing_cached_export_is_recreated(self):
+        self.folder.apply(dict(color='#30c85a', symbol='leaf'))
+        icon = Path(module.read_state(self.path)['icon'])
+        icon.unlink()
+        self.assertEqual(module.custom_icon(self.path), icon.as_uri())
+        with module.Image.open(icon) as image:
+            image.verify()
+
+    def test_legacy_broken_png_is_repaired_without_changing_folder_metadata(self):
+        with patch.object(module, 'ART_VERSION', 'art-v1'):
+            self.folder.apply(dict(color='#ff453a', symbol='cake'))
+        state = module.read_state(self.path)
+        icon = Path(state['icon'])
+        icon.write_bytes(b'broken image')
+        self.meta.fail = True
+        self.assertTrue(self.folder.refresh_legacy_cache())
+        with module.Image.open(icon) as image:
+            self.assertEqual(image.size, (256, 256))
+            image.verify()
+        self.assertEqual(module.read_state(self.path), state)
+        self.assertEqual(self.meta.value, icon.as_uri())
+        self.assertFalse(self.folder.refresh_legacy_cache())
 
 
 if __name__ == '__main__':

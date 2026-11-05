@@ -71,7 +71,8 @@ FocusScope {
     }
     function symbolsIn(category) { return symbols.filter(function(s) { return s.category === category; }); }
     function symbolSource(symbol, color) {
-        return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(symbol.svg.replace(/\$COLOR/g, color));
+        return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(symbol.svg
+            .replace('viewBox="0 0 24 24"', 'viewBox="-2 -2 28 28"').replace(/\$COLOR/g, color));
     }
     function showEmojiPicker() { emojiPicker.open(); emojiSearch.forceActiveFocus(); }
     Keys.onEscapePressed: event => {
@@ -124,22 +125,12 @@ FocusScope {
         onExited: (code, status) => { panel.busy = false; if (code !== 0 && !panel.error) panel.error = "The folder customization service could not start."; }
     }
 
-    Rectangle {
+    FolderPopoverSurface {
         id: material
-        anchors.fill: parent
-        radius: 23
-        color: panel.dark ? "#ed2d2e33" : "#edf3f3f5"
-        border.color: panel.dark ? "#70ffffff" : "#50000000"
-        border.width: 1
-        layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
-        layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.6; shadowColor: "#50000000"; shadowVerticalOffset: 8 }
-    }
-    // The pointer ties the popover to the folder/menu without a window title bar.
-    Rectangle {
-        x: width / 2; y: 115; width: 18; height: 18
-        anchors.right: parent.right; anchors.rightMargin: -7
-        rotation: 45; radius: 4
-        color: panel.dark ? "#ed2d2e33" : "#edf3f3f5"
+        objectName: "folderPopoverSurface"
+        bodyWidth: panel.width
+        height: panel.height
+        dark: panel.dark
     }
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onPressed: panel.forceActiveFocus() }
     Image {

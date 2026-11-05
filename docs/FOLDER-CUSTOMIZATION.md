@@ -14,8 +14,11 @@ the customization panel. The interface follows MacShell's light/dark palette.
 The panel layout follows the supplied macOS Tahoe references: preview and name
 above the color circles, scrollable symbol categories below a separator, and
 Clear/Emoji buttons in the footer. The emoji picker overlaps the symbol panel.
-Artwork is original vector artwork; emoji use the installed Noto Color Emoji
-font, and their drawing differs from Apple's emoji font.
+The pointer and panel use one continuous outline with the Dock tooltip's curve.
+Folder artwork uses the bundled [MacTahoe SVG](../icons/MacTahoe/places/scalable/folder.svg),
+under its [existing license](../icons/MacTahoe/COPYING), with original symbol
+pictograms. Emoji use the installed Noto Color Emoji font, and their drawing
+differs from Apple's emoji font.
 
 ## Installation
 
@@ -57,6 +60,15 @@ session. The previous custom icon is recorded only on the first edit and
 restored by Clear. Failed metadata updates roll back the extended attribute.
 The shell's global folder color remains the default for folders without an
 individual customization.
+
+Exports preserve the selected color's lightness, retain the theme's original
+folder material, and supersample fine symbol details. Renderer changes use a
+new cache URI. Existing desktop folders migrate their GIO icon URI when the
+desktop worker starts; other folders migrate when the editor opens. The saved
+previous icon remains available to Clear. Missing cached exports are rebuilt
+from the folder's saved settings. The old renderer's owned PNGs are also
+refreshed atomically so existing GIO file-icon references remain usable while
+the URI migration is pending.
 
 Supported targets are writable local directories on filesystems supporting
 user extended attributes. Files, symbolic links, remote locations, and multiple
