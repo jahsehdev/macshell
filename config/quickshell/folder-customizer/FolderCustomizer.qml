@@ -45,7 +45,7 @@ FocusScope {
     signal changed()
     signal stateLoaded()
     width: 360
-    height: 704
+    height: 620
     focus: true
 
     function settings() { return { color: colorValue, symbol: symbolValue, emoji: emojiValue }; }

@@ -94,6 +94,8 @@ Window {
             compare(loader.item.symbols.length, 71);
             verify(loader.x >= 0 && loader.x + loader.width <= surface.width);
             verify(loader.y >= 0 && loader.y + loader.height <= surface.height);
+            verify(loader.height <= 620);
+            verify(loader.y + loader.height <= surface.height - 112);
             // The menu is clamped left of this icon. Its position must not
             // create a large gap between the customizer and the folder.
             compare(loader.item.tailOnLeft, false);
@@ -109,14 +111,14 @@ Window {
             compare(loader.active, false);
         }
         function test_05_left_edge_flips_tail_and_bottom_edge_tracks_folder() {
-            desktop.items = [Object.assign({}, desktop.items[0], { x: 16, y: 680 })];
+            desktop.items = [Object.assign({}, desktop.items[0], { x: 16, y: 580 })];
             surface.customizeFolder();
             const loader = findChild(surface, "folderCustomizerLoader");
             tryVerify(function() { return loader.item && loader.item.ready; }, 5000);
             compare(loader.item.tailOnLeft, true);
             compare(loader.x - 10 - (desktop.items[0].x + 84), 8);
             compare(loader.y + loader.item.pointerY, desktop.items[0].y + 38);
-            verify(loader.y + loader.height <= surface.height - 12);
+            verify(loader.y + loader.height <= surface.height - 112);
             const dir = Quickshell.env("MACSHELL_PREVIEW_DIR");
             if (dir) {
                 let done = false;

@@ -23,14 +23,14 @@ ShellRoot {
     Window {
         id: window
         title: "MacShell Customize Folder"
-        width: 432; height: Screen.height > 0 ? Math.min(746, Screen.height - 40) : 746
+        width: 432; height: Screen.height > 0 ? Math.min(662, Screen.height - 140) : 662
         color: "transparent"
         flags: Qt.Window | Qt.FramelessWindowHint
         visible: true
         onClosing: Qt.quit()
         FolderCustomizer {
             x: 20; y: 20
-            height: Math.min(704, window.height - 40)
+            height: Math.min(620, window.height - 40)
             folderPath: Quickshell.env("MACSHELL_CUSTOMIZE_FOLDER")
             dark: app.dark
             fontFamily: app.fontFamily

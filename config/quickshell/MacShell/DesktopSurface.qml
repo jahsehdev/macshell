@@ -21,8 +21,11 @@ FocusScope {
     property var originalSelection: []
     property string customizePath: ""
     property rect customizeAnchor: Qt.rect(0, 0, 64, 64)
+    // Match the desktop widget grid's 100px clearance above the Dock.
+    readonly property real customizeAvailableHeight: Math.max(0, height - 100)
+    readonly property real customizeHeight: Math.min(620, customizeAvailableHeight - 24)
     readonly property var customizePlacement: FolderPlacement.beside(customizeAnchor,
-        width, height, 360, Math.min(704, height - 24))
+        width, customizeAvailableHeight, 360, customizeHeight)
 
     function selectedFolder() {
         if (desktop.selected.length !== 1) return null;
@@ -65,14 +68,12 @@ FocusScope {
     }
     function openWidgetMenu(id, x, y) {
         widgetTarget = id;
-        var canXL = widgets.supportsXL(widgets.typeOf(id));
         showMenu([
             { label: "Edit Widgets…", action: "widgets" },
             { separator: true },
             { label: "Small", action: "small" },
             { label: "Medium", action: "medium" },
             { label: "Large", action: "large" },
-            { label: "Extra Large", action: "xl", enabled: canXL },
             { separator: true },
             { label: "Remove Widget", action: "removeWidget" }
         ], x, y);
@@ -211,7 +212,7 @@ FocusScope {
             else if (action === "customize") surface.customizeFolder();
             else if (action.indexOf("folderColor:") === 0 && surface.selectedFolder()) surface.desktop.send({ action: "customize", name: surface.selectedFolder().name, color: action.slice(12) });
             else if (action === "removeWidget") surface.widgets.removeWidget(surface.widgetTarget);
-            else if (action === "small" || action === "medium" || action === "large" || action === "xl") surface.widgets.setSize(surface.widgetTarget, action);
+            else if (action === "small" || action === "medium" || action === "large") surface.widgets.setSize(surface.widgetTarget, action);
             else if (action === "wallpaper" && surface.widgets.hub) surface.widgets.hub.openSettings("wallpaper");
         }
     }
@@ -236,7 +237,7 @@ FocusScope {
             folderPath: surface.customizePath
             dark: surface.dark
             fontFamily: surface.fam
-            height: Math.min(704, surface.height - 24)
+            height: surface.customizeHeight
             pointerY: surface.customizePlacement.pointerY
             tailOnLeft: surface.customizePlacement.tailOnLeft
             availableWidth: surface.width - customizer.x - 12

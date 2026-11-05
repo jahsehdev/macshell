@@ -18,6 +18,9 @@ The pointer and panel use one continuous outline with the Dock tooltip's curve.
 On the desktop the popover anchors to the selected folder image, with an 8px
 gap from its pointer. It flips sides near the left edge and keeps the pointer
 aligned vertically when the panel is clamped inside the screen.
+The panel is 620px tall and reserves 100px at the bottom of the desktop for the
+Dock. Shorter screens reduce the panel height further; the symbol list scrolls
+while Clear and Emoji stay in the footer above the Dock.
 Folder artwork uses the bundled [MacTahoe SVG](../icons/MacTahoe/places/scalable/folder.svg),
 under its [existing license](../icons/MacTahoe/COPYING), with original symbol
 pictograms. Emoji use the installed Noto Color Emoji font, and their drawing
