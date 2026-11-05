@@ -11,6 +11,9 @@ FocusScope {
     required property string folderPath
     property bool dark: false
     property string fontFamily: "sans-serif"
+    property real pointerY: 124
+    property bool tailOnLeft: false
+    property real availableWidth: width + 58
     property bool demo: false
     property string name: ""
     property string colorValue: "#0a84ff"
@@ -128,9 +131,12 @@ FocusScope {
     FolderPopoverSurface {
         id: material
         objectName: "folderPopoverSurface"
+        x: panel.tailOnLeft ? -tailLength : 0
         bodyWidth: panel.width
         height: panel.height
         dark: panel.dark
+        pointerY: panel.pointerY
+        tailOnLeft: panel.tailOnLeft
     }
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onPressed: panel.forceActiveFocus() }
     Image {
@@ -274,7 +280,8 @@ FocusScope {
     Popup {
         id: emojiPicker
         objectName: "emojiPicker"
-        x: 58; y: Math.max(10, Math.min(221, panel.height - height - 10))
+        x: Math.max(0, Math.min(58, panel.availableWidth - width))
+        y: Math.max(10, Math.min(221, panel.height - height - 10))
         width: 330; height: Math.min(427, panel.height - 20)
         padding: 10
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import "Common" as Corners
 import QtQuick
 import "FolderCustomization" as Folders
+import "FolderCustomization/FolderPlacement.js" as FolderPlacement
 
 FocusScope {
     id: surface
@@ -19,6 +20,9 @@ FocusScope {
     property bool selecting: false
     property var originalSelection: []
     property string customizePath: ""
+    property rect customizeAnchor: Qt.rect(0, 0, 64, 64)
+    readonly property var customizePlacement: FolderPlacement.beside(customizeAnchor,
+        width, height, 360, Math.min(704, height - 24))
 
     function selectedFolder() {
         if (desktop.selected.length !== 1) return null;
@@ -29,6 +33,8 @@ FocusScope {
         if (!folder) return;
         closeMenu();
         customizePath = folder.path;
+        const image = mapToItem(customizer.parent, folder.x + 20, folder.y + 6);
+        customizeAnchor = Qt.rect(image.x, image.y, 64, 64);
         customizer.active = true;
     }
 
@@ -222,13 +228,16 @@ FocusScope {
         parent: surface.overlay || surface
         active: false
         z: 126
-        x: Math.max(12, Math.min(surface.width - 410, context.x - 365))
-        y: Math.max(12, Math.min(surface.height - 716, context.y - 145))
+        x: surface.customizePlacement.x
+        y: surface.customizePlacement.y
         sourceComponent: Folders.FolderCustomizer {
             folderPath: surface.customizePath
             dark: surface.dark
             fontFamily: surface.fam
             height: Math.min(704, surface.height - 24)
+            pointerY: surface.customizePlacement.pointerY
+            tailOnLeft: surface.customizePlacement.tailOnLeft
+            availableWidth: surface.width - customizer.x - 12
             onDismissed: { customizer.active = false; surface.forceActiveFocus(); }
             onChanged: surface.desktop.send({ action: "refresh" })
             Component.onCompleted: forceActiveFocus()

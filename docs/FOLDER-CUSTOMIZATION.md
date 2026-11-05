@@ -15,6 +15,9 @@ The panel layout follows the supplied macOS Tahoe references: preview and name
 above the color circles, scrollable symbol categories below a separator, and
 Clear/Emoji buttons in the footer. The emoji picker overlaps the symbol panel.
 The pointer and panel use one continuous outline with the Dock tooltip's curve.
+On the desktop the popover anchors to the selected folder image, with an 8px
+gap from its pointer. It flips sides near the left edge and keeps the pointer
+aligned vertically when the panel is clamped inside the screen.
 Folder artwork uses the bundled [MacTahoe SVG](../icons/MacTahoe/places/scalable/folder.svg),
 under its [existing license](../icons/MacTahoe/COPYING), with original symbol
 pictograms. Emoji use the installed Noto Color Emoji font, and their drawing
