@@ -27,7 +27,7 @@ def payload(home):
             if source.is_dir() or "__pycache__" in source.parts or "tests" in source.parts or source.suffix == ".pyc":
                 continue
             items.append((source, target / source.relative_to(source_root)))
-    for name in ("DesktopMenuIcon.qml", "DesktopSurface.qml", "DesktopMenu.qml", "DesktopIcon.qml", "bin/desktop_files.py", "FolderCustomization"):
+    for name in ("DesktopSurface.qml", "DesktopMenu.qml", "DesktopIcon.qml", "bin/desktop_files.py", "FolderCustomization"):
         items.append((ROOT / "config/quickshell/MacShell" / name, config / "quickshell/MacShell" / name))
     for name in ("macshell-folder-customize", "macshell-nautilus"):
         items.append((ROOT / "bin" / name, home / ".local/bin" / name))

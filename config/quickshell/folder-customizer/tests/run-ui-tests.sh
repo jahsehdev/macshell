@@ -5,6 +5,8 @@ folder_test_root=$(mktemp -d /tmp/macshell-folder-ui.XXXXXX)
 ln -s "$folder_source" "$folder_test_root/Customizer"
 ln -s "$folder_source/../MacShell" "$folder_test_root/MacShell"
 ln -s "$folder_source/../Common" "$folder_test_root/Common"
+# Match root-config implicit loading without any standalone icon type beside the menu.
+cp "$folder_source/../MacShell/DesktopMenu.qml" "$folder_test_root/DesktopMenu.qml"
 mkdir -p "$folder_test_root/runtime" "$folder_test_root/config/macshell" "$folder_test_root/Recipes" "$folder_test_root/previews"
 chmod 700 "$folder_test_root/runtime"
 export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
@@ -21,7 +23,11 @@ PY
 cat > "$folder_test_root/shell.qml" <<'QML'
 import Quickshell
 import "Customizer/tests"
-ShellRoot { FolderCustomizerTests {} DesktopFolderTests {} }
+ShellRoot {
+    DesktopMenu { entries: [{ label: "Open", action: "open" }] }
+    FolderCustomizerTests {}
+    DesktopFolderTests {}
+}
 QML
 set +e
 timeout 25 qs -p "$folder_test_root" --no-color > "$folder_test_root/tests.log" 2>&1
