@@ -11,6 +11,8 @@ FocusScope {
     required property string folderPath
     property bool dark: false
     property string fontFamily: "sans-serif"
+    property string emojiFontFamily: Qt.fontFamilies().indexOf("Apple Color Emoji") >= 0 ? "Apple Color Emoji" : "Noto Color Emoji"
+    property url emojiFontUrl: ""
     property real pointerY: 124
     property bool tailOnLeft: false
     property real availableWidth: width + 58
@@ -85,6 +87,8 @@ FocusScope {
         event.accepted = true;
     }
 
+    // Loading the selected file also refreshes Qt's font database on config reload.
+    FontLoader { id: emojiTypeface; objectName: "folderEmojiTypeface"; source: panel.emojiFontUrl }
     FileView {
         id: recents
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/macshell/folder-emoji-recents.json"
@@ -116,6 +120,8 @@ FocusScope {
                         panel.symbolValue = state.settings.symbol; panel.emojiValue = state.settings.emoji;
                         panel.confirmedSettings = state.settings;
                         panel.iconUrl = state.icon; panel.symbols = state.symbols;
+                        panel.emojiFontFamily = state.emojiFontFamily || "Noto Color Emoji";
+                        panel.emojiFontUrl = state.emojiFontUrl || "";
                         panel.customized = state.customized;
                         const first = !panel.ready;
                         panel.ready = true;
@@ -335,7 +341,9 @@ FocusScope {
                     required property var modelData
                     width: 45; height: 40; subtle: true; dark: panel.dark
                     text: modelData[0]; hint: modelData[1]
-                    font.family: "Noto Color Emoji"; font.pixelSize: 28
+                    font.family: emojiTypeface.status === FontLoader.Ready ? emojiTypeface.name : panel.emojiFontFamily
+                    // Apple's Linux bitmap has smaller ink bounds than Noto at the same em size.
+                    font.pixelSize: panel.emojiFontFamily === "Apple Color Emoji" ? 40 : 28
                     onClicked: panel.applyEmoji(modelData[0])
                 }
                 Keys.onReturnPressed: if (count) panel.applyEmoji(panel.visibleEmoji[currentIndex][0])

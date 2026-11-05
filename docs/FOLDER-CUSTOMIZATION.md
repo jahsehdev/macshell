@@ -29,8 +29,15 @@ Dock. Shorter screens reduce the panel height further; the symbol list scrolls
 while Clear and Emoji stay in the footer above the Dock.
 Folder artwork uses the bundled [MacTahoe SVG](../icons/MacTahoe/places/scalable/folder.svg),
 under its [existing license](../icons/MacTahoe/COPYING), with original symbol
-pictograms. Emoji use the installed Noto Color Emoji font, and their drawing
-differs from Apple's emoji font.
+pictograms. Emoji prefer an installed, usable **Apple Color Emoji** font, with
+**Noto Color Emoji** as the fallback. The picker loads the same font file used
+by the artwork renderer. Font changes give emoji artwork a new cache URI.
+
+The optional [samuelngs/apple-emoji-ttf Linux build](https://github.com/samuelngs/apple-emoji-ttf)
+can be installed in `~/.local/share/fonts/`, followed by `fc-cache -f` and a
+MacShell reload. Use `AppleColorEmoji-Linux.ttf`; its 96px bitmap strike differs
+from Noto's 109px strike. The converted font is not bundled with this config;
+the upstream MIT license covers its code, not Apple's emoji artwork.
 
 ## Installation
 

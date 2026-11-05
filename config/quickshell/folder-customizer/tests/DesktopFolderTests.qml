@@ -97,6 +97,10 @@ Window {
             tryVerify(function() { return loader.item && loader.item.ready; }, 5000);
             compare(loader.item.name, "Recipes");
             compare(loader.item.symbols.length, 71);
+            const font = findChild(loader.item, "folderEmojiTypeface");
+            verify(font !== null);
+            tryCompare(font, "status", FontLoader.Ready);
+            compare(font.name, loader.item.emojiFontFamily);
             verify(loader.x >= 0 && loader.x + loader.width <= surface.width);
             verify(loader.y >= 0 && loader.y + loader.height <= surface.height);
             verify(loader.height <= 620);

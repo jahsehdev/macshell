@@ -9,6 +9,7 @@ import argparse
 import colorsys
 import errno
 import fcntl
+from functools import lru_cache
 import hashlib
 import io
 import json
@@ -101,6 +102,28 @@ def folder_svg(color):
     return template.replace('width="64" height="64"', 'width="256" height="256"')
 
 
+@lru_cache(maxsize=1)
+def emoji_font():
+    """Choose one usable color font for both the picker and exported artwork.
+
+    The Linux Apple font has a 96px bitmap strike; Noto has a 109px strike.
+    Fontconfig can silently substitute another family, so verify the match.
+    """
+    for family, size in (("Apple Color Emoji", 96), ("Noto Color Emoji", 109)):
+        try:
+            result = subprocess.run(["fc-match", "-f", "%{family[0]}\n%{file}", family],
+                                    capture_output=True, text=True, check=True, timeout=5)
+            matched, filename = result.stdout.strip().split("\n", 1)
+            if matched != family:
+                continue
+            path = Path(filename)
+            font = ImageFont.truetype(str(path), size)
+            return family, path, font
+        except (OSError, ValueError, subprocess.SubprocessError):
+            continue
+    return None
+
+
 def render(value):
     value = normalize(value)
     color = value["color"]
@@ -121,9 +144,10 @@ def render(value):
                             input=svg.encode(), capture_output=True, check=True, timeout=10)
     image = Image.open(io.BytesIO(result.stdout)).convert("RGBA").resize((256, 256), Image.Resampling.LANCZOS)
     if value["emoji"]:
-        result = subprocess.run(["fc-match", "-f", "%{file}", "Noto Color Emoji"],
-                                capture_output=True, text=True, check=True, timeout=5)
-        font = ImageFont.truetype(result.stdout, 109)
+        selected = emoji_font()
+        if selected is None:
+            raise ValueError("Install Apple Color Emoji or Noto Color Emoji to use emoji on folders.")
+        font = selected[2]
         emoji = Image.new("RGBA", (320, 160))
         draw = ImageDraw.Draw(emoji)
         draw.text((5, 0), value["emoji"], font=font, embedded_color=True)
@@ -139,7 +163,14 @@ def render(value):
 def artwork_path(value, version=ART_VERSION):
     value = normalize(value)
     data = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
-    digest = hashlib.sha256((json.dumps(value, sort_keys=True) + version).encode()).hexdigest()
+    identity = ""
+    if value["emoji"] and version != "art-v1":
+        selected = emoji_font()
+        if selected:
+            family, path, _ = selected
+            info = path.stat()
+            identity = f"{family}:{path}:{info.st_size}:{info.st_mtime_ns}"
+    digest = hashlib.sha256((json.dumps(value, sort_keys=True) + version + identity).encode()).hexdigest()
     return data / "macshell/folder-icons" / (digest + ".png")
 
 
@@ -190,8 +221,11 @@ class Folder:
     def status(self):
         state = read_state(self.path)
         value = normalize(state or {"color": default_color()})
+        selected = emoji_font()
         return dict(event="state", path=str(self.path), name=self.path.name or "/",
-                    settings=value, customized=bool(state), icon=artwork(value).as_uri(), symbols=symbols())
+                    settings=value, customized=bool(state), icon=artwork(value).as_uri(), symbols=symbols(),
+                    emojiFontFamily=selected[0] if selected else "Noto Color Emoji",
+                    emojiFontUrl=selected[1].as_uri() if selected else "")
 
     def repair_artwork(self):
         """Migrate saved folders to the new texture URI, retaining original icons."""

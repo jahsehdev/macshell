@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, sentinel
 
 SOURCE = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('folder_customizer', SOURCE / 'bin/folder_customizer.py')
@@ -25,8 +25,40 @@ class Metadata:
         self.value = value
 
 
+class EmojiFontTests(unittest.TestCase):
+    def setUp(self):
+        module.emoji_font.cache_clear()
+        self.addCleanup(module.emoji_font.cache_clear)
+
+    def match(self, family, path):
+        return module.subprocess.CompletedProcess([], 0, stdout=family + '\n' + path)
+
+    def test_apple_font_is_loaded_at_its_supported_bitmap_size(self):
+        with patch.object(module.subprocess, 'run', return_value=self.match('Apple Color Emoji', '/fonts/apple.ttf')), \
+                patch.object(module.ImageFont, 'truetype', return_value=sentinel.font) as load:
+            selected = module.emoji_font()
+        self.assertEqual(selected, ('Apple Color Emoji', Path('/fonts/apple.ttf'), sentinel.font))
+        load.assert_called_once_with('/fonts/apple.ttf', 96)
+
+    def test_missing_apple_font_uses_noto_without_mislabeling_it(self):
+        with patch.object(module.subprocess, 'run', return_value=self.match('Noto Color Emoji', '/fonts/noto.ttf')), \
+                patch.object(module.ImageFont, 'truetype', return_value=sentinel.font) as load:
+            selected = module.emoji_font()
+        self.assertEqual(selected[0], 'Noto Color Emoji')
+        load.assert_called_once_with('/fonts/noto.ttf', 109)
+
+    def test_unusable_apple_font_falls_back_to_noto(self):
+        with patch.object(module.subprocess, 'run', side_effect=[
+                self.match('Apple Color Emoji', '/fonts/apple.ttf'), self.match('Noto Color Emoji', '/fonts/noto.ttf')]), \
+                patch.object(module.ImageFont, 'truetype', side_effect=[OSError('invalid pixel size'), sentinel.font]):
+            selected = module.emoji_font()
+        self.assertEqual(selected[0], 'Noto Color Emoji')
+
+
 class FolderTests(unittest.TestCase):
     def setUp(self):
+        # Discover session fonts before isolating the cache's XDG_DATA_HOME.
+        module.emoji_font()
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -102,6 +134,19 @@ class FolderTests(unittest.TestCase):
         self.assertNotEqual(base.tobytes(), emoji.tobytes())
         family = module.render(dict(color='#0a84ff', emoji='👨‍👩‍👧‍👦'))
         self.assertEqual(family.size, (256, 256))
+
+    def test_emoji_font_changes_invalidate_only_emoji_artwork(self):
+        font = self.root / 'emoji.ttf'
+        font.write_bytes(b'first font')
+        with patch.object(module, 'emoji_font', return_value=('Apple Color Emoji', font, sentinel.font)):
+            value = dict(color='#0a84ff', emoji='😎')
+            first = module.artwork_path(value)
+            plain = module.artwork_path(dict(color='#0a84ff'))
+            legacy = module.artwork_path(value, 'art-v1')
+            font.write_bytes(b'updated emoji font')
+            self.assertNotEqual(module.artwork_path(value), first)
+            self.assertEqual(module.artwork_path(dict(color='#0a84ff')), plain)
+            self.assertEqual(module.artwork_path(value, 'art-v1'), legacy)
 
     def test_invalid_input_never_applies(self):
         for value in [dict(color='red; touch nope'), dict(color='#abc'), dict(symbol='unknown'),
