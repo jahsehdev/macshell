@@ -43,7 +43,9 @@ the upstream MIT license covers its code, not Apple's emoji artwork.
 
 The normal `./install.sh` installer includes the interface, launcher, artwork
 backend, and native Nautilus integration. Required packages include Nautilus,
-GVfs, librsvg (`rsvg-convert`), Fontconfig, Pillow, and Noto Color Emoji.
+GVfs, librsvg (`rsvg-convert`), Fontconfig, and Pillow. For emoji, install
+**Apple Color Emoji** using the Linux build described above; **Noto Color Emoji**
+is supported as a fallback.
 
 To update this feature in an existing installation without reinstalling the
 other shell components:

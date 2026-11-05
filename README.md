@@ -72,7 +72,9 @@ The package groups used by the installer and config are:
 | Brightness and media keys | `brightnessctl playerctl` |
 | Battery reporting and power profiles | `upower power-profiles-daemon` |
 | MacLock authentication | `hyprlock` |
-| Fallback fonts and emoji | `inter-font noto-fonts noto-fonts-emoji` |
+| Interface fonts | **SF Pro Text / SF Pro Display**; install with `macshell-install-sf-fonts` after configuration |
+| Monospace font | **SF Mono**; installed by the same font helper |
+| Emoji | **Apple Color Emoji** (`AppleColorEmoji-Linux.ttf`); see [font and emoji setup](#fonts-and-emoji) |
 | Notifications, sounds, and filesystem watching | `libnotify libcanberra inotify-tools` |
 | JSON and HTTP helpers | `jq curl` |
 
@@ -80,6 +82,8 @@ The dependency helper installs its declared package list and attempts to install
 `awww` for the wallpaper picker. It checks pacman first, then uses `yay`, `paru`,
 or a user-owned AUR build when needed. The additional runtime command above
 covers config features that are not all included in that package list.
+The helper also installs fallback fonts. Install SF Pro, SF Mono, and Apple
+Color Emoji separately as described in [Fonts and emoji](#fonts-and-emoji).
 
 Photo Booth requires Qt GUI and Multimedia private development headers matching
 the installed Qt libraries. The Nautilus folder menu also needs the
@@ -342,6 +346,8 @@ Automatic installation targets Arch Linux and its derivatives, Hyprland with
 Lua configuration support (0.55+), Qt 6.9+, and a C++26 compiler for the Hyprland
 plugins. Rebuild the plugins after a Hyprland ABI upgrade.
 
+## Fonts and emoji
+
 MacShell uses **SF Pro Text** and **SF Pro Display** for interface text.
 San Francisco font files are installed separately. After
 installing the config, run:
@@ -356,6 +362,14 @@ and SF Mono for fixed-width text, then updates the font cache and session
 preferences. Restart MacShell and applications to refresh their loaded fonts.
 Without the font files, the system substitutes an installed fallback such as
 Noto. The included default wallpaper is an SVG that you can replace in Settings.
+
+For folder emoji, install **Apple Color Emoji** separately using the Linux build
+`AppleColorEmoji-Linux.ttf` in `~/.local/share/fonts/`, run `fc-cache -f`, then
+reload MacShell. The SF font helper does not install emoji fonts. The folder
+picker and artwork renderer prefer the usable Apple font; **Noto Color Emoji**
+is only the fallback when it is unavailable. See
+[folder emoji font setup](docs/FOLDER-CUSTOMIZATION.md) for the font source and
+installation details.
 
 This distribution includes customizations of
 [0-ss/MacShell](https://github.com/0-ss/MacShell),
