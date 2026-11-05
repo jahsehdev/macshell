@@ -2772,10 +2772,12 @@ Scope {
                         t: pal
                         title: "Font"
                         subtitle: "Used for labels and menus"
-                        SSegmented {
+                        SPopUp {
+                            objectName: "typographyFontDropdown"
                             t: pal
+                            accessibleLabel: "Interface font"
                             model: ["SF Pro Text", "SF Pro Display", "System"]
-                            segWidth: 76
+                            width: 190
                             current: root.fontFamily === "SF Pro Text" ? 0 : (root.fontFamily === "SF Pro Display" ? 1 : 2)
                             onPicked: i => root.setLook("fontFamily", ["SF Pro Text", "SF Pro Display", "sans-serif"][i])
                         }
