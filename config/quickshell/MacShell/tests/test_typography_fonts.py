@@ -22,8 +22,10 @@ class TypographyFontsTests(unittest.TestCase):
     def test_font_discovery_search_selection_and_regular_dropdown(self):
         qml = '''import QtQuick
 import QtQuick.Controls
+import QtQml.Models
 import QtTest
 import Quickshell
+import Quickshell.Io
 import "Common" as Corners
 ShellRoot {
     Window {
@@ -45,6 +47,7 @@ ShellRoot {
             property color text3: dark ? "#66666b" : "#c3c3c8"
             property color hover: dark ? "#333336" : "#dedee2"
             property color card: dark ? "#363639" : "white"
+            property color cardBorder: "transparent"
             property color sep: dark ? "#454549" : "#dedee2"
         }
         CARD
@@ -84,6 +87,7 @@ ShellRoot {
                 root.saves = 0; changes.clear();
             }
             function test_01_lists_all_installed_sf_families_and_retains_selection() {
+                tryVerify(() => typographyFont.fontFiles.length > 0);
                 const installed = Qt.fontFamilies().filter(f => /^SF(?:\\s|$)/i.test(f)).sort();
                 verify(installed.length >= 4);
                 compare(typographyFont.sfFamilies, installed);
@@ -169,10 +173,32 @@ ShellRoot {
                 compare(plain.current, 59);
                 plain.searchable = false;
             }
+            function test_09_fontconfig_fills_list_when_qt_cache_contains_no_sf_fonts() {
+                compare(typographyFont.qtFamilies.length, 0);
+                compare(typographyFont.sfFamilies, ["SF Mono", "SF Pro Display", "SF Pro Rounded", "SF Pro Text"]);
+                open();
+                compare(list.count, 5);
+                compare(typographyFont.model[typographyFont.current], "SF Pro Display");
+                const registry = findChild(typographyFont, "sfFontRegistry");
+                compare(registry.count, typographyFont.fontFiles.length);
+                for (let i = 0; i < registry.count; i++)
+                    tryCompare(registry.objectAt(i), "status", FontLoader.Ready);
+                field.text = "rounded";
+                tryCompare(list, "count", 1);
+                keyClick(Qt.Key_Return);
+                compare(root.fontFamily, "SF Pro Rounded");
+            }
         }
     }
 }
-'''.replace('PICKER', typography_picker())
+'''
+        # Reproduce a long-running shell whose Qt font snapshot predates SF installation.
+        # Keep the actual Fontconfig scan, file registration and selection code intact.
+        picker = typography_picker()
+        snapshot = 'readonly property var qtFamilies: Qt.fontFamilies().filter(family => /^SF(?:\\s|$)/i.test(family))'
+        self.assertIn(snapshot, picker)
+        picker = picker.replace(snapshot, 'readonly property var qtFamilies: []', 1)
+        qml = qml.replace('PICKER', picker)
         source = (SHELL / 'MacDock.qml').read_text()
         qml = qml.replace('CARD', component(source, 'SCard')).replace('ROW', component(source, 'SRow'))
         with tempfile.TemporaryDirectory(prefix='macshell-typography-fonts-') as directory:
@@ -192,7 +218,7 @@ ShellRoot {
                                     capture_output=True, text=True, timeout=25)
             output = result.stdout + result.stderr
             self.assertEqual(result.returncode, 0, output)
-            self.assertIn('TOTALS 9 passed, 0 failed', output, output)
+            self.assertIn('TOTALS 10 passed, 0 failed', output, output)
             for failure in ('FAIL!', 'TypeError', 'ReferenceError', 'WARN qml:', 'ERROR qml:'):
                 self.assertNotIn(failure, output)
 

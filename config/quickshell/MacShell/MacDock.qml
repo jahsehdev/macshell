@@ -29,6 +29,7 @@ import QtQuick.Effects
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Shapes
+import QtQml.Models
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -2563,13 +2564,50 @@ Scope {
                             objectName: "typographyFontDropdown"
                             t: pal
                             accessibleLabel: "Interface font"
-                            readonly property var sfFamilies: Qt.fontFamilies().filter(family => /^SF(?:\s|$)/i.test(family)).sort()
+                            // Qt can keep its pre-install font database across config reloads.
+                            // Read Fontconfig too, and register the discovered faces in this process.
+                            readonly property var qtFamilies: Qt.fontFamilies().filter(family => /^SF(?:\s|$)/i.test(family))
+                            property var fontFiles: []
+                            readonly property var sfFamilies: {
+                                const families = qtFamilies.slice();
+                                for (const entry of fontFiles)
+                                    if (families.indexOf(entry.family) < 0) families.push(entry.family);
+                                return families.sort();
+                            }
                             model: sfFamilies.concat(["System"])
                             searchable: true
                             searchPlaceholder: "Search fonts"
                             width: 190
                             current: sfFamilies.indexOf(root.fontFamily) >= 0 ? sfFamilies.indexOf(root.fontFamily) : sfFamilies.length
                             onPicked: i => root.setLook("fontFamily", i < typographyFont.sfFamilies.length ? typographyFont.sfFamilies[i] : "sans-serif")
+                            onOpening: sfFontScan.running = true
+                            Process {
+                                id: sfFontScan
+                                command: ["fc-list", "--format", "%{family[0]}\t%{file}\n"]
+                                running: true
+                                stdout: StdioCollector {
+                                    onStreamFinished: {
+                                        const entries = [];
+                                        const files = new Set();
+                                        for (const line of text.split("\n")) {
+                                            const parts = line.split("\t");
+                                            if (parts.length !== 2 || !/^SF(?:\s|$)/i.test(parts[0]) || !parts[1] || files.has(parts[1])) continue;
+                                            files.add(parts[1]);
+                                            entries.push({ family: parts[0], file: parts[1] });
+                                        }
+                                        entries.sort((a, b) => a.file.localeCompare(b.file));
+                                        if (JSON.stringify(entries) !== JSON.stringify(typographyFont.fontFiles)) typographyFont.fontFiles = entries;
+                                    }
+                                }
+                            }
+                            Instantiator {
+                                objectName: "sfFontRegistry"
+                                model: typographyFont.fontFiles
+                                delegate: FontLoader {
+                                    required property var modelData
+                                    source: "file://" + modelData.file.split("/").map(encodeURIComponent).join("/")
+                                }
+                            }
                         }
                     }
                 }

@@ -15,6 +15,7 @@ Item {
     property string accessibleLabel: ""
     property bool searchable: false
     property string searchPlaceholder: "Search"
+    signal opening()
     readonly property var filteredIndices: {
         const query = searchable ? searchField.text.trim().toLocaleLowerCase() : "";
         const indices = [];
@@ -66,7 +67,7 @@ Item {
             c.beginPath(); c.moveTo(1, 7.8); c.lineTo(4, 10.8); c.lineTo(7, 7.8); c.stroke();
         }
     }
-    function openMenu() { menu.open(); }
+    function openMenu() { opening(); menu.open(); }
     function pickRow(index) {
         if (index < 0 || index >= filteredIndices.length) return;
         const originalIndex = filteredIndices[index];
