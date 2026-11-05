@@ -330,20 +330,3 @@ This distribution includes customizations of
 [MacTahoe icons](https://github.com/vinceliuice/MacTahoe-icon-theme).
 See [THIRD_PARTY.md](THIRD_PARTY.md) for component licenses.
 This is an independent Linux project and is not affiliated with Apple.
-
-## Golden Gate implementation status
-
-The new Calendar, Mail, Photos, Android and Rename Assistant windows can be opened
-with `macshell-calendar`, `macshell-mail`, `macshell-photos`, `macshell-android`, and
-`macshell-rename`. Visual Intelligence uses **Super+Shift+6**. Appearance includes
-**Show Borders**, and the tray chevron collapses/expands icons with a slide;
-right-click the chevron for hidden items.
-
-Mail currently works with local EML/MBOX archives and drafts; live account
-connectors are not implemented. Photos exports edits without replacing originals
-and can explicitly share an album on the LAN. OCR, speech, and AI require their
-local dependencies/models. Generative photo tools are not enabled.
-
-See the [execution report](docs/REPORT-GOLDEN-GATE-EXECUTION-2026-11-02.md) for
-verified behavior, dependency/device requirements, and remaining work. Firefox
-tools are provided as [development extension source](share/macshell/browser/README.md).
