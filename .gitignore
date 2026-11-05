@@ -3,6 +3,8 @@ build/
 __pycache__/
 *.pyc
 *.so
+*.so.commit
+*.so.commit.tmp
 *.o
 *.a
 *.log

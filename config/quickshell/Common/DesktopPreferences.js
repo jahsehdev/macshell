@@ -17,7 +17,11 @@ function normalize(o) {
         wallpaperClick: choice('wallpaperClick', ['always', 'stage'], 'stage'),
         stageManager: flag('stageManager', false),
         stageRecent: flag('stageRecent', true),
-        stageWindows: choice('stageWindows', ['all', 'one'], 'all')
+        stageWindows: choice('stageWindows', ['all', 'one'], 'all'),
+        reduceTransparency: flag('reduceTransparency', false),
+        increaseContrast: flag('increaseContrast', false),
+        showBorders: flag('showBorders', false),
+        reduceMotion: flag('reduceMotion', false)
     };
 }
 function recent(list, id) {

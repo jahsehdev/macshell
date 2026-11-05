@@ -21,12 +21,13 @@ Item {
 
     readonly property bool isSmall: size === "small"
     readonly property bool isMedium: size === "medium"
-    readonly property bool isLarge: size === "large"
+    readonly property bool isXL: size === "xl"
+    readonly property bool isLarge: size === "large" || isXL
     readonly property real s: scaleF * (isSmall ? 168 / 158 : (isMedium ? 358 / 338 : 1.0))
     readonly property real radiusPx: 28 * s
 
-    width: (isSmall ? 158 : (isLarge ? 358 : 338)) * s
-    height: (isLarge ? 354 : 168) * scaleF
+    width: isXL ? 560 * scaleF : (isSmall ? 158 : (isLarge ? 358 : 338)) * s
+    height: isXL ? 385 * scaleF : (isLarge ? 354 : 168) * scaleF
 
     // rounded-corner mask for the picture
     Item {

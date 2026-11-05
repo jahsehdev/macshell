@@ -66,6 +66,14 @@ class NeverHideCornerTests(unittest.TestCase):
                 self.assertTrue(dock_rounded(window,self.monitor,self.settings))
                 self.assertEqual(sync(backend,[window],[self.monitor],self.settings),[])
                 self.assertEqual(backend.calls,[('0xaa','+'+DOCK_ROUNDED_TAG)])
+    def test_launchpad_does_not_inherit_application_workarea_tags(self):
+        backend = Backend()
+        window = {**self.window, 'title': 'qs-launchpad-backdrop',
+                  'tags': [SQUARE_TAG, DOCK_ROUNDED_TAG]}
+        self.assertFalse(dock_rounded(window, self.monitor, self.settings))
+        self.assertEqual(sync(backend, [window], [self.monitor], self.settings), [])
+        self.assertEqual(backend.calls, [('0xaa', '-' + SQUARE_TAG),
+                                         ('0xaa', '-' + DOCK_ROUNDED_TAG)])
     def test_existing_square_window_becomes_rounded(self):
         backend=Backend()
         window={**self.window,'tags':[SQUARE_TAG,'macshell-zoomed']}

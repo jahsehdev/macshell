@@ -69,6 +69,7 @@ Item {
         visible: background.blurRadius <= 0 || blurredWallpaper.status !== Image.Ready
         smooth: true
         mipmap: true
+        asynchronous: true
         cache: false
     }
     Image {

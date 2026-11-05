@@ -33,6 +33,7 @@ Item {
                 required property real wh
                 required property real wz
                 required property bool gone
+                visible: !gone // A detached screencopy can retain its last texture until swept.
                 x: wx; y: wy; width: ww; height: wh; z: wz
                 readonly property var tl: {
                     if (!glass.hub || gone) return null;
@@ -93,7 +94,7 @@ Item {
     Common.ContinuousRectangle {
         anchors.fill: parent; radius: glass.dock.cornerRadius
         visible: !glass.dock.liquidActive
-        color: glass.dock.dockDark ? Qt.rgba(0.1,0.1,0.11,glass.dock.glassOpacity) : Qt.rgba(1,1,1,glass.dock.glassOpacity * 0.55)
+        color: glass.dock.dockDark ? Qt.rgba(0.1,0.1,0.11,glass.dock.effGlassOpacity) : Qt.rgba(1,1,1,Common.DesktopPreferences.glassTint(glass.dock.effGlassOpacity, 0.55))
         border.color: glass.dock.dockDark ? "#40000000" : "#20000000"
     }
     ShaderEffect {
@@ -108,13 +109,13 @@ Item {
         property real radius: glass.dock.cornerRadius
         property real squircle: glass.dock.cornerSquircle
         property real bezel: Math.min(width * 0.36,26)
-        property real thickness: 30 * glass.dock.glassLiquid
-        property real dispersion: 0.06 * glass.dock.glassLiquid
-        property real magnify: 0.08 * glass.dock.glassLiquid
-        property real rim: glass.dock.glassRim
-        property real grain: glass.dock.glassGrain
+        property real thickness: 30 * glass.dock.effGlassLiquid
+        property real dispersion: 0.06 * glass.dock.effGlassLiquid
+        property real magnify: 0.08 * glass.dock.effGlassLiquid
+        property real rim: glass.dock.effGlassRim
+        property real grain: glass.dock.effGlassGrain
         property real blurPx: 1.5
-        property real tintMix: glass.dock.glassOpacity * 0.55
+        property real tintMix: Common.DesktopPreferences.glassTint(glass.dock.effGlassOpacity, 0.55)
         property real saturation: 1.25
         property real dark: glass.dock.dockDark ? 1 : 0
         property real debug: 0

@@ -17,6 +17,8 @@ def dock_settings():
 
 
 def expanded(client, monitor):
+    if client.get('title') == 'qs-launchpad-backdrop':
+        return False  # desktop backdrop must never inherit Dock work-area policy
     if not client.get('mapped', True) or client.get('hidden') or client.get('pinned'):
         return False
     # F11/HTML fullscreen can leave a client-only flag on an ordinary-sized

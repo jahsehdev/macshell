@@ -247,7 +247,10 @@ Scope {
     property int iconSize: 52
     property real magnification: 1.7     // peak icon scale
     property int spacing: 6
-    property int hPad: 10
+    // Padding at the first and last icon, as a fraction of the icon size, so the Dock keeps the
+    // same tight edge when the icons are resized (0.13 ≈ 7 px at the default 52 px icons).
+    property real hPadRatio: 0.13
+    readonly property int hPad: Math.round(iconSize * hPadRatio)
     property int topPad: 8
     property int bottomPad: 9            // room under icons (running dots live here)
     property int cornerRadius: 18
@@ -265,13 +268,26 @@ Scope {
     // Liquid Glass tuning (settings.json): rim = edge highlight, grain = noise, liquid = refraction depth
     property real glassRim: 0.45
     property real glassGrain: 0.03
+    Behavior on glassLiquid { NumberAnimation { duration: root.reduceMotion ? 0 : 65; easing.type: Easing.OutQuad } }
     property real glassLiquid: 1.0
     readonly property bool glassRT: bar ? bar.glassRealtime : true     // real-time glass (Menu Bar settings)
-    property real glassBlur: 5            // legacy Clear blur; the UI now uses Clear / Tinted presets
-    readonly property real materialBlur: Corners.GlassMaterial.blurRadius(glassBlur)
+    Behavior on glassBlur { NumberAnimation { duration: root.reduceMotion ? 0 : 65; easing.type: Easing.OutQuad } }
+    property real glassBlur: 5            // Clear backdrop blur radius (0–80), shared with the bar popovers and widgets
+    readonly property real materialBlur: Corners.GlassMaterial.blurRadius(effGlassBlur)
     property bool glassDebug: false       // settings.json only: draw the raw Liquid Glass backdrop texture
     property string wallpaperPath: ""    // optional override for the wallpaper the Liquid Glass refracts
+    Behavior on glassOpacity { NumberAnimation { duration: root.reduceMotion ? 0 : 65; easing.type: Easing.OutQuad } }
     property real glassOpacity: 0.42     // 0 = fully clear; below the layerrule's ignore_alpha (0.2) the blur turns off
+
+    // ── Accessibility (GG-07): applied to every Dock / widget surface ──
+    readonly property bool reduceTransparency: Corners.DesktopPreferences.reduceTransparency
+    readonly property bool increaseContrast: Corners.DesktopPreferences.increaseContrast
+    readonly property bool reduceMotion: Corners.DesktopPreferences.reduceMotion
+    readonly property real effGlassOpacity: Corners.DesktopPreferences.glassOpacity(glassOpacity)
+    readonly property real effGlassLiquid: Corners.DesktopPreferences.glassLiquid(glassLiquid)
+    readonly property real effGlassBlur: Corners.DesktopPreferences.glassBlur(glassBlur)
+    readonly property real effGlassRim: Corners.DesktopPreferences.glassRim(glassRim)
+    readonly property real effGlassGrain: Corners.DesktopPreferences.glassGrain(glassGrain)
     // "smart"  = hide while a non-floating window is open on that monitor's workspace
     // "always" = always auto-hide, "never" = always visible and reserves space
     property string hideMode: "smart"
@@ -294,9 +310,8 @@ Scope {
     readonly property string iconTintColor: String(Corners.IconStyle.tintColor)
     readonly property real iconTintStrength: 1.0
     readonly property string launchpadKey: "__launchpad"
-    // Use the resolved system appearance, not dockDark (the Dock stays dark).
-    readonly property string launchpadIcon: Qt.resolvedUrl(darkMode
-        ? "assets/launchpad/launchpad-dark.svg" : "assets/launchpad/launchpad-light.svg").toString()
+    // Resolve the Launchpad artwork from the system icon theme (MacTahoe).
+    readonly property string launchpadIcon: Quickshell.iconPath("view-app-grid", "application-x-executable")
     readonly property bool launchpadPinned: hasPin(launchpadKey)
     onLaunchpadIconChanged: if (settingsReady) rebuild()
     Connections {
@@ -305,7 +320,7 @@ Scope {
     }
     readonly property var defaultPinned: [
         launchpadKey,
-        "org.gnome.Nautilus", "systemsettings", "thunar",
+        "org.gnome.Nautilus", "org.gnome.Calendar", "systemsettings", "thunar",
         "firefox", "zen", "chromium", "google-chrome",
         "tabby", "com.mitchellh.ghostty", "Alacritty", "foot",
         "code", "discord", "spotify", "steam", "obsidian"
@@ -339,6 +354,7 @@ Scope {
         required property var t
         property string title: ""
         property string subtitle: ""
+        property bool alignTop: false
         property url iconSource: ""
         default property alias control: slot.data
         width: parent ? parent.width : 0
@@ -367,7 +383,7 @@ Scope {
         Column {
             id: textCol
             x: ic.visible ? 56 : 16
-            y: r.stacked ? 14 : (r.height - height) / 2
+            y: r.stacked || r.alignTop ? 14 : (r.height - height) / 2
             width: Math.max(0, r.width - x - (r.stacked ? 16 : slot.width + 32))
             spacing: 4
             Text {
@@ -471,8 +487,8 @@ Scope {
         property real dragStretch: 0             // stretch that follows the pointer speed
         property bool ready: false               // the initial `checked` binding must not flash
 
-        Behavior on glass { NumberAnimation { duration: sw.animationsEnabled ? 150 : 0; easing.type: Easing.OutQuad } }
-        Behavior on dragStretch { NumberAnimation { duration: 140; easing.type: Easing.OutQuad } }
+        Behavior on glass { NumberAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 150 : 0); easing.type: Easing.OutQuad } }
+        Behavior on dragStretch { NumberAnimation { duration: root.reduceMotion ? 0 : 140; easing.type: Easing.OutQuad } }
 
         Component.onCompleted: sw.ready = true
         // a toggle (click, flick or drag-release) runs the glass coat + the specular sweep
@@ -492,17 +508,17 @@ Scope {
         // damped "jelly" settle: one overshoot, one rebound, then rest
         SequentialAnimation {
             id: jellyAnim
-            NumberAnimation { target: sw; property: "jellyOff"; from: 0;     to: 0.10;  duration: 90;  easing.type: Easing.OutQuad }
-            NumberAnimation { target: sw; property: "jellyOff"; from: 0.10;  to: -0.06; duration: 120; easing.type: Easing.InOutQuad }
-            NumberAnimation { target: sw; property: "jellyOff"; from: -0.06; to: 0.028; duration: 115; easing.type: Easing.InOutQuad }
-            NumberAnimation { target: sw; property: "jellyOff"; from: 0.028; to: 0;     duration: 115; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: sw; property: "jellyOff"; from: 0;     to: 0.10;  duration: root.reduceMotion ? 0 : 90;  easing.type: Easing.OutQuad }
+            NumberAnimation { target: sw; property: "jellyOff"; from: 0.10;  to: -0.06; duration: root.reduceMotion ? 0 : 120; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: sw; property: "jellyOff"; from: -0.06; to: 0.028; duration: root.reduceMotion ? 0 : 115; easing.type: Easing.InOutQuad }
+            NumberAnimation { target: sw; property: "jellyOff"; from: 0.028; to: 0;     duration: root.reduceMotion ? 0 : 115; easing.type: Easing.InOutQuad }
         }
         // light sweeping across the pill, so the glass catches the light while it travels
         NumberAnimation {
             id: sweepAnim
             target: sw; property: "sweep"
             from: -0.35; to: 1.35
-            duration: 560
+            duration: root.reduceMotion ? 0 : 560
             easing.type: Easing.InOutCubic
         }
 
@@ -512,7 +528,7 @@ Scope {
             anchors.fill: parent
             radius: height / 2
             color: (sw.pressed || ma.containsMouse) ? Qt.lighter(sw.fill, sw.pressed ? 1.04 : 1.02) : sw.fill
-            Behavior on color { ColorAnimation { duration: sw.animationsEnabled ? 250 : 0; easing.type: Easing.OutCubic } }
+            Behavior on color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 250 : 0); easing.type: Easing.OutCubic } }
         }
 
         // thin rim just inside the edge: darker green when on, light edge when off
@@ -522,7 +538,7 @@ Scope {
             color: "transparent"
             border.width: Math.max(1, (sw.checked ? 0.033 : 0.025) * sw.height)
             border.color: sw.checked ? sw.rimOn : sw.rimOff
-            Behavior on border.color { ColorAnimation { duration: sw.animationsEnabled ? 250 : 0; easing.type: Easing.OutCubic } }
+            Behavior on border.color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 250 : 0); easing.type: Easing.OutCubic } }
         }
 
         // very faint inset shadow along the top inside edge, for a slightly sunken track
@@ -530,7 +546,7 @@ Scope {
             anchors.fill: parent
             radius: rail.radius
             opacity: sw.checked ? 0.5 : 1.0
-            Behavior on opacity { NumberAnimation { duration: sw.animationsEnabled ? 250 : 0 } }
+            Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 250 : 0) } }
             gradient: Gradient {
                 GradientStop { position: 0.0;  color: Qt.rgba(0, 0, 0, 0.07) }
                 GradientStop { position: 0.35; color: Qt.rgba(0, 0, 0, 0.0) }
@@ -548,7 +564,7 @@ Scope {
             Behavior on x {
                 enabled: sw.animationsEnabled && !sw.dragging
                 NumberAnimation {
-                    duration: sw.pressed ? 120 : 260
+                    duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 260)
                     easing.type: sw.pressed ? Easing.OutQuad : Easing.OutBack
                     easing.overshoot: 1.1
                 }
@@ -556,7 +572,7 @@ Scope {
             Behavior on width {
                 enabled: sw.animationsEnabled && !sw.dragging && !jellyAnim.running
                 NumberAnimation {
-                    duration: sw.pressed ? 120 : 220
+                    duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 220)
                     easing.type: sw.pressed ? Easing.OutQuad : Easing.OutBack
                     easing.overshoot: 1.2
                 }
@@ -564,14 +580,14 @@ Scope {
             Behavior on height {
                 enabled: sw.animationsEnabled && !sw.dragging && !jellyAnim.running
                 NumberAnimation {
-                    duration: sw.pressed ? 120 : 220
+                    duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 220)
                     easing.type: sw.pressed ? Easing.OutQuad : Easing.OutBack
                     easing.overshoot: 1.2
                 }
             }
             Behavior on y {
                 enabled: sw.animationsEnabled
-                NumberAnimation { duration: sw.pressed ? 120 : 220; easing.type: Easing.OutQuad }
+                NumberAnimation { duration: root.reduceMotion ? 0 : (sw.pressed ? 120 : 220); easing.type: Easing.OutQuad }
             }
 
             // frosted white capsule. It goes slightly translucent while the glass coat is
@@ -582,8 +598,8 @@ Scope {
                 color: Qt.rgba(1, 1, 1, 1.0 - 0.10 * sw.glass - (sw.pressed ? 0.04 : 0.0))
                 border.width: 1
                 border.color: sw.pressed ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(0, 0, 0, 0.05)
-                Behavior on color { ColorAnimation { duration: sw.animationsEnabled ? 150 : 0 } }
-                Behavior on border.color { ColorAnimation { duration: sw.animationsEnabled ? 150 : 0 } }
+                Behavior on color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 150 : 0) } }
+                Behavior on border.color { ColorAnimation { duration: root.reduceMotion ? 0 : (sw.animationsEnabled ? 150 : 0) } }
             }
 
             // liquid glass coat: fresnel rim, accent-tinted thickness at the bottom edge
@@ -673,7 +689,7 @@ Scope {
         }
     }
 
-    // macOS slider (thin track, accent fill, white round knob)
+    // Settings labels wrap the shared native capsule slider.
     component SSlider: Item {
         id: s
         required property var t
@@ -684,64 +700,27 @@ Scope {
         property string leftLabel: ""
         property string rightLabel: ""
         signal moved(real v)
-        readonly property real pos: to > from ? Math.max(0, Math.min(1, (value - from) / (to - from))) : 0
         width: 230
-        height: leftLabel !== "" || rightLabel !== "" ? 40 : 22
-        opacity: enabled ? 1 : 0.4
-
-        Corners.ContinuousRectangle { cornerSmoothing: 0;
-            id: track
-            y: 11 - 2
-            width: parent.width
-            height: 4
-            radius: 2
-            color: s.t.track
-        }
-        Corners.ContinuousRectangle { cornerSmoothing: 0;
-            y: track.y
-            width: knob.x + knob.width / 2
-            height: 4
-            radius: 2
-            color: s.t.accent
-        }
-        Corners.ContinuousRectangle { cornerSmoothing: 0;
-            id: knob
-            x: s.pos * (s.width - 20)
-            y: 1
-            width: 20; height: 20; radius: 10
-            color: "white"
-            border.width: 1
-            border.color: Qt.rgba(0, 0, 0, 0.16)
+        height: leftLabel !== "" || rightLabel !== "" ? 48 : 30
+        Corners.GlassSlider {
+            width: parent.width; height: 30
+            from: s.from; to: s.to; value: s.value; stepSize: s.stepSize
+            dark: s.t.dark; accentColor: s.t.accent; trackColor: s.t.track
+            materialOpacity: root.effGlassOpacity
+            glassBlur: root.effGlassBlur
+            liquidStrength: root.effGlassLiquid
+            glassRim: root.effGlassRim
+            onMoved: s.moved(value)
         }
         Text {
             visible: s.leftLabel !== ""
-            y: 25
-            text: s.leftLabel
-            color: s.t.text2
-            font.family: s.t.fam
-            font.pixelSize: 11
+            y: 33; text: s.leftLabel
+            color: s.t.text2; font.family: s.t.fam; font.pixelSize: 11
         }
         Text {
             visible: s.rightLabel !== ""
-            y: 25
-            x: s.width - implicitWidth
-            text: s.rightLabel
-            color: s.t.text2
-            font.family: s.t.fam
-            font.pixelSize: 11
-        }
-        MouseArea {
-            anchors.fill: parent
-            preventStealing: true
-            function setFrom(mx) {
-                var p = Math.max(0, Math.min(1, (mx - 10) / (s.width - 20)));
-                var v = s.from + p * (s.to - s.from);
-                if (s.stepSize > 0) v = Math.round(v / s.stepSize) * s.stepSize;
-                v = Math.round(v * 1000) / 1000;
-                s.moved(v);
-            }
-            onPressed: mouse => setFrom(mouse.x)
-            onPositionChanged: mouse => { if (pressed) setFrom(mouse.x); }
+            y: 33; x: s.width - implicitWidth; text: s.rightLabel
+            color: s.t.text2; font.family: s.t.fam; font.pixelSize: 11
         }
     }
 
@@ -766,7 +745,7 @@ Scope {
             color: g.t.ctrlSel
             border.width: g.t.dark ? 0 : 1
             border.color: Qt.rgba(0, 0, 0, 0.10)
-            Behavior on x { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+            Behavior on x { NumberAnimation { duration: root.reduceMotion ? 0 : 160; easing.type: Easing.OutCubic } }
         }
         Row {
             x: 2; y: 2
@@ -952,6 +931,14 @@ Scope {
             }
             // menu bar
             Item {
+                visible: gl.kind === "notch"; anchors.fill: parent
+                Rectangle { x: 0; y: 1; width: 16; height: 1; radius: 0.5; color: "#90FFFFFF" }
+                Corners.ContinuousRectangle { x: 3; y: 1; width: 10; height: 6; radius: 2; color: "white" }
+                Corners.ContinuousRectangle { x: 1; y: 9; width: 14; height: 6; radius: 2; color: "transparent"; border.width: 1; border.color: "white" }
+                Rectangle { x: 4; y: 11.5; width: 3; height: 1.5; radius: 0.75; color: "white" }
+                Rectangle { x: 9; y: 11.5; width: 3; height: 1.5; radius: 0.75; color: "white" }
+            }
+            Item {
                 visible: gl.kind === "menubar"; anchors.fill: parent
                 Corners.ContinuousRectangle { x: 1; y: 2; width: 14; height: 4.5; radius: 1.5; color: "white" }
                 Corners.ContinuousRectangle { x: 2.5; y: 3.4; width: 4; height: 1.6; radius: 0.8; color: gl.c2 }
@@ -999,7 +986,7 @@ Scope {
         id: prefsWindow
         title: "Setting"
         width: preferredWidth
-        // tall enough for the longest pane, but never taller than the monitor we open on
+        // Compact default; longer settings pages scroll inside the window.
         height: prefsWindow.preferredHeight
         minimumWidth: 760
         minimumHeight: 520
@@ -1022,10 +1009,12 @@ Scope {
             { id: "general",    sec: 2, name: "General",         glyph: "behavior", c1: "#8E8E93", c2: "#636366", keys: "enable disable dock menu bar panel show hide off on widgets sound game" },
             { id: "system",     sec: 2, name: "System Information", glyph: "about", c1: "#A7A7AD", c2: "#7C7C82", keys: "about linux computer hardware model processor chip cpu memory ram serial kernel graphics storage firmware" },
             { id: "appearance", sec: 2, name: "Appearance",      glyph: "appearance", c1: "#3A3A3C", c2: "#1C1C1E", keys: "theme dark light mode accent color multicolor text highlight selection automatic icon widget style folder tinted default glass liquid clear tinted apple style translucency blur corner radius font" },
+            { id: "luma",       sec: 2, name: "Luma AI",         image: "assets/luma-ai.png", c1: "#8E8E93", c2: "#636366", keys: "ai assistant local offline model install download chat intelligence luma" },
             { id: "controlcenter", sec: 2, name: "Control Center", wg: "cc",       c1: "#8E8E93", c2: "#636366", keys: "modules tiles controls" },
             { id: "dock",       sec: 2, name: "Desktop & Dock",  glyph: "dock",     c1: "#2C2C2E", c2: "#1C1C1E", keys: "size icon magnification zoom spacing margin distance edge hide auto labels indicators bounce trash monitor preview" },
             { id: "displays",   sec: 2, name: "Displays",        wg: "sun",        c1: "#3D9BFF", c2: "#0A6CFF", keys: "brightness night shift monitor resolution refresh scale" },
             { id: "menubar",    sec: 2, name: "Menu Bar",        glyph: "menubar",  c1: "#3D9BFF", c2: "#0A6CFF", keys: "panel bar height clock date seconds 24 hour battery tray search spotlight week monday style liquid bluetooth widget" },
+            { id: "notch",      sec: 2, name: "Dynamic Notch",   glyph: "notch",    c1: "#45454D", c2: "#17171B", keys: "dynamic island notch music lyrics player timer recording charging volume brightness attached floating solid black semi liquid glass fullscreen monitor display size" },
             { id: "wallpaper",  sec: 2, name: "Wallpaper",       glyph: "wallpaper", c1: "#5AC8FA", c2: "#007AFF", keys: "wallpaper background picture image video animated live motion desktop dynamic" },
             { id: "notifications", sec: 3, name: "Notifications", wg: "bell",      c1: "#FF5E57", c2: "#E8342A", keys: "alerts banners popups do not disturb" },
             { id: "sound",      sec: 3, name: "Sound",           wg: "speaker",    c1: "#FF5E7E", c2: "#E8344F", keys: "volume output input microphone speakers headphones effects" },
@@ -1078,16 +1067,15 @@ Scope {
         // Settings always opens as a floating, centred window (no windowrule needed in hyprland.conf)
         onVisibleChanged: if (visible) { showNormal(); floatTries = 0; floatTimer.restart(); }
         property int floatTries: 0
-        readonly property int preferredWidth: Math.min(1000, (screen ? screen.width : 1280) - 80)
+        readonly property int preferredWidth: Math.min(900, (screen ? screen.width : 1280) - 80)
         readonly property bool squareCorners: !!(root.hub && root.hub.desktopController.hasSquareCorners(title))
         readonly property real windowRadius: squareCorners ? 0 : 26
         readonly property real sidebarInset: 10
         readonly property real sidebarRadius: Math.max(0, 26 - sidebarInset)
         readonly property real sidebarWidth: Math.max(230, Math.min(288, width * 0.30))
         readonly property real headerHeight: 66
-        // never taller than the monitor we open on (a 900p design size on an 800p screen
-        // used to push the window's own traffic lights off the top edge)
-        readonly property int preferredHeight: Math.min(820, (prefsWindow.screen ? prefsWindow.screen.height : 900) - 64)
+        // Leave room for the menu bar and Dock on smaller displays.
+        readonly property int preferredHeight: Math.min(650, (prefsWindow.screen ? prefsWindow.screen.height : 900) - 96)
         Timer {
             id: floatTimer
             interval: 140
@@ -1111,7 +1099,7 @@ Scope {
             readonly property bool dark: root.darkMode
             readonly property string fam: root.fontFamily
             readonly property color accent: root.accent
-            readonly property real materialOpacity: Math.max(0, Math.min(1, root.glassOpacity))
+            readonly property real materialOpacity: Math.max(0, Math.min(1, root.effGlassOpacity))
             readonly property color content: dark ? Qt.rgba(0.09, 0.10, 0.11, 0.50 + materialOpacity * 0.35)
                                                    : Qt.rgba(0.97, 0.97, 0.98, 0.45 + materialOpacity * 0.35)
             readonly property color sidebar: dark ? Qt.rgba(0.045, 0.05, 0.055, 0.50 + materialOpacity * 0.25)
@@ -1137,7 +1125,7 @@ Scope {
             readonly property color danger: "#FF453A"
         }
 
-        NumberAnimation { id: fadeIn; target: paneLoader; property: "opacity"; from: 0; to: 1; duration: 160 }
+        NumberAnimation { id: fadeIn; target: paneLoader; property: "opacity"; from: 0; to: 1; duration: root.reduceMotion ? 0 : 160 }
 
         // ── frame ──
         Corners.ContinuousRectangle {
@@ -1359,12 +1347,35 @@ Scope {
                                        : (navMa.containsMouse ? pal.hover : "transparent")
 
                             SGlyph {
+                                visible: !navRow.p.image
                                 x: 8
                                 anchors.verticalCenter: parent.verticalCenter
                                 kind: navRow.p.glyph || ""
                                 wg: navRow.p.wg || ""
                                 c1: navRow.p.c1
                                 c2: navRow.p.c2
+                            }
+                            Item {
+                                visible: !!navRow.p.image
+                                x: 8
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 24; height: 24
+                                clip: true
+                                // Luma's 1254px canvas includes transparent padding.
+                                // Fit its visible tile (128,138,998,982) to the same
+                                // 24px slot as SGlyph without changing the artwork.
+                                Image {
+                                    readonly property real tileScale: parent.width / 998
+                                    x: -128 * tileScale
+                                    y: (parent.height - 982 * tileScale) / 2 - 138 * tileScale
+                                    width: 1254 * tileScale
+                                    height: width
+                                    source: navRow.p.image ? Qt.resolvedUrl(navRow.p.image) : ""
+                                    sourceSize: Qt.size(96, 96)
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                    mipmap: true
+                                }
                             }
                             Text {
                                 x: 42
@@ -1485,7 +1496,7 @@ Scope {
                     height: 1
                     color: pal.sep
                     opacity: flick.contentY > 4 ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                    Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 120 } }
                 }
             }
 
@@ -1512,10 +1523,10 @@ Scope {
                     sourceComponent: ({
                         wifi: paneWifi, bluetooth: paneBt, network: paneNetwork, battery: paneBattery,
                         general: paneGeneral, appearance: paneAppearance, controlcenter: paneCC, dock: paneDesktopDock,
-                        displays: paneDisplays, menubar: paneMenuBar, wallpaper: paneWallpaper,
+                        displays: paneDisplays, menubar: paneMenuBar, notch: paneDynamicNotch, wallpaper: paneWallpaper,
                         notifications: paneNotif, sound: paneSound, focus: paneFocus,
                         lockscreen: paneLock, users: paneUsers, keyboard: paneKeyboard, mouse: paneMouse, trackpad: paneTrackpad,
-                        apps: paneApps, about: paneAbout, system: paneSystem
+                        apps: paneApps, about: paneAbout, system: paneSystem, luma: paneLuma
                     })[prefsWindow.panes[prefsWindow.cur].id]
                     onLoaded: fadeIn.restart()
                 }
@@ -1529,11 +1540,16 @@ Scope {
                 radius: 2
                 color: pal.text3
                 opacity: flick.moving ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 300 } }
+                Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 300 } }
             }
         }
 
         // ═════════════ PANES ═════════════
+
+        Component {
+            id: paneLuma
+            LumaSettings { controller: root.hub.luma; t: pal }
+        }
 
         // ── General ──
         Component {
@@ -1608,7 +1624,7 @@ Scope {
                     SRow {
                         t: pal
                         title: "Temperature unit"
-                        subtitle: "Used by the Weather widget"
+                        subtitle: "Used by the Weather widget and notch"
                         SSegmented {
                             t: pal
                             model: ["\u00B0C", "\u00B0F"]
@@ -1756,6 +1772,118 @@ Scope {
                         SSwitch { t: pal; checked: root.bar ? root.bar.gamingAuto : true; onToggled: v => { if (root.bar) root.bar.gamingAuto = v; } }
                     }
                 }
+            }
+        }
+
+        // ── Dynamic Notch ──
+        Component {
+            id: paneDynamicNotch
+            Column {
+                id: notchSettings
+                readonly property var tools: root.bar ? root.bar.notchService : null
+                spacing: 10
+
+                SCard {
+                    t: pal
+                    SRow {
+                        t: pal; title: "Dynamic Notch"
+                        subtitle: "Music, timers, recording, charging and hardware-key feedback"
+                        SSwitch {
+                            t: pal; checked: root.bar ? root.bar.notchEnabled : true
+                            onToggled: v => { if (root.bar) root.bar.notchEnabled = v; }
+                        }
+                    }
+                    SRow {
+                        t: pal; title: "Notch position"
+                        subtitle: "Choose a preview to attach the notch or let it float"
+                    }
+                    NotchPositionPicker {
+                        x: 16; width: parent.width - 32; height: implicitHeight
+                        t: pal; reducedMotion: root.reduceMotion
+                        mode: root.bar ? root.bar.notchMode : "attached"
+                        onPicked: mode => { if (root.bar) root.bar.notchMode = mode; }
+                    }
+                    SRow {
+                        t: pal; title: "Notch material"
+                        subtitle: "Solid black or dark glass with a softly blurred backdrop"
+                        SSegmented {
+                            t: pal; model: ["Solid Black", "Semi Liquid Glass"]; segWidth: 120
+                            current: root.bar && root.bar.notchStyle === "glass" ? 1 : 0
+                            onPicked: i => { if (root.bar) root.bar.notchStyle = i === 1 ? "glass" : "solid"; }
+                        }
+                    }
+                    SRow {
+                        t: pal; title: "In fullscreen"
+                        subtitle: "Choose whether the notch stays above fullscreen apps"
+                        SSegmented {
+                            t: pal; model: ["Hide", "Keep visible"]; segWidth: 94
+                            current: root.bar && root.bar.notchShowFullscreen ? 1 : 0
+                            onPicked: i => { if (root.bar) root.bar.notchShowFullscreen = i === 1; }
+                        }
+                    }
+                    SRow {
+                        t: pal; title: "Notch size"
+                        SSlider {
+                            t: pal; from: 0.85; to: 1.2; stepSize: 0.05
+                            value: root.bar ? root.bar.notchScale : 1.0
+                            leftLabel: "Compact"; rightLabel: "Large"
+                            onMoved: v => { if (root.bar) root.bar.notchScale = Math.round(v * 100) / 100; }
+                        }
+                    }
+                    SRow {
+                        t: pal; title: "Show notch on"
+                        subtitle: "Choose which displays show Dynamic Notch"
+                        SSegmented {
+                            t: pal; model: ["All displays", "First display"]; segWidth: 94
+                            current: root.bar && root.bar.notchScreen === "primary" ? 1 : 0
+                            onPicked: i => { if (root.bar) root.bar.notchScreen = i === 1 ? "primary" : "all"; }
+                        }
+                    }
+                    SRow {
+                        t: pal; title: "Idle eyes"
+                        subtitle: "A little company when no music or activity is running"
+                        SSwitch {
+                            t: pal; checked: root.bar ? root.bar.notchIdleEyes : true
+                            onToggled: v => { if (root.bar) root.bar.notchIdleEyes = v; }
+                        }
+                    }
+                }
+
+                SLabel { t: pal; header: true; text: "Pages" }
+                SLabel { t: pal; text: "Choose which pages appear in the notch. Active Clock timers and recording controls remain available." }
+                SCard {
+                    t: pal
+                    Repeater {
+                        model: [
+                            {id:"music",name:"Music",hint:"Playback controls and lyrics"},
+                            {id:"pomodoro",name:"Pomodoro",hint:"Focus sessions and short or long breaks"},
+                            {id:"water",name:"Water Reminder",hint:"Daily intake, hourly history and reminders"},
+                            {id:"shelf",name:"Shelf",hint:"Shortcuts to files and folders"},
+                            {id:"todo",name:"Todo List",hint:"Tasks and today's completed count"},
+                            {id:"calendar",name:"Calendar",hint:"Monthly calendar, local events and today's tasks"},
+                            {id:"weather",name:"Weather",hint:"Current weather and the next six hours"},
+                            {id:"stats",name:"System Stats",hint:"Live CPU, memory, GPU, storage, battery, network and temperature"}
+                        ]
+                        delegate: SRow {
+                            id: notchPageRow
+                            required property var modelData
+                            t: pal; title: modelData.name; subtitle: modelData.hint
+                            SSwitch {
+                                t: pal
+                                checked: !!notchSettings.tools && notchSettings.tools.state.menus.indexOf(notchPageRow.modelData.id) >= 0
+                                onToggled: v => { if (notchSettings.tools) notchSettings.tools.setMenu(notchPageRow.modelData.id,v); }
+                            }
+                        }
+                    }
+                }
+                SLabel { t: pal; text: "Bluetooth and charging appear automatically when a device connects or a charger is plugged in." }
+                SLabel {
+                    t: pal
+                    text: notchSettings.tools ? notchSettings.tools.error : ""
+                    visible: text !== ""
+                    color: pal.danger
+                }
+
             }
         }
 
@@ -2000,6 +2128,11 @@ Scope {
                         SSwitch { t: pal; checked: root.bar ? root.bar.showSearch : true; onToggled: v => { if (root.bar) root.bar.showSearch = v; } }
                     }
                     SRow {
+                        t: pal; title: "Luma AI"
+                        subtitle: "Show the Luma AI shortcut in the menu bar"
+                        SSwitch { t: pal; checked: root.bar ? root.bar.lumaMenuEnabled : true; onToggled: v => { if (root.bar) root.bar.lumaMenuEnabled = v; } }
+                    }
+                    SRow {
                         t: pal; title: "Privacy indicators"
                         SSwitch { t: pal; checked: root.bar ? root.bar.barWidgetEnabled("privacy") : true; onToggled: v => { if (root.bar) root.bar.setBarWidget("privacy", v); } }
                     }
@@ -2180,8 +2313,8 @@ Scope {
                         width: prow.width + 16
                         height: pv.base + 14
                         radius: root.cornerRadius * 0.6
-                        color: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.glassOpacity)
-                                             : Qt.rgba(1, 1, 1, root.glassOpacity * 0.55)
+                        color: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.effGlassOpacity)
+                                             : Qt.rgba(1, 1, 1, Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55))
                         border.width: 1
                         border.color: root.dockDark ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.45)
                     }
@@ -2219,7 +2352,7 @@ Scope {
                                     layer.effect: Corners.IconStyleEffect {}
                                     transformOrigin: Item.Bottom
                                     scale: root.magnificationEnabled ? 1 + (root.magnification - 1) * pi.f : 1
-                                    Behavior on scale { NumberAnimation { duration: 120 } }
+                                    Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 120 } }
                                 }
                             }
                         }
@@ -2307,6 +2440,7 @@ Scope {
         Component {
             id: paneAppearance
             Column {
+                id: paneAppearanceColumn
                 spacing: 16
 
                 SCard {
@@ -2337,21 +2471,12 @@ Scope {
                     SRow {
                         t: pal
                         title: "Liquid Glass"
-                        subtitle: "Clear glass or maximum backdrop blur."
-                        Row {
-                            spacing: 14
-                            GlassMaterialTile {
-                                t: pal
-                                tinted: false
-                                selected: !Corners.GlassMaterial.tinted
-                                onClicked: Corners.GlassMaterial.setMode("clear")
-                            }
-                            GlassMaterialTile {
-                                t: pal
-                                tinted: true
-                                selected: Corners.GlassMaterial.tinted
-                                onClicked: Corners.GlassMaterial.setMode("tinted")
-                            }
+                        alignTop: true
+                        GlassMaterialPreview {
+                            t: pal
+                            materialSettings: root
+                            width: Math.max(260, Math.min(500, paneAppearanceColumn.width - 200))
+                            onMoved: value => Corners.GlassMaterial.setIntensity(value)
                         }
                     }
                 }
@@ -2486,7 +2611,6 @@ Scope {
                     }
                     SRow {
                         t: pal
-                        visible: root.dockStyle === "liquid"
                         title: "Liquid strength"
                         subtitle: "Refraction, magnification and colour fringing of the glass"
                         SSlider {
@@ -2509,7 +2633,136 @@ Scope {
                             onMoved: v => root.cornerRadius = Math.round(v)
                         }
                     }
+                    SRow {
+                        t: pal
+                        title: "Preview"
+                        subtitle: "Updates as you move the glass sliders"
+                        Item {
+                            id: glassPreview
+                            width: 230; height: 62
+                            clip: true
+                            Image {
+                                id: glassPreviewScene
+                                anchors.fill: parent
+                                source: Qt.resolvedUrl("assets/settings/appearance-preview.svg")
+                                sourceSize: Qt.size(460, 124)
+                                fillMode: Image.PreserveAspectCrop
+                                smooth: true
+                            }
+                            MultiEffect {
+                                anchors.fill: parent
+                                source: glassPreviewScene
+                                visible: root.materialBlur > 0.5 && !root.reduceTransparency
+                                blurEnabled: true
+                                blurMax: 48
+                                blur: Math.max(0, Math.min(1, root.materialBlur / 40))
+                                autoPaddingEnabled: false
+                            }
+                            Rectangle {
+                                anchors.fill: parent
+                                color: pal.dark ? Qt.rgba(0.02, 0.02, 0.03, root.reduceTransparency ? 0.90 : root.glassOpacity * 0.55)
+                                                : Qt.rgba(1, 1, 1, root.reduceTransparency ? 0.92 : root.glassOpacity * 0.45)
+                            }
+                            Rectangle {
+                                x: 16; y: 13; width: parent.width - 32; height: 36
+                                radius: 12
+                                color: pal.dark ? Qt.rgba(1, 1, 1, 0.055) : Qt.rgba(1, 1, 1, 0.24)
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.25 + root.effGlassRim * 0.55)
+                            }
+                            Rectangle {
+                                x: 28; y: 23; width: parent.width - 56; height: 1.5
+                                radius: 1
+                                color: Qt.rgba(1, 1, 1, 0.18 + root.effGlassLiquid * 0.22)
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.reduceTransparency ? "Reduced transparency" : "Liquid Glass"
+                                color: pal.dark ? "white" : "#1d1d1f"
+                                font.family: pal.fam
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
+                        }
+                    }
                     CornerSmoothingSettingsRow { host: root; t: pal }
+                }
+
+                SLabel { t: pal; header: true; text: "Accessibility" }
+                SCard {
+                    t: pal
+                    SRow {
+                        t: pal
+                        title: "Show Borders"
+                        subtitle: "Define glass surfaces with a visible outline."
+                        SSwitch {
+                            t: pal
+                            checked: Corners.DesktopPreferences.showBorders
+                            onToggled: v => Corners.DesktopPreferences.setValue("showBorders", v)
+                        }
+                    }
+                    SRow {
+                        t: pal
+                        title: "Reduce transparency"
+                        subtitle: "Adds a nearly solid tint and turns the glass refraction off"
+                        SSwitch {
+                            t: pal
+                            checked: Corners.DesktopPreferences.settings.reduceTransparency
+                            onToggled: v => Corners.DesktopPreferences.setValue("reduceTransparency", v)
+                        }
+                    }
+                    SRow {
+                        t: pal
+                        title: "Increase contrast"
+                        subtitle: "Stronger glass rims and menu borders"
+                        SSwitch {
+                            t: pal
+                            checked: Corners.DesktopPreferences.settings.increaseContrast
+                            onToggled: v => Corners.DesktopPreferences.setValue("increaseContrast", v)
+                        }
+                    }
+                    SRow {
+                        t: pal
+                        title: "Reduce motion"
+                        subtitle: "Shortens panel, Dock and widget transitions; stops decorative loops"
+                        SSwitch {
+                            t: pal
+                            checked: Corners.DesktopPreferences.settings.reduceMotion
+                            onToggled: v => Corners.DesktopPreferences.setValue("reduceMotion", v)
+                        }
+                    }
+                    SRow {
+                        t: pal
+                        title: "Contrast preview"
+                        subtitle: "Labels stay readable on light and dark glass"
+                        Row {
+                            spacing: 8
+                            Rectangle {
+                                width: 102; height: 32; radius: 8
+                                color: "#F2F2F5"
+                                border.width: Corners.DesktopPreferences.increaseContrast ? 2 : 1
+                                border.color: Corners.DesktopPreferences.increaseContrast ? "#111111" : "#B8B8BD"
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Light"
+                                    color: Corners.DesktopPreferences.increaseContrast ? "#000000" : "#3A3A3C"
+                                    font.family: pal.fam; font.pixelSize: 12; font.weight: Font.Medium
+                                }
+                            }
+                            Rectangle {
+                                width: 102; height: 32; radius: 8
+                                color: "#1C1C1E"
+                                border.width: Corners.DesktopPreferences.increaseContrast ? 2 : 1
+                                border.color: Corners.DesktopPreferences.increaseContrast ? "#FFFFFF" : "#4A4A4E"
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Dark"
+                                    color: Corners.DesktopPreferences.increaseContrast ? "#FFFFFF" : "#D8D8DC"
+                                    font.family: pal.fam; font.pixelSize: 12; font.weight: Font.Medium
+                                }
+                            }
+                        }
+                    }
                 }
 
                 SLabel { t: pal; header: true; text: "Typography" }
@@ -3428,7 +3681,7 @@ Scope {
                                             GradientStop { position: 1; color: "#3E3530" }
                                         }
                                         border.width: tile.sel ? 3 : 0; border.color: pal.accent
-                                        Behavior on border.width { NumberAnimation { duration: 160 } }
+                                        Behavior on border.width { NumberAnimation { duration: root.reduceMotion ? 0 : 160 } }
                                         Text {
                                             anchors.centerIn: parent
                                             text: "9:41"
@@ -3497,7 +3750,7 @@ Scope {
                                     border.width: sel ? 2.5 : 1
                                     border.color: sel ? pal.accent : Qt.rgba(0, 0, 0, 0.2)
                                     scale: swMa.pressed ? 0.88 : 1
-                                    Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuint } }
+                                    Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 200; easing.type: Easing.OutQuint } }
                                     MouseArea { id: swMa; anchors.fill: parent; anchors.margins: -3; cursorShape: Qt.PointingHandCursor; onClicked: if (root.bar) root.bar.lockClockTint = parent.modelData }
                                 }
                             }
@@ -3894,7 +4147,7 @@ Scope {
                                         fillMode: Image.PreserveAspectCrop
                                         asynchronous: true; smooth: true
                                         opacity: status === Image.Ready ? 1 : 0
-                                        Behavior on opacity { NumberAnimation { duration: 250 } }
+                                        Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 250 } }
                                     }
                                     Loader {
                                         anchors.fill: parent
@@ -4165,7 +4418,7 @@ Scope {
                             width: 150; height: 32; radius: 16
                             color: careMa.pressed ? Qt.darker(pal.accent, 1.15) : pal.accent
                             scale: careMa.pressed ? 0.96 : 1
-                            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutQuint } }
+                            Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 180; easing.type: Easing.OutQuint } }
                             Text { anchors.centerIn: parent; text: "Add AppleCare+"; color: "white"; font.family: pal.fam; font.pixelSize: 13; font.weight: Font.DemiBold }
                             MouseArea { id: careMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor }
                         }
@@ -4851,7 +5104,7 @@ Scope {
     // ═════════════ LIQUID GLASS BACKEND ═════════════
     // glassState: "idle" → "building" (qsb running) → "ready" | "failed". "failed" falls back to Normal Blur.
     property string glassState: "idle"
-    readonly property bool liquidActive: dockStyle === "liquid" && glassState === "ready" && !(bar && bar.gaming)
+    readonly property bool liquidActive: dockStyle === "liquid" && glassState === "ready" && !(bar && bar.gaming) && !reduceTransparency
     readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("liquidglass.frag").toString().replace("file://", ""))
     // Use a distinct URL so Qt cannot reuse the previous glowing glass shader.
     readonly property string glassShaderOut: configDir + "/dock-light-milk-v1.frag.qsb"
@@ -5033,8 +5286,8 @@ Scope {
                     Item { id: oldMask; anchors.fill: parent; visible: false; layer.enabled: true; Corners.ContinuousRectangle { anchors.fill: parent; radius: 10; color: "black" } }
                     ParallelAnimation {
                         id: oldOut
-                        NumberAnimation { target: oldSnap; property: "opacity"; from: 1; to: 0; duration: 340; easing.type: Easing.OutCubic }
-                        NumberAnimation { target: oldSnap; property: "scale"; from: 1; to: 0.94; duration: 420; easing.type: Easing.OutQuint }
+                        NumberAnimation { target: oldSnap; property: "opacity"; from: 1; to: 0; duration: root.reduceMotion ? 0 : 340; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: oldSnap; property: "scale"; from: 1; to: 0.94; duration: root.reduceMotion ? 0 : 420; easing.type: Easing.OutQuint }
                         onFinished: { oldSnap.shown = false; oldSv.captureSource = null; }
                     }
                 }
@@ -5047,7 +5300,7 @@ Scope {
                     // closer it gets to the window's real size, held near its title bar (no wiggle — it's a window)
                     readonly property real liftRaw: isWin ? Math.max(0, Math.min(1, (ui.activeTop - ui.tearY) / 240)) : 0
                     property real lift: 1 - Math.pow(1 - liftRaw, 3)
-                    Behavior on lift { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                    Behavior on lift { NumberAnimation { duration: root.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic } }
                     readonly property real thumbW: 170
                     readonly property real liftW: thumbW + (ui.tearW - thumbW) * lift
                     readonly property real grabFy: 0.5 + (0.035 - 0.5) * lift
@@ -5090,11 +5343,11 @@ Scope {
                     }
                     // light wiggle while held
                     SequentialAnimation on wob {
-                        running: ui.tearing
+                        running: ui.tearing && !root.reduceMotion
                         loops: Animation.Infinite
-                        NumberAnimation { to: 2.5; duration: 90; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: -2.5; duration: 180; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 0; duration: 90; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 2.5; duration: root.reduceMotion ? 0 : 90; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: -2.5; duration: root.reduceMotion ? 0 : 180; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 0; duration: root.reduceMotion ? 0 : 90; easing.type: Easing.InOutSine }
                     }
                 }
             }
@@ -5104,7 +5357,7 @@ Scope {
                 anchors.fill: parent
 
                 property real mx: 0
-                Behavior on mx { NumberAnimation { duration: 55; easing.type: Easing.OutQuad } }
+                Behavior on mx { NumberAnimation { duration: root.reduceMotion ? 0 : 55; easing.type: Easing.OutQuad } }
                 property bool revealed: false
                 property var menuItem: null
                 property var menuModel: []
@@ -5140,7 +5393,7 @@ Scope {
                 // fades away where it used to be
                 property bool following: false
                 property bool oldVisible: false
-                NumberAnimation { id: ghostFade; target: tearGhost; property: "opacity"; to: 0; duration: 180; easing.type: Easing.OutCubic }
+                NumberAnimation { id: ghostFade; target: tearGhost; property: "opacity"; to: 0; duration: root.reduceMotion ? 0 : 180; easing.type: Easing.OutCubic }
                 onTearXChanged: if (following) Qt.callLater(moveReal)
                 onTearYChanged: {
                     if (following) Qt.callLater(moveReal);
@@ -5290,17 +5543,17 @@ Scope {
                     id: tearLaunch
                     property var item: null
                     ParallelAnimation {
-                        NumberAnimation { target: tearGhost; property: "zoom"; to: tearGhost.isWin ? 2.0 : 2.6; duration: 460; easing.type: Easing.OutQuint }
-                        NumberAnimation { target: tearGhost; property: "opacity"; to: 0; duration: 460; easing.type: Easing.OutCubic }
-                        NumberAnimation { target: tearGhost; property: "wob"; to: 0; duration: 200 }
+                        NumberAnimation { target: tearGhost; property: "zoom"; to: tearGhost.isWin ? 2.0 : 2.6; duration: root.reduceMotion ? 0 : 460; easing.type: Easing.OutQuint }
+                        NumberAnimation { target: tearGhost; property: "opacity"; to: 0; duration: root.reduceMotion ? 0 : 460; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: tearGhost; property: "wob"; to: 0; duration: root.reduceMotion ? 0 : 200 }
                     }
                     ScriptAction { script: { if (tearLaunch.item) root.activate(tearLaunch.item, false); ui.tearItem = null; } }
                 }
                 ParallelAnimation {
                     id: tearHome
-                    NumberAnimation { target: ui; property: "tearX"; to: ui.tearHomeX; duration: 420; easing.type: Easing.OutQuint }
-                    NumberAnimation { target: ui; property: "tearY"; to: ui.tearHomeY; duration: 420; easing.type: Easing.OutQuint }
-                    NumberAnimation { target: tearGhost; property: "wob"; to: 0; duration: 200 }
+                    NumberAnimation { target: ui; property: "tearX"; to: ui.tearHomeX; duration: root.reduceMotion ? 0 : 420; easing.type: Easing.OutQuint }
+                    NumberAnimation { target: ui; property: "tearY"; to: ui.tearHomeY; duration: root.reduceMotion ? 0 : 420; easing.type: Easing.OutQuint }
+                    NumberAnimation { target: tearGhost; property: "wob"; to: 0; duration: root.reduceMotion ? 0 : 200 }
                     onFinished: { ui.tearItem = null; ui.tearAddr = ""; }
                 }
 
@@ -5310,7 +5563,7 @@ Scope {
                                                   - root.iconSize * (root.effMag - 1) - 12
                 readonly property bool active: dragging || (hh.hovered && hh.point.position.y > activeTop && !tucked)
                 property real strength: active ? 1 : 0
-                Behavior on strength { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                Behavior on strength { NumberAnimation { duration: root.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic } }
 
                 HoverHandler {
                     id: hh
@@ -5361,8 +5614,12 @@ Scope {
                             smooth: true
                         }
 
+                        // The label samples beyond the slab, including above a
+                        // magnified icon. Capture that whole panel and optical margin.
+                        readonly property real captureMargin: 82
                         ListModel { id: wm }
                         Repeater {
+                            id: windowCaptures
                             model: wm
                             delegate: Item {
                                 id: gw
@@ -5372,16 +5629,18 @@ Scope {
                                 required property real ww
                                 required property real wh
                                 required property real wz
-                                required property bool gone      // window closed: capture is released first, the item is swept shortly after
+                                required property bool gone
+                                visible: !gone // A detached screencopy can retain its last texture until swept.
                                 x: wx; y: wy; width: ww; height: wh; z: wz
                                 readonly property var tl: { if (!root.hub || gone) return null; var t = root.hub.tlTick; return root.hub.tlFor(addr); }
-                                // only keep capturing windows that actually reach the Dock (+ refraction margin)
-                                // real-time: EVERY visible window stays captured (also while the Dock is tucked and for windows far from the Dock), so a window
-                                // dragged over the Dock or a revealed Dock never starts from the bare wallpaper
+                                readonly property bool captureReady: windowLoader.item !== null
+                                    && !windowLoader.item.captureStopped && windowLoader.item.hasContent
+                                // Include labels and menus, not just the slab's 48 px
+                                // neighbourhood. A floating window can cover only a label.
                                 readonly property bool nearNow: root.glassRT || (!ui.tucked
-                                    && x < dock.x + dock.width + 48 && x + width > dock.x - 48
-                                    && y < dock.y + bd.height - ui.height + dock.height + 48
-                                    && y + height > dock.y + bd.height - ui.height - 48)
+                                    && x < bd.width + bd.captureMargin && x + width > -bd.captureMargin
+                                    && y < bd.height + bd.captureMargin
+                                    && y + height > bd.height - ui.height - bd.captureMargin)
                                 // a capture is only torn down 2.5 s after the window left the dock area: creating / destroying
                                 // live window captures every time a window brushes past the dock is what the compositor can choke on
                                 property bool near: false
@@ -5389,11 +5648,22 @@ Scope {
                                 Component.onCompleted: near = nearNow
                                 Timer { id: nearHold; interval: 2500; onTriggered: gw.near = gw.nearNow }
                                 Loader {
+                                    id: windowLoader
                                     anchors.fill: parent
                                     active: gw.near && !gw.gone
                                     sourceComponent: ScreencopyView {
                                         id: sc
-                                        captureSource: gw.tl
+                                        property bool captureStopped: false
+                                        captureSource: captureStopped ? null : gw.tl
+                                        // A failed export discards its recording context.
+                                        // Reattach after the stopped signal, rather than
+                                        // repeatedly requesting frames from a dead context.
+                                        onStopped: { captureStopped = true; retryCapture.restart(); }
+                                        Timer {
+                                            id: retryCapture
+                                            interval: 1000
+                                            onTriggered: sc.captureStopped = false
+                                        }
                                         // 15 fps, not the window's own rate: the glass only shows a blurred, refracted copy, and
                                         // copying every frame of a busy window (a terminal, a video) cost several % CPU
                                         live: false
@@ -5421,7 +5691,7 @@ Scope {
                             if (!mon) return;
                             var ws = [mon.activeWorkspace ? mon.activeWorkspace.id : -999];
                             if (mon.specialWorkspace && mon.specialWorkspace.id !== 0) ws.push(mon.specialWorkspace.id);
-                            var zoneTop = bd.height - win.height;
+                            var zoneTop = bd.height - win.height - bd.captureMargin;
                             var want = {};
                             var cs = root.glassClients;
                             for (var c = 0; c < cs.length; c++) {
@@ -5439,6 +5709,31 @@ Scope {
                             }
                             for (var k in want) wm.append(want[k]);
                             bd.lastCount = wm.count;
+                        }
+                        function readyFor(rect) {
+                            // Never replace a real window with wallpaper while its
+                            // export is being admitted or recovering from failure.
+                            for (var i = 0; i < windowCaptures.count; i++) {
+                                var capture = windowCaptures.itemAt(i);
+                                if (!capture || capture.gone) continue;
+                                if (capture.x < rect.x + rect.width && capture.x + capture.width > rect.x
+                                    && capture.y < rect.y + rect.height && capture.y + capture.height > rect.y
+                                    && !capture.captureReady) return false;
+                            }
+                            return true;
+                        }
+                        function surfaceRectFor(origin, width, bodyHeight, fallback) {
+                            var cx = origin.x + width / 2, cy = origin.y + bodyHeight / 2;
+                            var front = null;
+                            for (var i = 0; i < windowCaptures.count; i++) {
+                                var capture = windowCaptures.itemAt(i);
+                                if (!capture || capture.gone) continue;
+                                if (cx >= capture.x && cx < capture.x + capture.width
+                                    && cy >= capture.y && cy < capture.y + capture.height
+                                    && (!front || capture.z > front.z)) front = capture;
+                            }
+                            return front ? Qt.rect(front.x + 1, front.y + 1,
+                                Math.max(1, front.width - 2), Math.max(1, front.height - 2)) : fallback;
                         }
                         Timer {
                             id: sweep
@@ -5469,7 +5764,7 @@ Scope {
                     height: root.bgHeight
                     anchors.horizontalCenter: parent.horizontalCenter
                     y: ui.height - root.margin - height + (ui.tucked ? height + root.margin + 6 : 0)
-                    Behavior on y { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+                    Behavior on y { NumberAnimation { duration: root.reduceMotion ? 0 : 240; easing.type: Easing.OutCubic } }
 
                     // ── Apple Liquid Glass: real-time refraction of the backdrop (see liquidglass.frag) ──
                     Loader {
@@ -5552,13 +5847,13 @@ Scope {
                                 property real radius: root.cornerRadius
                                 property real squircle: root.cornerSquircle
                                 property real bezel: Math.min(dock.height * 0.36, 26)
-                                property real thickness: 30 * root.glassLiquid
-                                property real dispersion: 0.06 * root.glassLiquid
-                                property real magnify: 0.08 * root.glassLiquid
-                                property real rim: root.glassRim
-                                property real grain: root.glassGrain
+                                property real thickness: 30 * root.effGlassLiquid
+                                property real dispersion: 0.06 * root.effGlassLiquid
+                                property real magnify: 0.08 * root.effGlassLiquid
+                                property real rim: root.effGlassRim
+                                property real grain: root.effGlassGrain
                                 property real blurPx: 1.5            // tiny residual smoothing; the real blur is the MultiEffect pre-pass
-                                property real tintMix: root.glassOpacity * 0.55
+                                property real tintMix: Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55)
                                 property real saturation: 1.25
                                 property real dark: root.dockDark ? 1 : 0
                                 property real debug: root.glassDebug ? 1 : 0
@@ -5579,8 +5874,8 @@ Scope {
                         preferredRendererType: Shape.CurveRenderer
 
                         ShapePath {
-                            fillColor: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.glassOpacity)
-                                                     : Qt.rgba(1, 1, 1, root.glassOpacity * 0.55)
+                            fillColor: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.effGlassOpacity)
+                                                     : Qt.rgba(1, 1, 1, Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55))
                             strokeColor: root.dockDark ? Qt.rgba(0, 0, 0, 0.45) : Qt.rgba(0, 0, 0, 0.12)
                             strokeWidth: 1
                             PathPolyline {
@@ -5621,7 +5916,7 @@ Scope {
                                 readonly property bool canDrag: !isSep && modelData.pinned === true && !modelData.special
                                 readonly property bool torn: ui.tearing && ui.tearItem && !isSep && ui.tearItem.key === modelData.key
                                 opacity: (torn ? 0.3 : (isDragged ? 0.92 : 1)) * (leavingCell ? appear : 1)
-                                Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                                Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 220; easing.type: Easing.OutCubic } }
                                 readonly property bool isDragged: ui.dragging && modelData.key === ui.dragKey
 
                                 // app cells always show their plain icon; only window cells show a live preview
@@ -5647,14 +5942,14 @@ Scope {
                                 }
                                 Behavior on dx {
                                     enabled: !cell.isDragged
-                                    NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                                    NumberAnimation { duration: root.reduceMotion ? 0 : 160; easing.type: Easing.OutCubic }
                                 }
                                 transform: Translate { x: cell.dx }
                                 z: isDragged ? 100 : 0
 
                                 readonly property bool leavingCell: modelData.leaving === true
                                 property real appear: modelData.fresh ? 0 : 1
-                                Behavior on appear { NumberAnimation { duration: cell.leavingCell ? root.leaveMs : 320; easing.type: cell.leavingCell ? Easing.InOutCubic : Easing.OutCubic } }
+                                Behavior on appear { NumberAnimation { duration: root.reduceMotion ? 0 : (cell.leavingCell ? root.leaveMs : 320); easing.type: cell.leavingCell ? Easing.InOutCubic : Easing.OutCubic } }
                                 Component.onCompleted: { heldTl = thumbWin; Qt.callLater(function () { cell.appear = cell.leavingCell ? 0 : 1; if (typeof cell.bounceStep === "function") cell.bounceStep(); }); }
                                 onLeavingCellChanged: appear = leavingCell ? 0 : 1
                                 enabled: !leavingCell
@@ -5779,6 +6074,7 @@ Scope {
                                 property bool bounceShown: false          // a bounce was actually visible, so it deserves a settle
                                 function bounceStep() {
                                     if (ui.tucked) return;
+                                    if (root.reduceMotion) { img.lift = 0; cell.bounceShown = false; return; }
                                     if (cell.wantBounce) { cell.bounceShown = true; if (!bounceAnim.running && !settleAnim.running) bounceAnim.start(); }
                                     else if (cell.bounceShown && !bounceAnim.running && !settleAnim.running) { cell.bounceShown = false; settleAnim.start(); }
                                 }
@@ -5794,21 +6090,21 @@ Scope {
                                 SequentialAnimation {
                                     id: bounceAnim
                                     NumberAnimation { target: img; property: "lift"; to: root.iconSize * 0.42
-                                                      duration: 280; easing.type: Easing.OutCubic }
+                                                      duration: root.reduceMotion ? 0 : 280; easing.type: Easing.OutCubic }
                                     NumberAnimation { target: img; property: "lift"; to: 0
-                                                      duration: 280; easing.type: Easing.InCubic }
+                                                      duration: root.reduceMotion ? 0 : 280; easing.type: Easing.InCubic }
                                     onFinished: cell.bounceStep()              // goes again while still launching, otherwise settles
                                 }
                                 SequentialAnimation {
                                     id: settleAnim
                                     NumberAnimation { target: img; property: "lift"; to: root.iconSize * 0.16
-                                                      duration: 170; easing.type: Easing.OutQuad }
+                                                      duration: root.reduceMotion ? 0 : 170; easing.type: Easing.OutQuad }
                                     NumberAnimation { target: img; property: "lift"; to: 0
-                                                      duration: 170; easing.type: Easing.InQuad }
+                                                      duration: root.reduceMotion ? 0 : 170; easing.type: Easing.InQuad }
                                     NumberAnimation { target: img; property: "lift"; to: root.iconSize * 0.06
-                                                      duration: 120; easing.type: Easing.OutQuad }
+                                                      duration: root.reduceMotion ? 0 : 120; easing.type: Easing.OutQuad }
                                     NumberAnimation { target: img; property: "lift"; to: 0
-                                                      duration: 120; easing.type: Easing.InQuad }
+                                                      duration: root.reduceMotion ? 0 : 120; easing.type: Easing.InQuad }
                                     onFinished: cell.bounceStep()              // relaunched while settling: bounce again
                                 }
 
@@ -5816,7 +6112,7 @@ Scope {
                                     id: tip
                                     visible: opacity > 0
                                     opacity: (root.showLabels && !cell.isSep && ma.containsMouse && !ma.pressed && !ui.menuOpen && !ui.dragging && !ui.tearing && !ui.tucked) ? 1 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                                    Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 120 } }
                                     z: 10
                                     maxWidth: Math.min(360, ui.width - 24)
                                     // Clamp long window titles to the screen; the tail still points at the icon.
@@ -5826,20 +6122,9 @@ Scope {
                                     y: cell.height - img.height - img.lift - height - 10
                                     text: cell.isSep ? "" : ((cell.modelData.kind === "win" && cell.modelData.tl && cell.modelData.tl.title) ? cell.modelData.tl.title : cell.modelData.name)
                                     fontFamily: root.fontFamily
-                                    liquid: root.liquidActive
+                                    frosted: true
+                                    liquid: false
                                     dark: root.dockDark
-                                    surfaceOpacity: root.glassOpacity
-                                    glassBlur: root.glassBlur
-                                    glassLiquid: root.glassLiquid
-                                    glassRim: root.glassRim
-                                    glassGrain: root.glassGrain
-                                    backdrop: glassBackdrop.item
-                                    backdropOrigin: {
-                                        // Explicit dependencies keep captures aligned during magnification and bounce.
-                                        cellLeft; row.y; dock.y; tip.x; tip.y;
-                                        const p = tip.mapToItem(ui, 0, 0);
-                                        return Qt.point(p.x, p.y + win.modelData.height - ui.height);
-                                    }
                                 }
 
                                 MouseArea {
@@ -5916,8 +6201,8 @@ Scope {
                     opacity: ui.menuOpen ? 1 : 0
                     scale: ui.menuOpen ? 1 : 0.96
                     transformOrigin: Item.Bottom
-                    Behavior on opacity { NumberAnimation { duration: 110 } }
-                    Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
+                    Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 110 } }
+                    Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 110; easing.type: Easing.OutCubic } }
 
                     width: 230
                     // The slab is the menu body plus a small rounded tail at the
@@ -5944,8 +6229,8 @@ Scope {
                         visible: !root.liquidActive
                         preferredRendererType: Shape.CurveRenderer
                         ShapePath {
-                            fillColor: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.glassOpacity)
-                                                     : Qt.rgba(1, 1, 1, root.glassOpacity * 0.55)
+                            fillColor: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.effGlassOpacity)
+                                                     : Qt.rgba(1, 1, 1, Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55))
                             strokeWidth: 1
                             strokeColor: root.dockDark ? Qt.rgba(0, 0, 0, 0.45) : Qt.rgba(0, 0, 0, 0.12)
                             PathSvg { path: menu.outline(0.5) }
@@ -6041,13 +6326,13 @@ Scope {
                                 property real radius: menu.menuRadius
                                 property real squircle: Corners.CornerTheme.smoothing
                                 property real bezel: Math.min(menu.bodyHeight * 0.36, 26)
-                                property real thickness: 30 * root.glassLiquid
-                                property real dispersion: 0.06 * root.glassLiquid
-                                property real magnify: 0.08 * root.glassLiquid
-                                property real rim: root.glassRim
-                                property real grain: root.glassGrain
+                                property real thickness: 30 * root.effGlassLiquid
+                                property real dispersion: 0.06 * root.effGlassLiquid
+                                property real magnify: 0.08 * root.effGlassLiquid
+                                property real rim: root.effGlassRim
+                                property real grain: root.effGlassGrain
                                 property real blurPx: 1.5           // tiny residual smoothing; the real blur is the MultiEffect pre-pass
-                                property real tintMix: root.glassOpacity * 0.55
+                                property real tintMix: Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55)
                                 property real saturation: 1.25
                                 property real dark: root.dockDark ? 1 : 0  // glass tint follows the Dock theme (light/dark)
                                 property real debug: root.glassDebug ? 1 : 0

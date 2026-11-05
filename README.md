@@ -33,7 +33,8 @@ cd macshell
 
 Install the package list maintained by [scripts/dependencies.sh](scripts/dependencies.sh).
 This step installs packages and prepares the wallpaper backend; it does not
-copy the MacShell configuration into your home directory.
+copy the MacShell configuration into your home directory. Complete the feature
+dependencies in step 3 as well before running `./install.sh --no-deps`.
 
 ```bash
 bash scripts/dependencies.sh
@@ -86,7 +87,91 @@ the installed Qt libraries. The Nautilus folder menu also needs the
 On other distributions, install the equivalent development packages separately;
 see the [installation guide](docs/INSTALL.md).
 
-### 3. Verify dependencies, then install the configuration
+### 3. Install dependencies for the features you will use
+
+**Finish this step before installing the configuration.** Optional means the
+feature can be skipped; its dependencies are required when you enable it.
+The base dependency helper does not install every package or local model below.
+
+#### Live / video wallpaper
+
+Install **[`mpvpaper`](https://github.com/GhostNaN/mpvpaper)** (the executable is
+named `mpvpaper`), plus `mpv` and `ffmpeg`, before using video wallpapers.
+`awww` handles static wallpapers; it does not replace the video backend.
+
+```bash
+sudo pacman -S --needed mpv ffmpeg
+
+# Use the repository package if your distribution provides it.
+# Otherwise install the AUR package with an existing AUR helper.
+if pacman -Si mpvpaper >/dev/null 2>&1; then
+  sudo pacman -S --needed mpvpaper
+elif command -v yay >/dev/null 2>&1; then
+  yay -S --needed mpvpaper
+elif command -v paru >/dev/null 2>&1; then
+  paru -S --needed mpvpaper
+else
+  echo "Install mpvpaper using the upstream build instructions linked above."
+fi
+
+command -v mpvpaper
+command -v mpv
+command -v ffmpeg
+```
+
+If building from source, follow the upstream instructions for its Wayland/wlroots,
+libmpv, Meson, and Ninja requirements. Run the build as your regular user.
+Video files are supplied separately.
+
+**Current integration limitation:** the wallpaper picker calls
+`~/.config/hypr-macshell/scripts/macshell-setwall.sh` for videos and animated
+previews. That helper is not included in this repository. Installing `mpvpaper`
+alone does not complete the picker's video support on a fresh installation;
+the compatible helper must also be supplied. Static wallpaper selection uses
+`awww` and is independent of this missing video helper.
+
+#### Other feature dependencies
+
+| Feature | Install before configuration / additional setup |
+| --- | --- |
+| Static wallpaper picker and transitions | `awww` and `awww-daemon`; prepared by `scripts/dependencies.sh` |
+| Screenshot, annotation, clipboard capture | `grim slurp swappy wl-clipboard`; included in the base helper |
+| Screen / selected-area recording | `wf-recorder ffmpeg`, plus the PipeWire packages above for audio; included in the base helper except `pipewire-audio` |
+| Photo Booth camera, microphone, and export | Qt Multimedia and FFmpeg from the base helper, a working camera, and PipeWire audio; phone cameras additionally need DroidCam below |
+| Media controls and Dynamic Notch music | `playerctl` and a player exposing MPRIS; audio visualization needs `pw-cat` (`pipewire-audio`) or `parec` (`libpulse`) |
+| Network and Bluetooth controls | `networkmanager bluez bluez-utils`, with the corresponding services running |
+| Brightness, battery, and power profiles | `brightnessctl upower power-profiles-daemon`; hardware must expose the relevant controls |
+| Clipboard history | `wl-clipboard cliphist`; included in the base helper |
+| MacLock authentication | `hyprlock` supplies the PAM configuration; Quickshell needs PAM support |
+| Timer sounds and immediate Trash updates | `libcanberra inotify-tools` |
+| Local Luma AI inference | A compatible `llama-server` runtime and supported GGUF model; see [Luma AI setup](docs/LUMA.md). Models can be imported or installed through Settings → Luma AI after configuration |
+| Local OCR / Visual Intelligence | `tesseract tesseract-data-eng tesseract-data-ind` and `grim` |
+| Offline speech transcription | whisper.cpp's `whisper-cli`, a compatible local GGML model, and `pw-record` from `pipewire-audio`; configure the local speech model after installation |
+| Offline read-aloud | `espeak-ng` |
+| Android device connection and mirroring | `android-tools scrcpy`; enable USB debugging and authorize the computer on the device |
+| Extra GNOME applications | `gnome-calendar gnome-clocks gnome-contacts gnome-maps loupe gnome-weather`; `macshell-gnome-apps-setup` can configure their integration after installation |
+| DroidCam camera input | DroidCam, matching kernel headers, DKMS, V4L2 loopback, and Android tools; follow [DroidCam setup](share/macshell/droidcam/README.md) |
+| SDDM login theme | `sddm`; activate separately with `install-macshell-sddm` after installation |
+| Tabby terminal integration | Tabby and its separate setup dependencies; see [Tabby integration](share/macshell/tabby/README.md) |
+
+For OCR, read-aloud, and Android mirroring, install the packages for the features
+you want before continuing (omit the other groups):
+
+```bash
+# OCR / Visual Intelligence
+sudo pacman -S --needed tesseract tesseract-data-eng tesseract-data-ind
+# Offline read-aloud
+sudo pacman -S --needed espeak-ng
+# Android device connection and mirroring
+sudo pacman -S --needed android-tools scrcpy
+```
+
+AI and speech model files are not bundled or downloaded by the config installer.
+Prepare the required runtimes first, then select/import their models through the
+installed application. Device pairing and theme activation happen after the
+configuration is installed.
+
+### 4. Verify dependencies, then install the configuration
 
 ```bash
 ./install.sh --doctor
@@ -116,8 +201,8 @@ appropriate for your existing system.
 ### Installer options
 
 Running `./install.sh` without `--no-deps` runs the dependency helper before
-building and copying files. After completing step 2, use `--no-deps` as shown
-above to proceed directly to configuration installation.
+building and copying files. After completing steps 2 and 3, use `--no-deps`
+as shown above to proceed directly to configuration installation.
 
 ```bash
 ./install.sh --dry-run          # preview the installation without making changes
@@ -134,24 +219,6 @@ settings, and application preferences, are preserved. To use the bundled default
 ./install.sh --reset-settings
 ```
 
-### Optional feature dependencies
-
-Install these only for the corresponding features. They are separate from the
-core package setup above, and local AI/speech models are downloaded or imported
-separately.
-
-| Feature | Additional dependency |
-| --- | --- |
-| Local Luma AI inference | A compatible `llama-server` runtime and supported GGUF model; configured through Settings → Luma AI |
-| Local OCR / Visual Intelligence | `tesseract tesseract-data-eng tesseract-data-ind` |
-| Offline speech transcription | whisper.cpp's `whisper-cli`, a compatible local GGML model, and `pw-record` from `pipewire-audio` |
-| Offline read-aloud | `espeak-ng` |
-| Android device connection and mirroring | `android-tools scrcpy`; enable USB debugging and authorize the computer on the device |
-| Extra GNOME applications | `gnome-calendar gnome-clocks gnome-contacts gnome-maps loupe gnome-weather`; provided by `macshell-gnome-apps-setup` |
-| DroidCam camera input | DroidCam, matching kernel headers, DKMS, V4L2 loopback, and Android tools; see [DroidCam setup](share/macshell/droidcam/README.md) |
-| SDDM login theme | `sddm`; activate separately with `install-macshell-sddm` |
-| Tabby terminal integration | Tabby and its separate setup dependencies; see [Tabby integration](share/macshell/tabby/README.md) |
-
 The default terminal launcher uses GNOME Console (`kgx`, supplied by
 `gnome-console`). Applications mentioned in window rules or existing Dock pins
 are installed separately when you want to use them.
@@ -165,14 +232,46 @@ installation needs the compiled applications and native plugins.
 | --- | --- |
 | Launchpad | Super+A |
 | Spotlight | Super+Space |
+| Luma AI Search or Ask menu | Super+Shift+Space |
+| Luma AI menu-bar quick panel | Round Luma icon in the menu bar |
+| Luma AI application | `macshell-luma` / Launchpad → Luma AI |
 | Terminal (GNOME Console) | Super+Q / `macshell-terminal` |
 | File manager | Super+E |
 | Lock screen | Super+L |
+| Find cursor | Shake the mouse or move a finger rapidly back and forth on the trackpad |
 | Screenshot | Print / Super+Shift+S |
+| Record screen or area | Control Center → Record → Entire Screen / Selected Area |
 | Settings | Apple menu or Dock |
 | Photo Booth | Launchpad → Photo Booth / `tahoe-photobooth` |
 
 Application details: [Photo Booth](apps/tahoe-photobooth/README.md).
+
+**Shake to find** temporarily enlarges the current cursor up to 4× and smoothly
+restores it after shaking stops. See [cursor configuration and rebuild instructions](share/macshell/shake-to-find/README.md).
+
+**Dynamic Notch** sits at the top center, above the menu-bar contents. Hover or
+click to reveal music controls, timers, recording, charging and volume/brightness
+feedback. **Settings → Dynamic Notch** switches between Attached and
+Floating, sets fullscreen visibility, size and displays. See
+[Dynamic Notch](docs/DYNAMIC-NOTCH.md) for behavior and validation details.
+
+For an area recording, choose **Selected Area**, drag the part of the screen to
+record, and release to start. **Esc** or a right click cancels selection.
+The selected area stays outlined in red with a recording timer until you stop.
+Stop from the recording control or the privacy indicator; videos are saved as MP4 in
+`~/Videos/`. **File → Record Selected Area…** opens the same picker.
+
+**Luma AI** is an optional, local assistant. Open **Settings → Luma AI** to install
+the Light model or choose a larger model. The installer does not download models
+or start an AI server. After setup, chat and writing assistance work offline;
+models load on demand and leave memory after 90 seconds idle. Access it from
+Spotlight with **Ask Luma AI**, or type `luma: your question`.
+**Super+Shift+Space** opens a separate **Search or Ask** menu in the center of
+the focused display, with frosted liquid glass and answers below the input.
+The menu-bar icon has its own compact quick panel. **Open app**
+continues the same conversation in the full application. Hide the shortcut in
+**Settings → Menu Bar → Luma AI** if desired.
+See [Luma AI](docs/LUMA.md) for installation, privacy, and supported desktop actions.
 
 ## Updates and recovery
 
@@ -231,3 +330,20 @@ This distribution includes customizations of
 [MacTahoe icons](https://github.com/vinceliuice/MacTahoe-icon-theme).
 See [THIRD_PARTY.md](THIRD_PARTY.md) for component licenses.
 This is an independent Linux project and is not affiliated with Apple.
+
+## Golden Gate implementation status
+
+The new Calendar, Mail, Photos, Android and Rename Assistant windows can be opened
+with `macshell-calendar`, `macshell-mail`, `macshell-photos`, `macshell-android`, and
+`macshell-rename`. Visual Intelligence uses **Super+Shift+6**. Appearance includes
+**Show Borders**, and the tray chevron collapses/expands icons with a slide;
+right-click the chevron for hidden items.
+
+Mail currently works with local EML/MBOX archives and drafts; live account
+connectors are not implemented. Photos exports edits without replacing originals
+and can explicitly share an album on the LAN. OCR, speech, and AI require their
+local dependencies/models. Generative photo tools are not enabled.
+
+See the [execution report](docs/REPORT-GOLDEN-GATE-EXECUTION-2026-11-02.md) for
+verified behavior, dependency/device requirements, and remaining work. Firefox
+tools are provided as [development extension source](share/macshell/browser/README.md).

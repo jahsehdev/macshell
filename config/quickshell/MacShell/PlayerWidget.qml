@@ -82,7 +82,8 @@ Item {
 
     readonly property bool isSmall: size === "small"
     readonly property bool isMedium: size === "medium"
-    readonly property bool isLarge: size === "large"
+    readonly property bool isXL: size === "xl"
+    readonly property bool isLarge: size === "large" || isXL
 
     // RU -> px. It follows the real size of the widget, so it still fits if the host stretches it.
     readonly property real k0: isSmall ? width / 202 : (isMedium ? height / 202 : width / 446)
@@ -91,11 +92,13 @@ Item {
     readonly property real hr: height / k
     readonly property real radiusPx: 28 * scaleF * (isSmall ? 168 / 158 : (isMedium ? 358 / 338 : 1))
 
-    width: (isSmall ? 158 : (isMedium ? 338 : 358)) * scaleF
-           * (isSmall ? 168 / 158 : (isMedium ? 358 / 338 : 1.0))
-    height: (isLarge ? 354 : 168) * scaleF
+    width: isXL ? 560 * scaleF
+           : (isSmall ? 158 : (isMedium ? 338 : 358)) * scaleF
+             * (isSmall ? 168 / 158 : (isMedium ? 358 / 338 : 1.0))
+    height: isXL ? 385 * scaleF : (isLarge ? 354 : 168) * scaleF
 
     readonly property bool glassOn: style === "liquid" && glassReady && !preview && wallUrl != ""
+                                    && !Corners.DesktopPreferences.reduceTransparency
     readonly property bool dark: tinted || style === "dark" || (style === "liquid" && darkGlass)
     readonly property real tint: glassOpacity * 0.55
 
@@ -121,7 +124,7 @@ Item {
         return hashColor(title + "|" + artist);
     }
     property color ac: artColor
-    Behavior on ac { ColorAnimation { duration: 450 } }
+    Behavior on ac { ColorAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 450 } }
 
     // 24x24 sample of the artwork: the average of its colourful pixels (grey / black / white ones count for little)
     Canvas {
@@ -382,8 +385,8 @@ Item {
             visible: opacity > 0
             scale: w.lyricsView ? 0.9 : 1
             transformOrigin: Item.TopLeft
-            Behavior on opacity { NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: 480; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 420; easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
             layer.enabled: opacity > 0 && opacity < 0.999
             layer.sourceRect: Qt.rect(-16, -16, width + 32, height + 32)
             layer.effect: MultiEffect { blurEnabled: true; blurMax: 32; blur: Math.min(1, (1 - artItem.opacity) * 0.9) }
@@ -398,7 +401,7 @@ Item {
             height: 30 * w.k
             opacity: w.lyricsView ? 0 : 1
             visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 380; easing.type: Easing.OutCubic } }
             layer.enabled: opacity > 0 && opacity < 0.999
             layer.sourceRect: Qt.rect(-12, -8, width + 24, height + 16)
             layer.effect: MultiEffect { blurEnabled: true; blurMax: 24; blur: Math.min(1, (1 - titleItem.opacity) * 0.9) }
@@ -419,7 +422,7 @@ Item {
             width: (w.wr - (w.textX - 17) - (w.mx - 17) - (w.isMedium ? 50 : 0)) * w.k
             opacity: w.lyricsView ? 0 : 1
             visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 380; easing.type: Easing.OutCubic } }
             layer.enabled: opacity > 0 && opacity < 0.999
             layer.sourceRect: Qt.rect(-12, -8, width + 24, height + 16)
             layer.effect: MultiEffect { blurEnabled: true; blurMax: 24; blur: Math.min(1, (1 - subItem.opacity) * 0.9) }
@@ -457,13 +460,13 @@ Item {
             y: 16 * w.k
             width: (w.wr - 2 * w.mx - 52) * w.k
             height: ((w.lyricsView ? w.ctlCY - 40 : w.barCY - 14) - 16) * w.k
-            Behavior on height { NumberAnimation { duration: 480; easing.type: Easing.OutCubic } }
+            Behavior on height { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
             opacity: w.lyricsView ? 1 : 0
             visible: opacity > 0
             scale: w.lyricsView ? 1 : 0.94
             transformOrigin: Item.Left
-            Behavior on opacity { NumberAnimation { duration: 420; easing.type: Easing.OutCubic } }
-            Behavior on scale { NumberAnimation { duration: 480; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 420; easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
             layer.enabled: opacity > 0 && opacity < 0.999
             layer.sourceRect: Qt.rect(-16, -16, width + 32, height + 32)
             layer.effect: MultiEffect { blurEnabled: true; blurMax: 32; blur: Math.min(1, (1 - lyr.opacity) * 0.9) }
@@ -511,7 +514,7 @@ Item {
                     readonly property real dist: w.lyricsSynced ? Math.abs(index - w.lyricIdx) : 0
                     readonly property bool cur: w.lyricsSynced && index === w.lyricIdx
                     property real bl: (!w.lyricsSynced || cur) ? 0 : Math.min(1, 0.22 + dist * 0.16)
-                    Behavior on bl { NumberAnimation { duration: 480; easing.type: Easing.OutCubic } }
+                    Behavior on bl { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
                     width: ListView.view.width
                     height: txt.implicitHeight + 12 * w.k
                     Text {
@@ -527,8 +530,8 @@ Item {
                         opacity: !w.lyricsSynced ? 0.9 : (ln.cur ? 1 : Math.max(0.16, 0.46 - ln.dist * 0.08))
                         scale: (!w.lyricsSynced || ln.cur) ? 1 : 0.86
                         transformOrigin: Item.Left
-                        Behavior on opacity { NumberAnimation { duration: 480; easing.type: Easing.OutCubic } }
-                        Behavior on scale { NumberAnimation { duration: 480; easing.type: Easing.OutCubic } }
+                        Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
+                        Behavior on scale { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
                         layer.enabled: ln.bl > 0.01
                         layer.sourceRect: Qt.rect(-12, -8, width + 24, height + 16)
                         layer.effect: MultiEffect { blurEnabled: true; blurMax: 24; blur: ln.bl }
@@ -555,38 +558,36 @@ Item {
         }
 
         // ── progress bar: click or drag to seek ──
-        Corners.ContinuousRectangle {
+        Corners.GlassSlider {
             id: bar
+            objectName: "mediaSeekSlider"
+            enabled: !w.preview && !w.editing && w.hasPlayer && w.canSeek && w.length > 0
             visible: !w.isSmall && opacity > 0
             opacity: w.lyricsView ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
-            layer.enabled: opacity > 0 && opacity < 0.999
-            layer.sourceRect: Qt.rect(-12, -16, width + 24, height + 32)
-            layer.effect: MultiEffect { blurEnabled: true; blurMax: 24; blur: Math.min(1, (1 - bar.opacity) * 0.9) }
+            Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 380; easing.type: Easing.OutCubic } }
             x: w.mx * w.k
             y: w.barCY * w.k - height / 2
             width: (w.wr - 2 * w.mx) * w.k
-            height: (seekMa.pressed || seekMa.containsMouse ? 11 : 7) * w.k
-            Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-            radius: height / 2
-            color: w.trackCol
-            Corners.ContinuousRectangle {
-                width: w.hasPlayer && w.length > 0 ? Math.max(parent.height, parent.width * w.shownFrac) : 0
-                height: parent.height
-                radius: height / 2
-                color: seekMa.pressed || seekMa.containsMouse ? w.fa(w.dark ? 0.78 : 0.66) : w.fillCol
-                Behavior on color { ColorAnimation { duration: 140 } }
-            }
+            height: 30 * w.k
+            uiScale: w.k
+            value: w.shownFrac
+            dark: w.dark
+            accentColor: w.fillCol
+            trackColor: w.trackCol
+            materialOpacity: Corners.DesktopPreferences.glassOpacity(0.42)
+            liquidStrength: Corners.DesktopPreferences.glassLiquid(1)
+            pressed: seekMa.pressed
+            onMoved: { w.seekFrac = value; w.seek(value * w.length); }
             MouseArea {
                 id: seekMa
                 anchors.fill: parent
-                anchors.topMargin: -14 * w.k          // taller touch area than the thin bar
-                anchors.bottomMargin: -14 * w.k
+                anchors.topMargin: 0
+                anchors.bottomMargin: 0
                 hoverEnabled: true
                 preventStealing: true
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 enabled: !w.preview && !w.editing && w.hasPlayer && w.canSeek && w.length > 0
-                function frac(mx) { return Math.max(0, Math.min(1, mapToItem(bar, mx, 0).x / bar.width)); }
+                function frac(mx) { return Math.max(0, Math.min(1, (mapToItem(bar, mx, 0).x - bar.handle.width / 2) / Math.max(1, bar.width - bar.handle.width))); }
                 onPressed: mouse => { seekHoldTimer.stop(); w.seekHold = false; w.seekFrac = frac(mouse.x); w.seeking = true; }
                 onPositionChanged: mouse => { if (pressed) w.seekFrac = frac(mouse.x); }
                 onReleased: {
@@ -602,7 +603,7 @@ Item {
             id: timeL
             visible: !w.isSmall && opacity > 0
             opacity: w.lyricsView ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 380; easing.type: Easing.OutCubic } }
             layer.enabled: opacity > 0 && opacity < 0.999
             layer.sourceRect: Qt.rect(-8, -8, width + 16, height + 16)
             layer.effect: MultiEffect { blurEnabled: true; blurMax: 16; blur: Math.min(1, (1 - timeL.opacity) * 0.9) }
@@ -620,7 +621,7 @@ Item {
             id: timeR
             visible: !w.isSmall && w.length > 0 && opacity > 0
             opacity: w.lyricsView ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
+            Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 380; easing.type: Easing.OutCubic } }
             layer.enabled: opacity > 0 && opacity < 0.999
             layer.sourceRect: Qt.rect(-8, -8, width + 16, height + 16)
             layer.effect: MultiEffect { blurEnabled: true; blurMax: 16; blur: Math.min(1, (1 - timeR.opacity) * 0.9) }

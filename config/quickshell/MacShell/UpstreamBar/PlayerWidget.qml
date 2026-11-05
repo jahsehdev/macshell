@@ -561,38 +561,36 @@ Item {
         }
 
         // ── progress bar: click or drag to seek ──
-        Rectangle {
+        GlassCommon.GlassSlider {
             id: bar
+            objectName: "mediaSeekSlider"
+            enabled: !w.preview && !w.editing && w.hasPlayer && w.canSeek && w.length > 0
             visible: !w.isSmall && opacity > 0
             opacity: w.lyricsView ? 0 : 1
-            Behavior on opacity { NumberAnimation { duration: 380; easing.type: Easing.OutCubic } }
-            layer.enabled: opacity > 0 && opacity < 0.999
-            layer.sourceRect: Qt.rect(-12, -16, width + 24, height + 32)
-            layer.effect: MultiEffect { blurEnabled: true; blurMax: 24; blur: Math.min(1, (1 - bar.opacity) * 0.9) }
+            Behavior on opacity { NumberAnimation { duration: GlassCommon.DesktopPreferences.reduceMotion ? 0 : 380; easing.type: Easing.OutCubic } }
             x: w.mx * w.k
             y: w.barCY * w.k - height / 2
             width: (w.wr - 2 * w.mx) * w.k
-            height: (seekMa.pressed || seekMa.containsMouse ? 11 : 7) * w.k
-            Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-            radius: height / 2
-            color: w.trackCol
-            Rectangle {
-                width: w.hasPlayer && w.length > 0 ? Math.max(parent.height, parent.width * w.shownFrac) : 0
-                height: parent.height
-                radius: height / 2
-                color: seekMa.pressed || seekMa.containsMouse ? w.fa(w.dark ? 0.78 : 0.66) : w.fillCol
-                Behavior on color { ColorAnimation { duration: 140 } }
-            }
+            height: 30 * w.k
+            uiScale: w.k
+            value: w.shownFrac
+            dark: w.dark
+            accentColor: w.fillCol
+            trackColor: w.trackCol
+            materialOpacity: GlassCommon.DesktopPreferences.glassOpacity(0.42)
+            liquidStrength: GlassCommon.DesktopPreferences.glassLiquid(1)
+            pressed: seekMa.pressed
+            onMoved: { w.seekFrac = value; w.seek(value * w.length); }
             MouseArea {
                 id: seekMa
                 anchors.fill: parent
-                anchors.topMargin: -14 * w.k          // taller touch area than the thin bar
-                anchors.bottomMargin: -14 * w.k
+                anchors.topMargin: 0
+                anchors.bottomMargin: 0
                 hoverEnabled: true
                 preventStealing: true
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 enabled: !w.preview && !w.editing && w.hasPlayer && w.canSeek && w.length > 0
-                function frac(mx) { return Math.max(0, Math.min(1, mapToItem(bar, mx, 0).x / bar.width)); }
+                function frac(mx) { return Math.max(0, Math.min(1, (mapToItem(bar, mx, 0).x - bar.handle.width / 2) / Math.max(1, bar.width - bar.handle.width))); }
                 onPressed: mouse => { seekHoldTimer.stop(); w.seekHold = false; w.seekFrac = frac(mouse.x); w.seeking = true; }
                 onPositionChanged: mouse => { if (pressed) w.seekFrac = frac(mouse.x); }
                 onReleased: {

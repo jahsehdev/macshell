@@ -10,10 +10,24 @@ Untuk memasang dependensi sendiri:
 
 ```bash
 bash scripts/dependencies.sh
+# Lengkapi paket runtime dan fitur yang akan digunakan sesuai README terlebih dahulu.
+./install.sh --doctor
 ./install.sh --no-deps
 ```
 
-Daftar paket lengkap terdapat di `scripts/dependencies.sh`. Paket build utama:
+Daftar paket dasar terdapat di `scripts/dependencies.sh`. **Sebelum memasang
+konfigurasi**, ikuti [daftar dependensi per fitur di README](../README.md#3-install-dependencies-for-the-features-you-will-use).
+Live/video wallpaper memerlukan `mpvpaper`, `mpv`, dan `ffmpeg`; wallpaper statis
+memakai `awww`. Helper dependensi dasar belum memasang `mpvpaper`, paket OCR,
+runtime/model AI dan speech, serta semua paket runtime tambahan. `--doctor` juga
+belum memeriksa semua fitur opsional.
+
+Saat ini pemilih video wallpaper memanggil
+`~/.config/hypr-macshell/scripts/macshell-setwall.sh`, tetapi helper tersebut belum
+ada di bundle. Paket `mpvpaper` saja belum melengkapi integrasi video pada instalasi
+baru; sediakan helper yang kompatibel. Wallpaper statis tetap memakai `awww`.
+
+Paket build utama:
 `base-devel cmake ninja pkgconf python python-pillow qt6-base qt6-declarative
 qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat gtk3 gtk4 libadwaita
 json-glib hyprland quickshell`.

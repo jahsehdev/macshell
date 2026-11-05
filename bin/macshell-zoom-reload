@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""Reload and verify the independent Zoom controller in the desktop session."""
+import os
+import json
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+
+def main():
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', '/tmp'))
+    status = runtime / 'macshell-zoom.status'
+    report = runtime / 'macshell-zoom-reload.log'
+    try:
+        source = (Path.home() / '.config/hypr/macshell_zoom.lua').read_text()
+        if "status:write('restore-v6\\n')" not in source:
+            raise RuntimeError('File perbaikan restore-v6 belum terpasang.')
+        integration = Path(__file__).resolve().with_name('macshell-window-integration-reload')
+        native = subprocess.run([str(integration), '--fullscreen-only', '--ensure'],
+                                capture_output=True, text=True, timeout=15)
+        report.write_text('native-integration\n' + native.stdout + native.stderr)
+        if native.returncode:
+            raise RuntimeError('Integrasi tombol native belum aktif. Lihat ' + str(report))
+        plugins = subprocess.run(['hyprctl', '-j', 'plugin', 'list'], capture_output=True, text=True, timeout=3)
+        if plugins.returncode or not any(plugin.get('name') == 'macshell-fullscreen-lock' and
+                                        str(plugin.get('version')) == '1.6' for plugin in json.loads(plugins.stdout)):
+            raise RuntimeError('Plugin tombol native versi 1.6 belum aktif.')
+        before = status.stat().st_mtime_ns if status.exists() else None
+        result = subprocess.run(['hyprctl', 'reload'], capture_output=True, text=True, timeout=8)
+        with report.open('a') as output:
+            output.write('\nreload\n' + result.stdout + result.stderr)
+        if result.returncode or result.stdout.strip() != 'ok':
+            raise RuntimeError('Compositor menolak reload. Lihat ' + str(report))
+        for _ in range(30):
+            if status.exists() and status.stat().st_mtime_ns != before and status.read_text().strip() == 'restore-v6':
+                print('Zoom restore-v6 dan integrasi tombol native 1.6 aktif. Coba tombol hijau pada window yang sama.')
+                return 0
+            time.sleep(0.1)
+        errors = subprocess.run(['hyprctl', 'configerrors'], capture_output=True, text=True, timeout=3)
+        with report.open('a') as output:
+            output.write('\nconfigerrors\n' + errors.stdout + errors.stderr)
+        raise RuntimeError('Reload belum mengaktifkan controller baru. Detail tersimpan di ' + str(report))
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

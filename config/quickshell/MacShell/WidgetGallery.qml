@@ -29,11 +29,11 @@ PanelWindow {
         readonly property color fg: dark ? "#F2F2F5" : "#242428"
         readonly property color muted: dark ? "#A8A8B2" : "#696972"
         readonly property var types: [
-            { type: "weather", name: "Weather", icon: "weather-clear", hint: "Conditions and forecast" },
-            { type: "calendar", name: "Calendar", icon: "view-calendar", hint: "Your date at a glance" },
-            { type: "clock", name: "Clock", icon: "preferences-system-time", hint: "Local time, live" },
-            { type: "player", name: "Now Playing", icon: "multimedia-player", hint: "Music, controls and lyrics" },
-            { type: "image", name: "Photos", icon: "image-x-generic", hint: "Choose a favourite picture" }
+            { type: "weather", name: "Weather", icon: "weather-clear", hint: "Conditions and forecast", xl: true },
+            { type: "calendar", name: "Calendar", icon: "view-calendar", hint: "Your date at a glance", xl: true },
+            { type: "clock", name: "Clock", icon: "preferences-system-time", hint: "Local time, live", xl: false },
+            { type: "player", name: "Now Playing", icon: "multimedia-player", hint: "Music, controls and lyrics", xl: true },
+            { type: "image", name: "Photos", icon: "image-x-generic", hint: "Choose a favourite picture", xl: true }
         ]
         property int category: 0
         property int styleIndex: 0
@@ -142,18 +142,25 @@ PanelWindow {
             contentWidth: cards.width
             contentHeight: height
             boundsBehavior: Flickable.StopAtBounds
+            // Four size previews fit side by side on a 1280-wide screen; on narrower
+            // monitors the cards shrink instead of pushing XL off the right edge.
+            readonly property var sizes: gallery.chosen.xl === false
+                                         ? ["small", "medium", "large"]
+                                         : ["small", "medium", "large", "xl"]
+            readonly property real cardWidth: Math.max(124, Math.min(180,
+                (width - 12 * (sizes.length - 1)) / sizes.length))
             Row {
                 id: cards
                 spacing: 12
                 Repeater {
-                    model: ["small", "medium", "large"]
+                    model: previews.sizes
                     delegate: Corners.ContinuousRectangle {
                         cornerSmoothing: 0
                         id: card
                         required property string modelData
                         readonly property var dimensions: galleryWindow.host.dims(modelData)
-                        readonly property real previewScale: Math.min(154 / dimensions[0], (height - 80) / dimensions[1])
-                        width: 180; height: previews.height
+                        readonly property real previewScale: Math.min((card.width - 22) / dimensions[0], (height - 80) / dimensions[1])
+                        width: previews.cardWidth; height: previews.height
                         radius: 17
                         color: addMouse.containsMouse ? (gallery.dark ? "#22FFFFFF" : "#10000000") : (gallery.dark ? "#0AFFFFFF" : "#08000000")
                         Item {

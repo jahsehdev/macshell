@@ -3,7 +3,7 @@ assert((os.getenv('XDG_RUNTIME_DIR') or ''):match('^/tmp/macshell%-drag'), 'Use 
 local events, timers, windows, operations = {}, {}, {}, {}
 hl = {
     on=function(name, fn) events[name]=fn end,
-    timer=function(fn) timers[#timers+1]=fn end,
+    timer=function(fn,options) if options.type~='repeat' then timers[#timers+1]=fn end end,
     get_window=function(selector) return windows[selector] end,
     get_windows=function() return {windows['address:0xtest']} end,
     exec_scheduled_prop_refresh_immediately=function() end,
@@ -27,7 +27,7 @@ local w={address='0xtest',stable_id=1,mapped=true,hidden=false,floating=true,
     workspace={name='1'},monitor={x=0,y=0,width=1920,height=1080,scale=1,transform=0,
     reserved={left=0,right=0,top=30,bottom=0}}}
 windows['address:0xtest']=w
-local zoom=dofile(os.getenv('HOME')..'/.config/hypr/macshell_zoom.lua')
+local zoom=dofile(arg[1] or os.getenv('HOME')..'/.config/hypr/macshell_zoom.lua')
 zoom.enter(w)
 assert(zoom.isZoomed(w) and w.size.x==1920)
 w.at={x=230,y=100}

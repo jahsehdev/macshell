@@ -1,6 +1,6 @@
+pragma ComponentBehavior: Bound
 import "../Common" as Corners
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
 import ".."
@@ -33,6 +33,11 @@ FloatingWindow {
 
     implicitWidth: modelData ? modelData.width : 1280
     implicitHeight: modelData ? modelData.height : 800
+    // This is a desktop-covering backdrop, not an application work-area window.
+    // Prevent the normal-window configure handshake from shrinking it above a
+    // permanently visible Dock. Keep the bar and Dock in their existing layers.
+    minimumSize: Qt.size(implicitWidth, implicitHeight)
+    maximumSize: minimumSize
     // Keep the window host stable; decoded images only live while it is shown.
     Loader {
         anchors.fill: parent

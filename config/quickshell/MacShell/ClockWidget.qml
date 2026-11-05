@@ -56,6 +56,7 @@ Item {
 
     readonly property bool glassOn:
         style === "liquid" && glassReady && !preview && wallUrl != ""
+        && !Corners.DesktopPreferences.reduceTransparency
 
     readonly property real tint: glassOpacity * 0.55
 

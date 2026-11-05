@@ -48,11 +48,11 @@ Scope {
     readonly property string configDir: Quickshell.env("HOME") + "/.config/macwidgets"
 
     // Liquid Glass follows Appearance's material preset, translucency and strength.
-    readonly property real glassOpacity: dock ? dock.glassOpacity : 0.42
-    readonly property real glassBlur: dock ? dock.glassBlur : 5
-    readonly property real glassLiquid: dock ? dock.glassLiquid : 1.0
-    readonly property real glassRim: dock ? dock.glassRim : 0.45
-    readonly property real glassGrain: dock ? dock.glassGrain : 0.03
+    readonly property real glassOpacity: dock ? dock.effGlassOpacity : Corners.DesktopPreferences.glassOpacity(0.42)
+    readonly property real glassBlur: dock ? dock.effGlassBlur : Corners.DesktopPreferences.glassBlur(5)
+    readonly property real glassLiquid: dock ? dock.effGlassLiquid : Corners.DesktopPreferences.glassLiquid(1.0)
+    readonly property real glassRim: dock ? dock.effGlassRim : Corners.DesktopPreferences.glassRim(0.45)
+    readonly property real glassGrain: dock ? dock.effGlassGrain : Corners.DesktopPreferences.glassGrain(0.03)
     // Follow the resolved system appearance, including Auto. Spotlight's
     // independent panel theme must not override the desktop widgets.
     readonly property bool darkGlass: Corners.IconStyle.dark
@@ -75,9 +75,15 @@ Scope {
 
     readonly property var styleNames: ({ liquid: "Liquid Glass", normal: "Normal", light: "Light", dark: "Dark" })
     readonly property var typeNames: ({ weather: "Weather", calendar: "Calendar", clock: "Clock", player: "Player", image: "Image" })
-    readonly property var sizeNames: ({ small: "Small", medium: "Medium", large: "Large" })
+    readonly property var sizeNames: ({ small: "Small", medium: "Medium", large: "Large", xl: "Extra Large" })
+    function supportsXL(type) { return type !== "clock"; }
+    function typeOf(id) {
+        for (var i = 0; i < wmodel.count; i++) if (wmodel.get(i).wid === id) return wmodel.get(i).wtype;
+        return "";
+    }
     function dims(size) {
-        var b = size === "large" ? [375, 385] : (size === "medium" ? [395, 185] : [185, 185]);
+        var b = size === "xl" ? [560, 385]
+              : (size === "large" ? [375, 385] : (size === "medium" ? [395, 185] : [185, 185]));
         return [Math.round(b[0] * widgetScale), Math.round(b[1] * widgetScale)];
     }
     // Size of the Player's contents (art, text, buttons) relative to the original design. The card itself fills the
@@ -104,7 +110,7 @@ Scope {
         return { cols: cols, rows: rows, left: gridLeft + Math.floor(spareW / 2), top: gridTop,
                  pitchX: gridCell + gridGapX, pitchY: gridCell + gridGapY };
     }
-    function spans(size) { return size === "large" ? [2, 2] : (size === "medium" ? [2, 1] : [1, 1]); }
+    function spans(size) { return size === "xl" ? [3, 2] : (size === "large" ? [2, 2] : (size === "medium" ? [2, 1] : [1, 1])); }
 
     function recount() {
         var l = false;
@@ -187,7 +193,8 @@ Scope {
         pickError = "";
         if (!ready) { pickError = "Widgets are still loading. Please try again."; return false; }
         if (!typeNames[type]) { pickError = "This widget type is unavailable."; return false; }
-        var sz = size === "medium" || size === "large" ? size : "small";
+        var sz = size === "medium" || size === "large" ? size
+               : (size === "xl" ? (supportsXL(type) ? "xl" : "large") : "small");
         var p = firstFreeSlot(sz, "");
         if (!p) {
             pickError = "Not enough desktop space for a " + sizeNames[sz].toLowerCase()
@@ -235,6 +242,7 @@ Scope {
     function setSize(id, size) {
         for (var i = 0; i < wmodel.count; i++) {
             if (wmodel.get(i).wid !== id) continue;
+            if (size === "xl" && !supportsXL(wmodel.get(i).wtype)) size = "large";
             var p = nearestFreeSlot(id, wmodel.get(i).wx, wmodel.get(i).wy, size);
             if (!p) { pickError = "Not enough desktop space for this widget size."; return; }
             wmodel.setProperty(i, "wsize", size);
@@ -329,7 +337,8 @@ Scope {
                 if (!w || (w.type !== "weather" && w.type !== "calendar" && w.type !== "clock" && w.type !== "player" && w.type !== "image")) continue;
                 wmodel.append({ wid: String(w.id || ("w" + i)), wtype: w.type,
                                 wstyle: w.type === "image" ? "normal" : "system",
-                                wsize: (w.size === "medium" || w.size === "large") ? w.size : "small",
+                                wsize: (w.size === "xl" && w.type !== "clock") ? "xl"
+                                     : ((w.size === "medium" || w.size === "large") ? w.size : "small"),
                                 wmode: "auto",
                                 wsrc: typeof w.src === "string" ? w.src : "",
                                 wx: Number(w.x) || 0, wy: Number(w.y) || 0 });
@@ -352,14 +361,16 @@ Scope {
             root.scheduleSave();
             root.refresh();
         }
-        onLoadFailed: { root.ready = true; }
+        onLoadFailed: { root.ready = true; root.refreshSoon(); }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: root.saveSettings() }
 
     // ───────────── music player (MPRIS) ─────────────
     // the player that is playing, otherwise the first one (same rule as the Menu Bar's media widget)
+    property string preferredMediaPlayerId: ""
     readonly property var player: {
         var ps = Mpris.players.values, best = null;
+        for (var p = 0; p < ps.length; p++) if (String(ps[p].dbusName || ps[p].identity || "") === preferredMediaPlayerId) return ps[p];
         for (var i = 0; i < ps.length; i++) {
             if (ps[i].isPlaying) return ps[i];
             if (!best) best = ps[i];
@@ -388,6 +399,7 @@ Scope {
 
     // ───────────── lyrics (LRCLIB, fetched only while a Player widget has its lyrics open) ─────────────
     property bool lyricsWanted: false
+    property bool notchLyricsWanted: false
     property var lyricsLines: []               // [{ t: seconds (-1 = not synced), text }]
     property bool lyricsSynced: false
     property string lyricsState: "idle"        // idle | loading | ok | none
@@ -400,13 +412,14 @@ Scope {
                                                   + Math.round(player.lengthSupported ? player.length : 0)) : ""
     onTrackKeyChanged: {
         lyricsLines = []; lyricsSynced = false; lyricsState = "idle";
-        if (lyricsWanted) lyricsSoon.restart();
+        if (lyricsWanted || notchLyricsWanted) lyricsSoon.restart();
     }
     onLyricsWantedChanged: if (lyricsWanted && lyricsState === "idle") lyricsSoon.restart()
+    onNotchLyricsWantedChanged: if (notchLyricsWanted && lyricsState === "idle") lyricsSoon.restart()
     Timer { id: lyricsSoon; interval: 500; onTriggered: root.fetchLyrics() }
 
     function fetchLyrics() {
-        if (!lyricsWanted || !player || player.trackTitle === "") return;
+        if ((!lyricsWanted && !notchLyricsWanted) || !player || player.trackTitle === "") return;
         if (lrcProc.running) return;                      // finished handler re-checks the key
         lyricsReqKey = trackKey;
         lrcTitle = player.trackTitle; lrcArtist = player.trackArtist; lrcAlbum = player.trackAlbum;
@@ -484,6 +497,24 @@ Scope {
     property string wxPlace: ""
     property var wxHourly: []
     property var wxDaily: []
+    // The notch shares this forecast even when no Weather widget is on the desktop.
+    readonly property bool notchWeatherEnabled: !!hub && !!hub.bar && hub.bar.notchEnabled
+        && !!hub.bar.notchService && hub.bar.notchService.loaded && hub.bar.notchService.state.menus.indexOf("weather") >= 0
+    readonly property bool wxDemand: count("weather") > 0 || notchWeatherEnabled
+    readonly property bool wxBusy: locProc.running || geoProc.running || wxProc.running
+    property bool wxRefreshPending: false
+    property string wxRequestSettings: ""
+    property real wxUpdatedAt: 0
+    function weatherSettingsKey() { return JSON.stringify([locMode,cityName.trim(),tempUnit]); }
+    function currentWeatherRequest() {
+        if (wxRequestSettings === weatherSettingsKey()) return true;
+        wxRefreshPending = true;
+        return false;
+    }
+    function finishWeatherRequest() {
+        if (wxRefreshPending) { wxRefreshPending = false; refreshSoon(); }
+    }
+    onWxDemandChanged: if (wxDemand) refreshSoon()
 
     function wmo(code, day) {
         switch (code) {
@@ -521,8 +552,9 @@ Scope {
     }
 
     function refresh() {
-        if (!ready || count("weather") === 0) return;
-        if (locProc.running || geoProc.running || wxProc.running) return;
+        if (!ready || !wxDemand) return;
+        if (wxBusy) { wxRefreshPending = true; return; }
+        wxRequestSettings = weatherSettingsKey();
         if (locMode === "city" && cityName.trim() !== "") { geoProc.running = true; }
         else { locProc.running = true; }
     }
@@ -531,7 +563,7 @@ Scope {
     Timer {
         interval: 15 * 60 * 1000
         repeat: true
-        running: root.ready && root.count("weather") > 0
+        running: root.ready && root.wxDemand
         onTriggered: root.refresh()
     }
     onWidgetCountChanged: if (count("weather") > 0 && !wxReady) refreshSoon()
@@ -539,11 +571,13 @@ Scope {
     // automatic location (IP): ipwho.is, falling back to ipapi.co
     Process {
         id: locProc
+        onExited: root.finishWeatherRequest()
         command: ["sh", "-c",
             "o=$(curl -fsS --max-time 8 https://ipwho.is/ 2>/dev/null); "
             + "case \"$o\" in *'\"latitude\"'*) printf '%s' \"$o\";; *) curl -fsS --max-time 8 https://ipapi.co/json/;; esac"]
         stdout: StdioCollector {
             onStreamFinished: {
+                if (!root.currentWeatherRequest()) return;
                 try {
                     var o = JSON.parse(text);
                     if (o.latitude === undefined) throw "no position";
@@ -558,12 +592,16 @@ Scope {
     // a city typed in Settings
     Process {
         id: geoProc
+        onExited: root.finishWeatherRequest()
         command: ["curl", "-fsS", "--max-time", "8", "-G", "https://geocoding-api.open-meteo.com/v1/search",
                   "--data-urlencode", "name=" + root.cityName.trim(), "-d", "count=1", "-d", "language=en", "-d", "format=json"]
         stdout: StdioCollector {
             onStreamFinished: {
+                if (!root.currentWeatherRequest()) return;
                 try {
-                    var r = JSON.parse(text).results[0];
+                    const matches = JSON.parse(text).results;
+                    if (!Array.isArray(matches) || !matches.length) throw "city not found";
+                    var r = matches[0];
                     root.wxLat = Number(r.latitude); root.wxLon = Number(r.longitude);
                     root.wxPlace = r.name;
                     root.wxLocated = false;
@@ -574,6 +612,7 @@ Scope {
     }
     Process {
         id: wxProc
+        onExited: root.finishWeatherRequest()
         command: ["curl", "-fsS", "--max-time", "10", "-G", "https://api.open-meteo.com/v1/forecast",
                   "-d", "latitude=" + root.wxLat, "-d", "longitude=" + root.wxLon,
                   "-d", "current=temperature_2m,weather_code,is_day",
@@ -583,6 +622,7 @@ Scope {
                   "-d", "timezone=auto", "-d", "forecast_days=6"]
         stdout: StdioCollector {
             onStreamFinished: {
+                if (!root.currentWeatherRequest()) return;
                 try {
                     var o = JSON.parse(text);
                     root.wxTemp = Math.round(o.current.temperature_2m);
@@ -603,6 +643,7 @@ Scope {
                     root.wxHourly = hrs; root.wxDaily = dys;
                     root.wxCity = root.wxPlace;
                     root.wxReady = true;
+                    root.wxUpdatedAt = Date.now();
                     root.wxError = "";
                 } catch (err) { root.wxError = "weather lookup failed"; console.log("[macwidgets] forecast:", err, text.substring(0, 120)); }
             }
@@ -704,7 +745,7 @@ Scope {
                     anchors.fill: parent
                     color: "black"
                     opacity: root.editing ? 0.16 : 0
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
+                    Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 200 } }
                 }
 
                 Repeater {   // free Small-sized grid cells; Medium and Large snap across 2-cell footprints
@@ -759,7 +800,7 @@ Scope {
                         }
 
                         scale: dragArea.pressed ? 1.03 : 1.0
-                        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                        Behavior on scale { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 120; easing.type: Easing.OutCubic } }
                         z: dragArea.pressed ? 10 : 1
 
                         // edit mode: outline + drag + remove

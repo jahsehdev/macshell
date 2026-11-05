@@ -392,23 +392,16 @@ FocusScope {
             Heading { text: sliderRow.label; font.pixelSize: 14 }
             Text { text: Math.round(sliderRow.value) + sliderRow.unit; color: root.muted; font.pixelSize: 12 }
         }
-        Slider {
+        Corners.GlassSlider {
             id: slider
             objectName: "slider"
             Layout.fillWidth: true
             from: sliderRow.from; to: sliderRow.to; value: sliderRow.value
             onMoved: sliderRow.moved(value)
             implicitHeight: 28
-            background: Corners.ContinuousRectangle { cornerSmoothing: 0;
-                x: slider.leftPadding; y: slider.topPadding + slider.availableHeight / 2 - height / 2
-                width: slider.availableWidth; height: 5; radius: 3; color: root.dark ? "#4b4b4e" : "#b8b8bf"
-                Corners.ContinuousRectangle { cornerSmoothing: 0; width: slider.visualPosition * parent.width; height: parent.height; radius: 3; color: root.accent }
-            }
-            handle: Corners.ContinuousRectangle { cornerSmoothing: 0;
-                x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
-                y: slider.topPadding + slider.availableHeight / 2 - height / 2
-                width: 24; height: 20; radius: 10; color: slider.pressed ? "white" : "#dedee2"
-            }
+            dark: root.dark
+            accentColor: root.accent
+            trackColor: root.dark ? "#4b4b4e" : "#b8b8bf"
         }
     }
 }

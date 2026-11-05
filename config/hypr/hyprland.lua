@@ -380,6 +380,7 @@ hl.window_rule({
 -- than taking the workspace's one native fullscreen/maximize slot.
 hl.window_rule({name = "macshell-independent-zoom", match = {tag = "macshell-zoomed"}, sync_fullscreen = false})
 local windowZoom = dofile((os.getenv("HOME") or "~") .. "/.config/hypr/macshell_zoom.lua")
+local launchpadGeometry = dofile((os.getenv("HOME") or "~") .. "/.config/hypr/macshell_launchpad.lua")
 -- Focus and render order are separate in Hyprland 0.56: a floating window
 -- previously raised over maximize/fullscreen keeps allowed_over_fullscreen=true.
 -- Raising the fullscreen target alone does not clear that separate render pass.
@@ -468,18 +469,22 @@ local topBarGuardBusy = {}
 
 local function clampWindowBelowBar(w)
     if not w.floating or not w.mapped or w.hidden or w.fullscreen ~= 0 then return end
+    -- Independent Zoom has internal=0. Its controller owns the client rectangle,
+    -- including decoration insets, while shell exclusive zones are remapping.
+    if w.fullscreen_client ~= 0 or windowZoom.isZoomed(w) then return end
     -- pinned windows are deliberately placed overlays (e.g. the full-screen
     -- Launchpad backdrop), not normal app windows: leave them where they are
     if w.pinned or w.title == "qs-launchpad-backdrop" then return end
     local m = w.monitor
-    local top = m and m.reserved and m.reserved.top or 0
-    if top <= 0 or not w.at then return end
+    local reservedTop = m and m.reserved and m.reserved.top or 0
+    if reservedTop <= 0 or not w.at then return end
+    local top = m.y + reservedTop
     if w.at.y >= top - 0.5 then return end
 
     local addr = w.address
     if topBarGuardBusy[addr] then return end
     topBarGuardBusy[addr] = true
-    hl.dispatch(hl.dsp.window.move({ window = "address:" .. addr, x = w.at.x, y = top }))
+    hl.dispatch(hl.dsp.window.move({ window = "address:" .. addr, x = w.at.x, y = top, exact = true }))
     -- short cooldown so a clamped window is not dispatched on every tick
     hl.timer(function() topBarGuardBusy[addr] = nil end, { timeout = 120, type = "oneshot" })
 end
@@ -505,6 +510,7 @@ end)
 -- Liquid Glass: blur behind the shell surfaces
 hl.layer_rule({ name = "macdock",  match = { namespace = "macdock"  }, blur = true, ignore_alpha = 0.2,  no_anim = true })
 hl.layer_rule({ name = "macspot",  match = { namespace = "macspot"  }, blur = true, ignore_alpha = 0.05, no_anim = true })
+hl.layer_rule({ name = "maclumasearch",  match = { namespace = "maclumasearch"  }, blur = true, ignore_alpha = 0.05, no_anim = true })
 hl.layer_rule({ name = "macbarbg", match = { namespace = "macbarbg" }, blur = true, ignore_alpha = 0.05, no_anim = true })
 hl.layer_rule({ name = "macshot",  match = { namespace = "macshot"  }, no_anim = true })
 hl.layer_rule({ name = "macwidgets", match = { namespace = "macwidgets" }, no_anim = true })
@@ -517,6 +523,7 @@ local qs = "qs -c MacShell ipc call "
 hl.bind("SUPER + V",       hl.dsp.exec_cmd(qs .. "spotlight clipboard"))
 hl.bind("SUPER + period",  hl.dsp.exec_cmd(qs .. "spotlight emoji"))
 hl.bind("SUPER + Space",   hl.dsp.exec_cmd(qs .. "spotlight toggle"))
+hl.bind("SUPER + SHIFT + Space", hl.dsp.exec_cmd(qs .. "lumasearch toggle"))
 hl.bind("ALT + TAB",       hl.dsp.exec_cmd(qs .. "switcher next"))
 hl.bind("CTRL + ALT + W",  hl.dsp.exec_cmd(qs .. "wallpapers toggle"))
 hl.bind("PRINT",           hl.dsp.exec_cmd(qs .. "screenshot region"))
@@ -541,6 +548,7 @@ hl.window_rule({
     size = "monitor_w monitor_h",
     decorate = false,
     border_size = 0,
+    rounding = 0,
     no_shadow = true,
     no_anim = true,
     no_focus = true,
@@ -576,6 +584,14 @@ hl.window_rule({
 })
 
 -- Window yang di-minimize lewat tombol kuning ada di special:minimized.
+-- Releasing a layer's keyboard focus can refocus the cached last window,
+-- even when it has since been minimized. Block focus while parked; this
+-- dynamic rule clears when the Dock restores the window to its workspace.
+hl.window_rule({
+    name = "macshell-minimized-no-focus",
+    match = { workspace = "special:minimized" },
+    no_focus = true,
+})
 hl.workspace_rule({
     workspace = "special:minimized",
     gaps_in   = 10,
@@ -588,7 +604,7 @@ hl.bind("SUPER + SHIFT + mouse:272", hl.dsp.exec_cmd("sh ~/.config/hypr/minimize
 
 -- Clamp interactive window geometry before it is painted; no correction timer.
 hl.plugin.load((os.getenv("HOME") or "~") .. "/.local/share/macshell/top-boundary/top-boundary.so")
--- Fullscreen lock v1.2: Never-hide Dock work-area windows allow manual resize.
+-- Fullscreen lock: Never-hide Dock expanded windows reject manual resize.
 -- Fullscreen and expanded-window movement remain locked during dragging.
 -- Restoring a window re-enables movement; programmatic placement stays intact.
 hl.plugin.load((os.getenv("HOME") or "~") .. "/.local/share/macshell/fullscreen-lock/fullscreen-lock.so")
@@ -599,6 +615,10 @@ hl.plugin.load((os.getenv("HOME") or "~") .. "/.local/share/macshell/click-focus
 -- animation/restore path, including windows that were already open.
 hl.plugin.load((os.getenv("HOME") or "~") .. "/.local/share/macshell/native-minimize/native-minimize.so")
 
+-- Shake the pointer to temporarily enlarge the actual cursor, like macOS.
+dofile((os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "~") .. "/.config")) .. "/hypr/macshell_cursor.lua")
+
+
 
 -- Square corners follow actual screen-filling geometry, not client fullscreen
 -- flags: F11/HTML fullscreen may change client state on a smaller floating window.
@@ -608,3 +628,8 @@ hl.window_rule({name = "macshell-expanded-geometry",
     match = {tag = "macshell-square-window"}, rounding = 0})
 -- Never-hide Dock: the controller clears the square tag so Zoom/Fill inherits
 -- its toolbar/titlebar radius. Lua window_rule.rounding remains limited to 20.
+
+-- Visual Intelligence (Command maps to Super on Linux).
+hl.bind(mainMod .. " + SHIFT + 6", hl.dsp.exec_cmd("qs -c MacShell ipc call visual open"))
+
+hl.layer_rule({ name = "macvisualintelligence", match = { namespace = "macvisualintelligence" }, no_anim = true })

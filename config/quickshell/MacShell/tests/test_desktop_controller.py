@@ -78,6 +78,13 @@ class StageTests(unittest.TestCase):
         self.backend.clients += [client('cc','Music','special:minimized'), client('dd','Term','special:magic')]
         self.c.tick(); self.c.shutdown()
         self.assertFalse(any(x[0]=='move' and x[1] in ('cc','dd') for x in self.backend.calls))
+    def test_launchpad_is_never_staged_or_hidden_with_desktop_apps(self):
+        backdrop = client('cc', 'org.quickshell')
+        backdrop['title'] = 'qs-launchpad-backdrop'
+        self.backend.clients.append(backdrop)
+        self.c.tick()
+        self.c.command(dict(action='desktop', monitor=0)); self.c.tick()
+        self.assertFalse(any(x[0] == 'move' and x[1] == 'cc' for x in self.backend.calls))
     def test_workspace_and_monitor_isolation(self):
         self.backend.clients += [client('cc', 'Chat', '5'), client('dd', 'Video', '2', 1)]
         self.c.tick()

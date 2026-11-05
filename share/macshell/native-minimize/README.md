@@ -54,3 +54,15 @@ checks the existing GTK 4 MacTahoe theme, and reloads this bridge. Use
 `--check` to validate the local theme and bridge without installing packages.
 Compilation is checked locally; validation of the real windows and minimize
 buttons requires the desktop session after installing and reloading.
+
+Version 1.4 supports Hyprland 0.57's window metadata and backend state-request
+API, while preserving the legacy XDG listener for older headers. After rebuilding,
+run `~/.local/bin/macshell-window-integration-reload` to restore both native
+minimize and click focus, or `macshell-minimize-reload` for minimize alone. A
+plugin that was not loaded is loaded directly; running applications stay open.
+The reload helper validates all build commits before unloading any integration.
+
+Version 1.5 matches capability updates against the actual XDG role rather than
+the legacy toplevel window back-reference. MacShell ensures the current bridge
+is loaded on startup/reload. Status includes its version and capability-update
+count so attachment and capability advertising can be distinguished.

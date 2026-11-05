@@ -1,10 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtCore
+import "Common" as Common
 
 // MacTahoe window controls, using the same artwork and spacing as Nautilus.
 Item {
     id: controls
+    readonly property bool reduceMotion: Common.DesktopPreferences.reduceMotion
     property bool dark: true
     property bool windowActive: true
     property bool restored: false
@@ -44,6 +46,8 @@ Item {
                         + (controls.dark ? "-dark" : "") + "@2.png"
                     sourceSize: Qt.size(32, 32)
                     smooth: true
+                    opacity: button.available ? 1 : 0.55
+                    Behavior on opacity { NumberAnimation { duration: controls.reduceMotion ? 0 : 90 } }
                 }
                 MouseArea {
                     id: mouse

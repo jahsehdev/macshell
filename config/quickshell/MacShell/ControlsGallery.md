@@ -3,6 +3,21 @@
 Open **Control Center → Edit Controls**, or **System Settings → Control Center → Edit Controls…**.
 IPC entry point: `qs -c MacShell ipc call controlcenter edit`.
 
+In normal Control Center mode, drag any control in any direction for an elastic
+stretch, then release to spring back to its original slot. Travel has increasing
+resistance and stays bounded; the surface stretches along the pull and squashes
+across it, including its rounded corners, border, icons and labels. The surface
+temporarily renders above the scroll viewport to avoid clipping. A drag does not
+invoke the control's click action. Clicks, arrow actions and native value sliders
+keep their existing behavior. Edit Controls, Done and Reset also support elastic
+dragging. Reduce Motion disables the deformation and bounce.
+
+`ElasticDrag.qml` limits travel to 5 pixels and stretching to the smaller of 8%
+or 8 added pixels, keeping wide controls compact. It exposes `resistance`,
+`travelLimit`, `stretchLimit`, `stretchPixelLimit`, `stiffness`, `damping` and
+`mass`; the default return uses Qt `SpringAnimation` with spring 4.2, damping 0.28
+and mass 1. Edit mode keeps the placement/removal behavior described below.
+
 The gallery follows MacShell's light/dark appearance. Search or select a category, then click/right-click a control to add it to Control Center or the menu bar. A blue check marks controls already in Control Center. Drag controls onto either destination to add them directly.
 
 While editing:
@@ -49,6 +64,9 @@ Drags from the gallery or menu bar still use that preview. Release or
 cancellation clears the source tile reference. `python3 tests/test_control_center_drag.py`
 exercises the production tile delegate for wide and circular controls, click
 actions, cancellation, dropping outside the grid, and dragging to the menu bar.
+It also checks normal-mode elastic drag in eight directions, increasing
+resistance, spring overshoot, unclipped overlay placement without position jumps,
+click suppression, slider grabs, cancellation and Reduce Motion.
 
 All Controls starts with a What’s New card containing a small illustrative
 desktop and Control Center preview, rendered by `ControlsPreview.qml`. It has

@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Record bounded window-state diagnostics while the user tests the green control."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+
+
+def query(name):
+    result = subprocess.run(['hyprctl', '-j', name], capture_output=True, text=True, timeout=3)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or 'hyprctl gagal')
+    return json.loads(result.stdout)
+
+
+def main():
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', '/tmp'))
+    path = runtime / 'macshell-zoom-diagnose.jsonl'
+    fields = ('address', 'class', 'pid', 'xwayland', 'mapped', 'hidden', 'floating',
+              'at', 'size', 'fullscreen', 'fullscreenClient', 'tags', 'focusHistoryID')
+    try:
+        monitors = [{key: monitor.get(key) for key in
+                     ('id', 'x', 'y', 'width', 'height', 'scale', 'transform', 'reserved')}
+                    for monitor in query('monitors')]
+        status = runtime / 'macshell-zoom.status'
+        with path.open('w') as output:
+            output.write(json.dumps({'version': status.read_text().strip() if status.exists() else None,
+                                     'monitors': monitors}) + '\n')
+            output.flush()
+            print('Selama 20 detik, klik tombol hijau pada aplikasi yang bermasalah beberapa kali.', flush=True)
+            last = None
+            deadline = time.monotonic() + 20
+            while time.monotonic() < deadline:
+                windows = []
+                for window in query('clients'):
+                    item = {key: window.get(key) for key in fields}
+                    item['workspace'] = window.get('workspace', {}).get('name')
+                    windows.append(item)
+                windows.sort(key=lambda window: window['address'] or '')
+                if windows != last:
+                    output.write(json.dumps({'time': time.time(), 'windows': windows}) + '\n')
+                    output.flush()
+                    last = windows
+                time.sleep(0.2)
+        print('Selesai. Diagnostik tersimpan di ' + str(path))
+        return 0
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

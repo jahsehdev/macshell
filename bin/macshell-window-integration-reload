@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Reload window focus, minimize and fullscreen integrations without restarting apps."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+def hypr(*args, expect_ok=False):
+    result = subprocess.run(['hyprctl', *args], text=True, capture_output=True)
+    text = result.stdout.strip()
+    if result.returncode or (expect_ok and text != 'ok'):
+        raise RuntimeError((text + '\n' + result.stderr.strip()).strip() or 'hyprctl gagal')
+    return text
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument('--minimize-only', action='store_true')
+    selection.add_argument('--fullscreen-only', action='store_true')
+    parser.add_argument('--ensure', action='store_true', help='Load missing or outdated integrations only')
+    args = parser.parse_args()
+    names = (['native-minimize'] if args.minimize_only else ['fullscreen-lock'] if args.fullscreen_only else
+             ['click-focus', 'native-minimize', 'fullscreen-lock'])
+    data_home = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
+    try:
+        version = hypr('version')
+        match = re.search(r'\b[0-9a-f]{40}\b', version)
+        if not match:
+            raise RuntimeError('Versi sesi Hyprland tidak dapat diperiksa. Belum ada plugin yang diubah.')
+        running_commit = match.group()
+        libraries = []
+        # Validate every binary before unloading either integration.
+        for name in names:
+            directory = data_home / 'macshell' / name
+            library = directory / (name + '.so')
+            stamp = directory / (name + '.so.commit')
+            if not library.is_file() or not stamp.is_file():
+                raise RuntimeError(f'Bangun integrasi dahulu: sh "{directory / "build.sh"}"')
+            if stamp.read_text().strip() != running_commit:
+                raise RuntimeError(f'{name}: build plugin berbeda dengan sesi Hyprland yang sedang berjalan. '
+                                   'Gunakan header yang sesuai sesi atau sesi Hyprland versi terpasang. '
+                                   'Belum ada plugin yang diubah.')
+            libraries.append((name, library))
+        versions = {'click-focus': '1.2', 'native-minimize': '1.5', 'fullscreen-lock': '1.6'}
+        loaded = {p['name']: str(p.get('version', '')) for p in json.loads(hypr('-j', 'plugin', 'list'))}
+        for name, library in libraries:
+            plugin = 'macshell-' + name
+            if args.ensure and loaded.get(plugin) == versions[name]:
+                continue
+            if plugin in loaded:
+                hypr('plugin', 'unload', str(library), expect_ok=True)
+            hypr('plugin', 'load', str(library), expect_ok=True)
+        print('Penguncian resize fullscreen dimuat ulang.' if args.fullscreen_only else
+              'Integrasi minimize dimuat ulang.' if args.minimize_only else
+              'Integrasi fokus, minimize dan fullscreen dimuat ulang. Aplikasi tetap terbuka.')
+        return 0
+    except (RuntimeError, OSError, ValueError, KeyError, TypeError) as error:
+        print('Integrasi belum dimuat: ' + str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

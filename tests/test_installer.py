@@ -116,6 +116,22 @@ class InstallerTests(unittest.TestCase):
         rendered = installer.rendered(source, self.paths).decode()
         self.assertIn('source_dir="' + str(self.home) + '/assets"', rendered)
 
+    def test_native_build_includes_commit_stamps_for_safe_reload(self):
+        self.file('share/macshell/fixture', 'native fixture\n')
+        def command(argv, **kwargs):
+            if argv[0] == 'sh':
+                directory = Path(argv[1]).parent
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory / (directory.name + '.so')).write_bytes(b'library')
+                (directory / (directory.name + '.so.commit')).write_text('a' * 40)
+        with tempfile.TemporaryDirectory() as temporary, patch.object(installer, 'command', side_effect=command):
+            outputs = installer.build_apps(Path(temporary), self.paths, types.SimpleNamespace(test=False, jobs='2'))
+            destinations = [str(row[1]) for row in outputs]
+        self.assertTrue(any(path.endswith('/fullscreen-lock/fullscreen-lock.so') for path in destinations))
+        self.assertTrue(any(path.endswith('/fullscreen-lock/fullscreen-lock.so.commit') for path in destinations))
+        self.assertTrue(any(path.endswith('/shake-to-find/shake-to-find.so') for path in destinations))
+        self.assertTrue(any(path.endswith('/shake-to-find/shake-to-find.so.commit') for path in destinations))
+
 
 if __name__ == '__main__':
     unittest.main()

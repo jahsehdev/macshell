@@ -1,5 +1,41 @@
 # MacShell fullscreen movement lock
 
+Version 1.6 normalizes the native Wayland green-button request for independent
+Zoom. Hyprland's Wayland backend toggles against internal maximize, which stays
+zero for independent Zoom; a second click therefore reasserts client maximize
+instead of clearing it. The client request hook changes that request to restore
+only for mapped floating Wayland Zoom windows in internal=0/client=1. X11,
+foreign-toplevel requests, untagged windows, and genuine fullscreen retain their
+request semantics. Lua then restores the saved normal geometry.
+
+The hook uses `CWindow::requestClientFullscreen`, because the shorter
+`onUpdateState` wrapper is inlined in the installed compositor's backend signal
+listener. `native-zoom-restores` in the status file counts corrected requests.
+Run `~/.local/bin/macshell-zoom-reload` to load native 1.6 and verify the Lua
+controller together; `hyprctl reload` alone cannot replace a loaded plugin.
+
+Version 1.5 keeps the normal arrow at locked window edges and corners. Cursor
+selection uses the same resize-lock policy as the drag hook. Hyprland still
+handles edge hit testing, restoring normal-window resize cursors, application
+text/link cursors, drag-and-drop and special cursor overrides. The symbol check
+validates the native border-cursor and shape-override hooks before building.
+
+Version 1.4 removes the Never-hide Dock resize exception. Native fullscreen,
+maximize and Zoom reject manual resize. Geometry-only Fill beside a Never-hide
+Dock also rejects resize, including `macshell-tiled` Fill with 8px margins.
+The rounding tag is checked against current geometry so a restored window with
+a stale tag stays resizable. Normal windows, half/quarter tiles and ordinary
+tile tear-off keep their behavior. Every interactive resize mode uses the same
+hook, including edges, corners and Super + right-drag.
+
+After building, run `~/.local/bin/macshell-resize-reload` in the desktop session.
+It validates the compositor commit and reloads only fullscreen-lock. Other
+integrations and open applications keep running. A config reload alone does
+not replace a library already loaded in memory. Confirm `version 1.6` in
+`~/.cache/macshell/fullscreen-lock.status` before testing live gestures.
+
+Historical behavior (superseded by version 1.4):
+
 Version 1.2 permits edge/corner resize (including forced/free aspect-ratio modes)
 for floating work-area windows tagged `macshell-dock-rounded-window` by the desktop
 controller. This tag requires an enabled Never-hide Dock on that monitor and actual

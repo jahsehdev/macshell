@@ -59,11 +59,13 @@ Item {
 
     readonly property bool isSmall: size === "small"
     readonly property bool isMedium: size === "medium"
-    readonly property bool isLarge: size === "large"
+    readonly property bool isXL: size === "xl"
+    readonly property bool isLarge: size === "large" || isXL
     // Small / Medium are slightly enlarged; Large shares the widened footprint without stretching its vertical content.
     readonly property real s: scaleF * (isSmall ? 168 / 158 : (isMedium ? 358 / 338 : 1.0))
     readonly property real radiusPx: 28 * s
     readonly property bool glassOn: style === "liquid" && glassReady && !preview && wallUrl != ""
+                                    && !Corners.DesktopPreferences.reduceTransparency
     // The colourful Normal style keeps white labels; Liquid Glass follows the
     // system appearance for readable text on the new light/dark material.
     readonly property bool dark: style === "normal" || style === "dark" || tinted || darkGlass
@@ -72,8 +74,8 @@ Item {
     readonly property color line: dark ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(0, 0, 0, 0.12)
     readonly property color trackColor: dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.14)
     readonly property color rangeColor: dark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0.08, 0.10, 0.14, 0.65)
-    width: (isSmall ? 158 : (isLarge ? 358 : 338)) * s
-    height: (isLarge ? 354 : 168) * scaleF
+    width: isXL ? 560 * scaleF : (isSmall ? 158 : (isLarge ? 358 : 338)) * s
+    height: isXL ? 385 * scaleF : (isLarge ? 354 : 168) * scaleF
 
     // The cloud glyphs are not shown: only the sun / moon get an icon.
     function showIcon(k) { return k === "sun" || k === "moon"; }
@@ -252,7 +254,7 @@ Item {
         Text {
             id: cityText
             text: w.city
-            width: Math.min(implicitWidth, 158 * w.s - 2 * w.pad - (w.located ? 14 * w.s : 0))
+            width: Math.min(implicitWidth, (w.isXL ? w.width / 2 : 158 * w.s) - 2 * w.pad - (w.located ? 14 * w.s : 0))
             elide: Text.ElideRight
             color: w.fg
             font.family: w.fam
@@ -365,12 +367,12 @@ Item {
         x: w.pad
         y: 142 * w.s
         Repeater {
-            model: w.isLarge ? w.hourly.slice(0, 6) : []
+            model: w.isLarge ? w.hourly.slice(0, w.isXL ? 8 : 6) : []
             delegate: WeatherHourCol {
                 required property var modelData
                 info: modelData
                 wd: w
-                colW: (w.width - 2 * w.pad) / 6
+                colW: (w.width - 2 * w.pad) / (w.isXL ? 8 : 6)
             }
         }
     }

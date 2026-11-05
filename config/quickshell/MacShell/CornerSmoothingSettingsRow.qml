@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls as Controls
+import "Common" as Common
 
 // The preference affects the Dock surface only.
 Item {
@@ -48,7 +48,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(230, row.width * 0.46)
         height: 42
-        Controls.Slider {
+        Common.GlassSlider {
             id: slider
             objectName: "continuousCornerSlider"
             width: parent.width; height: 24
@@ -57,25 +57,11 @@ Item {
             onMoved: row.host.cornerSquircle = Math.round(value * 100) / 100
             Accessible.name: "Dock continuous corner smoothing"
             leftPadding: 0; rightPadding: 0
-            background: Rectangle {
-                x: slider.leftPadding
-                y: slider.topPadding + slider.availableHeight / 2 - height / 2
-                width: slider.availableWidth; height: 4; radius: 2
-                color: row.t.track
-                Rectangle {
-                    width: slider.visualPosition * parent.width
-                    height: parent.height; radius: 2
-                    color: row.t.accent
-                }
-            }
-            handle: Rectangle {
-                x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
-                y: slider.topPadding + slider.availableHeight / 2 - height / 2
-                width: 20; height: 20; radius: 10
-                color: slider.pressed ? "#f0f0f3" : "white"
-                border.width: 1
-                border.color: slider.activeFocus ? row.t.accent : "#50000000"
-            }
+            dark: row.t.dark; accentColor: row.t.accent; trackColor: row.t.track
+            materialOpacity: row.host.effGlassOpacity
+            glassBlur: row.host.effGlassBlur
+            liquidStrength: row.host.effGlassLiquid
+            glassRim: row.host.effGlassRim
         }
         Text {
             y: 27; text: "Rounded"

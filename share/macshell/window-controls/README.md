@@ -36,14 +36,40 @@ copied; other unmodified resources are symlinked. The launcher rebuilds an overl
 when the upstream executable or relevant UI files change. An incompatible
 Antigravity API falls back to the original application with its header intact.
 
-Spotify needs one small launcher process while it runs. It exposes only four
-window operations over an ephemeral loopback port, authenticated with a random
+Spotify needs one small launcher process while it runs. It exposes only five
+window operations over a user-local loopback port, authenticated with a random
 256-bit token and restricted to Spotify's own web origin. It accepts no GET
 actions, arbitrary commands, file requests, credentials, or playback requests.
 It stops when its Spotify process exits. Reopening an already running local
 Spotify reuses that process and its existing bridge. A Spotify instance already
 running from the original installation must be closed normally before the local
 copy can become active.
+
+Spotify's connection port and token persist in the private integrated-apps
+directory, so cached HTML can reconnect after a relaunch. The injected JS and
+CSS URLs include a content revision, and the readiness handshake retries when
+the window has not mapped yet. Failed button actions expose a reconnect hint
+in the button tooltip rather than disappearing silently.
+
+On XWayland, `spotify-drag.so` starts a real Hyprland drag from blank navigation
+space. The launcher loads it only when its build commit matches the compositor.
+It verifies Spotify's active PID and the held left button, then calls the native
+drag controller with an exclusive device grab. Movement, release outside the
+app, and the existing fullscreen lock use the compositor's normal behavior.
+An ignored X11 move message is no longer treated as a successful drag. Search,
+navigation, account controls and traffic lights keep their input. Build the
+plugin with `build.sh` using matching Hyprland headers.
+
+Spotify minimize calls MacShell's `minimize addr` endpoint with the verified
+window address. It does not rely on Quickshell's focused-toplevel lookup, which
+can omit an XWayland window. The bridge confirms the window reached
+`special:minimized` before returning success. Close and maximize keep their
+existing dispatch paths.
+
+The 2026-11-03 Spotify regression tests cover connection reuse, cache revision,
+reconnection, button targeting, toolbar gestures and interactive-area exclusion.
+Live CEF transport and compositor movement still require a desktop-session
+check after fully quitting and reopening Spotify.
 
 Kitty's custom renderer uses its installed `TabManager` mouse API. Qt and GTK
 plugins are selected only by the application-local launchers. Rebuild after an
@@ -89,6 +115,29 @@ settings on exit. Close and reopen affected applications normally to load the
 updated plugins and overlays. Run `hyprctl reload` to refresh the Zoom logic.
 Moved Zoom windows retain their new geometry when focus or window rules update;
 monitor/workspace changes still recalculate the maximized bounds.
+
+Zoom restore keeps Hyprland's hexadecimal stable window IDs as text across
+configuration reloads, preserving the saved normal rectangle. Client restore
+requests take precedence over a compositor maximize state that has not cleared
+yet. Exiting F11 back to maximized resumes the preceding Zoom and clears the
+fullscreen transition marker so the next green-button click restores normally.
+Because Hyprland emits no fullscreen event for client-only mode changes, an
+80 ms observer checks modes on recorded Zoom windows. It queues reconciliation
+only when the mode changes, leaving stable window geometry and dragging alone.
+The controller remembers the actual result of its own placement as well as
+the requested bounds, so decoration offsets do not accidentally release Zoom
+on the next focus/rule update. Genuine moves and resizes still retain geometry.
+Run `~/.local/bin/macshell-zoom-reload` to verify reload activation. The last 48
+transitions are kept in `$XDG_RUNTIME_DIR/macshell-zoom-trace.log`, without titles
+or app content.
+The reload helper also loads fullscreen-lock 1.6, which corrects native Wayland
+maximize toggles against independent Zoom's client state. Without this native
+request hook, a second green click can reassert client=1 without any mode change
+for Lua to observe. The existing manual resize and cursor locks remain active.
+An older damaged record that saved the expanded rectangle as its normal size
+restores to a centered 75% work-area rectangle; valid saved sizes remain exact.
+Regression coverage: `tests/test_zoom_restore.lua` at the repository root, run
+with an isolated `/tmp/macshell-zoom-*` runtime and the module path as argument.
 
 Run `sh tests/check_drag.sh` for offscreen gesture routing, button/tab exclusion,
 Zoom geometry regression checks and Tabby plugin checks. Actual compositor

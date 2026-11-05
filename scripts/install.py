@@ -21,7 +21,7 @@ SETTINGS = {
     'quickshell/launchpad/settings.json', 'macshell/corners/state.json',
     'MacShell/PhotoBooth.conf',
 }
-NATIVE = ['top-boundary', 'fullscreen-lock', 'click-focus', 'native-minimize', 'window-controls', 'nautilus/native', 'folder-customizer/native']
+NATIVE = ['top-boundary', 'fullscreen-lock', 'click-focus', 'native-minimize', 'shake-to-find', 'window-controls', 'nautilus/native', 'folder-customizer/native']
 
 
 def exists(path):
@@ -112,8 +112,9 @@ def build_apps(staging, target_paths, args):
     shutil.copytree(ROOT / 'share/macshell', native_root, symlinks=True)
     for part in NATIVE:
         command(['sh', native_root / part / 'build.sh'])
-    for source in native_root.rglob('*.so'):
-        staged.append((source, target_paths['DATA_HOME'] / 'macshell' / source.relative_to(native_root), False))
+    for pattern in ('*.so', '*.so.commit'):
+        for source in native_root.rglob(pattern):
+            staged.append((source, target_paths['DATA_HOME'] / 'macshell' / source.relative_to(native_root), False))
     return staged
 
 

@@ -42,3 +42,33 @@ test("a hidden or unmapped Launchpad does not cover app windows", () => {
         assert.deepEqual(Array.from(glass.clientsForGlass([app, launchpad])), [app]);
     }
 });
+
+
+test("minimized clients never contribute pixels, even while still mapped", () => {
+    const app = client("0x123", "Console");
+    const parked = { ...client("0x456", "Music"), workspace: { id: -99, name: "special:minimized" } };
+    assert.deepEqual(Array.from(glass.clientsForGlass([app, parked])), [app]);
+    for (const state of [{ hidden: true }, { mapped: false }, { minimized: true }]) {
+        assert.deepEqual(Array.from(glass.clientsForGlass([app, { ...parked, workspace: { id: 1, name: "1" }, ...state }])), [app]);
+    }
+});
+
+test("minimize records suppress stale geometry until restore without mutating it", () => {
+    const app = { ...client("0x123", "Console"), pid: 42, workspace: { id: 1, name: "1" } };
+    const raw = [app];
+    for (const key of ["123", "0x123"]) {
+        assert.deepEqual(Array.from(glass.clientsForGlass(raw, { [key]: { pid: 42 } })), []);
+    }
+    assert.deepEqual(Array.from(glass.clientsForGlass(raw, {})), [app]);
+    assert.equal(raw[0].workspace.name, "1");
+});
+
+test("an old minimize record cannot hide a new process reusing the address", () => {
+    const app = { ...client("0x123", "Console"), pid: 43 };
+    assert.deepEqual(Array.from(glass.clientsForGlass([app], { "123": { pid: 42 } })), [app]);
+});
+
+test("other special workspaces remain available for monitor visibility filtering", () => {
+    const app = { ...client("0x123", "Console"), workspace: { id: -98, name: "special:magic" } };
+    assert.deepEqual(Array.from(glass.clientsForGlass([app])), [app]);
+});

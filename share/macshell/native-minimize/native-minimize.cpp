@@ -1,6 +1,12 @@
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/desktop/state/ViewState.hpp>
+#if __has_include(<hyprland/src/desktop/view/window/Window.hpp>)
+#define MACSHELL_WINDOW_BACKEND_API 1
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/view/window/WindowMetadata.hpp>
+#else
 #include <hyprland/src/desktop/view/Window.hpp>
+#endif
 #include <hyprland/src/desktop/view/WLSurface.hpp>
 #include <hyprland/src/protocols/XDGShell.hpp>
 #include <hyprland/src/protocols/core/Compositor.hpp>
@@ -20,12 +26,40 @@ struct Entry {
 static std::unordered_map<Desktop::View::CWindow*, Entry> entries;
 static CHyprSignalListener opened, closed, changedClass;
 static size_t forwarded = 0;
+static size_t capabilityUpdates = 0;
+
+static SP<CXDGSurfaceResource> xdgSurface(PHLWINDOW window) {
+    if (!window) return nullptr;
+#ifdef MACSHELL_WINDOW_BACKEND_API
+    const auto surface = window->backend().surface();
+    if (!surface || !surface->m_role || surface->m_role->role() != SURFACE_ROLE_XDG_SHELL) return nullptr;
+    return static_cast<CXDGSurfaceRole*>(surface->m_role.get())->m_xdgSurface.lock();
+#else
+    return window->m_xdgSurface;
+#endif
+}
+
+static bool isMapped(PHLWINDOW window) {
+#ifdef MACSHELL_WINDOW_BACKEND_API
+    return window && window->mapped();
+#else
+    return window && window->m_isMapped;
+#endif
+}
+
+static std::string appID(PHLWINDOW window) {
+#ifdef MACSHELL_WINDOW_BACKEND_API
+    return window->metadata().appID();
+#else
+    return window->m_class;
+#endif
+}
 
 static void status() {
     if (const auto home = std::getenv("HOME")) {
         std::ofstream out(std::string(home) + "/.cache/macshell/native-minimize.status");
         out << "active " << __hyprland_api_get_hash() << "\nattached " << entries.size()
-            << "\nforwarded " << forwarded << '\n';
+            << "\nforwarded " << forwarded << "\ncapability-updates " << capabilityUpdates << "\nversion 1.5\n";
     }
 }
 
@@ -36,7 +70,10 @@ static wl_iterator_result updateResource(wl_resource* resource, void* data) {
         || wl_resource_get_version(resource) < 5)
         return WL_ITERATOR_CONTINUE;
     const auto top = CXDGToplevelResource::fromResource(resource);
-    if (!top || top->m_window != update.window)
+    const auto owner = xdgSurface(update.window);
+    // The backend owns the association in 0.57. Compare the actual XDG role;
+    // the legacy toplevel m_window back-reference need not be populated.
+    if (!top || !owner || top != owner->m_toplevel)
         return WL_ITERATOR_CONTINUE;
     // Hyprland supports maximize/fullscreen; MacShell supplies minimize.
     uint32_t values[] = {XDG_TOPLEVEL_WM_CAPABILITIES_MAXIMIZE,
@@ -45,43 +82,53 @@ static wl_iterator_result updateResource(wl_resource* resource, void* data) {
     wl_array caps{.size = sizeof(uint32_t) * (update.enabled ? 3u : 2u),
                   .alloc = sizeof(values), .data = values};
     static_cast<CXdgToplevel*>(wl_resource_get_user_data(resource))->sendWmCapabilities(&caps);
-    update.window->m_xdgSurface->scheduleConfigure();
+    ++capabilityUpdates;
+    if (const auto surface = xdgSurface(update.window)) surface->scheduleConfigure();
     return WL_ITERATOR_STOP;
 }
 
 static void advertise(PHLWINDOW window, bool enabled) {
-    if (!window || !window->m_xdgSurface || !window->wlSurface()->resource()) return;
+    if (!window || !xdgSurface(window) || !window->wlSurface()->resource()) return;
     CapabilityUpdate update{window, enabled};
     wl_client_for_each_resource(window->wlSurface()->resource()->client(), updateResource, &update);
 }
 
+static void forwardMinimize(PHLWINDOW w) {
+    if (!isMapped(w) || w->isHidden() || !xdgSurface(w)) return;
+    // Address the requesting window, independent of which app has focus by
+    // the time the async command runs. Reuse Genie/Scale and Dock snapshots.
+    Config::Supplementary::executor()->spawnRaw(
+        std::format("qs -c MacShell ipc call minimize addr 0x{:x}", reinterpret_cast<uintptr_t>(w.get())));
+    ++forwarded;
+    status();
+}
+
 static void attach(PHLWINDOW window) {
-    if (!window || !window->m_isMapped || !window->m_xdgSurface
-        || (window->m_class != "org.gnome.Console" && window->m_class != "kgx"
-            && window->m_class != "org.gnome.Calculator" && window->m_class != "gnome-calculator"
-            && window->m_class != "org.gnome.TextEditor" && window->m_class != "gnome-text-editor"
-            && window->m_class != "org.gnome.Calendar" && window->m_class != "gnome-calendar"
-            && window->m_class != "org.gnome.clocks" && window->m_class != "org.gnome.Clocks" && window->m_class != "gnome-clocks"
-            && window->m_class != "org.gnome.Contacts" && window->m_class != "gnome-contacts"
-            && window->m_class != "org.gnome.Maps" && window->m_class != "gnome-maps"
-            && window->m_class != "org.gnome.Loupe" && window->m_class != "loupe"
-            && window->m_class != "org.gnome.Weather" && window->m_class != "gnome-weather")
-        || entries.contains(window.get()))
-        return;
+    if (!isMapped(window) || !xdgSurface(window) || entries.contains(window.get())) return;
+    const auto id = appID(window);
+    if (id != "org.gnome.Console" && id != "kgx"
+        && id != "org.gnome.Calculator" && id != "gnome-calculator"
+        && id != "org.gnome.TextEditor" && id != "gnome-text-editor"
+        && id != "org.gnome.Calendar" && id != "gnome-calendar"
+        && id != "org.gnome.clocks" && id != "org.gnome.Clocks" && id != "gnome-clocks"
+        && id != "org.gnome.Contacts" && id != "gnome-contacts"
+        && id != "org.gnome.Maps" && id != "gnome-maps"
+        && id != "org.gnome.Loupe" && id != "loupe"
+        && id != "org.gnome.Weather" && id != "gnome-weather") return;
     PHLWINDOWREF weak = window;
     Entry entry{.window = weak};
-    entry.state = window->m_xdgSurface->m_toplevel->m_events.stateChanged.listen([weak] {
-        const auto w = weak.lock();
-        if (!w || !w->m_isMapped || w->isHidden() || !w->m_xdgSurface
-            || !w->m_xdgSurface->m_toplevel->m_state.requestsMinimize.value_or(false))
-            return;
-        // Address the requesting window, independent of which app has focus by
-        // the time the async command runs. Reuse Genie/Scale and Dock snapshots.
-        Config::Supplementary::executor()->spawnRaw(
-            std::format("qs -c MacShell ipc call minimize addr 0x{:x}", reinterpret_cast<uintptr_t>(w.get())));
-        ++forwarded;
-        status();
+#ifdef MACSHELL_WINDOW_BACKEND_API
+    // Hyprland 0.57 forwards client state requests through the window backend.
+    entry.state = window->backend().m_events.stateRequest.listen([weak](Desktop::View::SBackendStateRequest request) {
+        if (request.minimized.value_or(false)) forwardMinimize(weak.lock());
     });
+#else
+    entry.state = xdgSurface(window)->m_toplevel->m_events.stateChanged.listen([weak] {
+        const auto w = weak.lock();
+        const auto surface = xdgSurface(w);
+        if (surface && surface->m_toplevel->m_state.requestsMinimize.value_or(false)) forwardMinimize(w);
+    });
+#endif
     entries.emplace(window.get(), std::move(entry));
     advertise(window, true);
     status();
@@ -98,7 +145,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE) {
     });
     for (const auto& window : Desktop::viewState()->windows()) attach(window);
     status();
-    return {"macshell-native-minimize", "Connect native GNOME minimize buttons to MacShell", "MacShell", "1.3"};
+    return {"macshell-native-minimize", "Connect native GNOME minimize buttons to MacShell", "MacShell", "1.5"};
 }
 APICALL EXPORT void PLUGIN_EXIT() {
     opened.reset(); closed.reset(); changedClass.reset();

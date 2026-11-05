@@ -1,0 +1,7 @@
+# Luma AI icon v2 — solid white base
+
+Edited with the built-in imagegen tool from `luma-ai-icon-v1.png`. Output: `luma-ai-icon-v2.png`. The desktop icon has not been replaced.
+
+Final prompt, verbatim:
+
+Precise localized edit of this existing Luma AI app icon. Change ONLY the rounded-square background tile behind the monogram to an opaque SOLID PURE WHITE (#FFFFFF) matte surface. Keep the tile's rounded-square outline, size, placement and corner radius. Remove ALL glass effects from this background tile: no translucent material, no frosted glass, no blue tint, no gradients across the white face, no glowing rim, no iridescent border, no shiny glass bevel. The tile should look like a simple clean solid-white app-icon base. A minimal soft contact shadow immediately under the monogram is acceptable, but the white background surface must remain plain white. CRITICAL INVARIANTS: preserve the existing sculptural L monogram and its detached small light stroke EXACTLY as they currently appear: same shape, scale, position, midnight blue/cyan glass material, champagne highlights, reflections, detail and dimensionality. Do not flatten, recolor, simplify or redesign the monogram. Preserve the transparent alpha area outside the rounded-square tile. Clean smooth icon edges; no stray pixels. No added text or decorations. Deliver the same square app icon with its current glass L on a SOLID WHITE NON-GLASS TILE.

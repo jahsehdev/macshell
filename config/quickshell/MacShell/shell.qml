@@ -20,18 +20,31 @@
 import "Common/GlassBackdrop.js" as GlassBackdrop
 import "Common" as Common
 import QtQuick
+import "." as GoldenGate
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 
 ShellRoot {
+    // Repair missing/stale native integrations after a compositor update or
+    // shell reload. --ensure leaves already-current plugins attached.
+    Process {
+        command: [Quickshell.env("HOME") + "/.local/bin/macshell-window-integration-reload", "--ensure"]
+        running: Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") !== "" && Quickshell.env("QT_QPA_PLATFORM") !== "offscreen"
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim()) console.warn(text.trim())
+        }
+    }
     // SF Pro Text is installed in the user font directory.
 
     Scope {
         id: sharedHub
 
         property var monData: []
-        property var glassClients: []
+        property var glassRawClients: []
+        // React immediately to minimize/restore; do not wait for the next IPC
+        // geometry snapshot, and retain raw clients so restore can re-admit them.
+        readonly property var glassClients: GlassBackdrop.clientsForGlass(glassRawClients, macMinimize.records)
         property var wallpaperMap: ({})
 
         // the single settings window lives in MacDock.qml; everything else reaches it through here
@@ -40,6 +53,7 @@ ShellRoot {
         property var widgets: macWidgets
         property var clock: clockApp
         property var about: aboutSystem
+        property var luma: lumaAi
         property var desktopController: desktopManager
         function openSettings(pane) { macDock.openPrefs(pane); }
         function openAbout() { aboutSystem.open(); }
@@ -47,6 +61,7 @@ ShellRoot {
         // set by MacBar / MacDock (Binding elements) when their glass needs live data
         property bool barWantsGeo: false
         property bool dockWantsGeo: false
+        property bool searchWantsGeo: false
         property bool barWantsWallpaper: false
         property bool dockWantsWallpaper: false
         property bool widgetsWantWallpaper: false
@@ -56,8 +71,9 @@ ShellRoot {
         // time. With dozens of captures running, the compositor cut the Wayland connection ("invalid object NN") and the shell
         // crashed. While something records, the glass keeps its last frames (and refreshes slowly, only while a popover is open);
         // live capture resumes 1.5 s after the recording ends, spread over 0.6 s.
+        property bool visualCaptureActive: false
         property bool captureQuiet: false
-        readonly property bool wantQuiet: macBar.recording || macBar.recRun || macBar.privacy.share.length > 0
+        readonly property bool wantQuiet: visualCaptureActive || macBar.recording || macBar.recRun || macBar.privacy.share.length > 0
         onWantQuietChanged: { if (wantQuiet) { quietRelease.stop(); captureQuiet = true; } else quietRelease.restart(); }
         Timer { id: quietRelease; interval: 1500; onTriggered: sharedHub.captureQuiet = false }
 
@@ -106,7 +122,7 @@ ShellRoot {
                     if (text === sharedHub.geoLast) return;          // nothing moved: no JSON parse, no re-sync of every backdrop
                     sharedHub.geoLast = text;
                     sharedHub.geoHot = true; geoCool.restart();      // something changed: keep polling fast for a moment
-                    try { var o = JSON.parse(text); sharedHub.monData = o.m; sharedHub.glassClients = GlassBackdrop.clientsForGlass(o.c); } catch (err) { }
+                    try { var o = JSON.parse(text); sharedHub.monData = o.m; sharedHub.glassRawClients = o.c; } catch (err) { }
                 }
             }
         }
@@ -175,7 +191,7 @@ ShellRoot {
         Timer {
             interval: sharedHub.geoHot ? 90 : 250
             repeat: true
-            running: (sharedHub.barWantsGeo || sharedHub.dockWantsGeo) && !sharedHub.ipcOk
+            running: (sharedHub.barWantsGeo || sharedHub.dockWantsGeo || sharedHub.searchWantsGeo) && !sharedHub.ipcOk
             triggeredOnStart: true
             onTriggered: if (!geoProc.running) geoProc.running = true
         }
@@ -204,15 +220,14 @@ ShellRoot {
             } catch (err) { ipcBroken = true; ipcOk = false; return; }
             if (mo.length === 0 || (ts.length > 0 && cl.length === 0)) { ipcOk = false; return; }
             ipcOk = true;
-            // Launchpad's covered monitor refracts wallpaper, never its black
-            // screencopy surface or application windows hidden behind it.
-            cl = GlassBackdrop.clientsForGlass(cl);
+            // Preserve raw geometry here. The glassClients binding filters
+            // Launchpad coverage and minimized windows independently of polling.
             // fingerprint the GEOMETRY only: a window retitling itself (a terminal, a browser tab, a player) is no
             // reason to wake the 60 Hz path — that kept it hot (and the main thread busy) the whole time
             var gk = [], j, c;
             for (j = 0; j < cl.length; j++) {
                 c = cl[j];
-                gk.push([c.address, c.at, c.size, c.workspace ? c.workspace.id : 0, c.monitor, c.floating, c.fullscreen, c.mapped, c.hidden]);
+                gk.push([c.address, c.pid, c.at, c.size, c.workspace ? c.workspace.id : 0, c.workspace ? c.workspace.name : "", c.monitor, c.floating, c.focusHistoryID, c.fullscreen, c.mapped, c.hidden, c.minimized, c.title === "qs-launchpad-backdrop"]);
             }
             var mk = [];
             for (j = 0; j < mo.length; j++) mk.push([mo[j].name, mo[j].x, mo[j].y, mo[j].width, mo[j].height, mo[j].scale, mo[j].activeWorkspace ? mo[j].activeWorkspace.id : 0, mo[j].specialWorkspace ? mo[j].specialWorkspace.id : 0]);
@@ -221,13 +236,13 @@ ShellRoot {
             geoLast = key;
             geoHot = true; geoCool.restart();
             monData = mo;
-            glassClients = cl;
+            glassRawClients = cl;
         }
         Timer {
             // fast (60 Hz) for 1.5 s after any window event, otherwise a relaxed 2.5 Hz check (idle CPU)
             interval: sharedHub.geoHot ? 16 : 400
             repeat: true
-            running: (sharedHub.barWantsGeo || sharedHub.dockWantsGeo) && !sharedHub.ipcBroken
+            running: (sharedHub.barWantsGeo || sharedHub.dockWantsGeo || sharedHub.searchWantsGeo) && !sharedHub.ipcBroken
             triggeredOnStart: true
             onTriggered: sharedHub.ipcPoll()
         }
@@ -281,6 +296,77 @@ ShellRoot {
             running: sharedHub.barWantsWallpaper || sharedHub.dockWantsWallpaper || sharedHub.widgetsWantWallpaper
             onTriggered: sharedHub.refreshWallpaper()
         }
+
+        // ── calendar reminders (GG-15): the calendar bridge (bin/calendar.py) hands
+        // back reminders that are due; each one is posted as a system notification
+        // ("notify-send" — MacBar's notification stack shows them as toasts). The
+        // scheduler lives here in the Scope, so it keeps working while no calendar
+        // window is open. Data bridge: ~/.config/quickshell/MacShell/bin/calendar.py
+        //   qs -c MacShell ipc call calendar due
+        Timer {
+            id: calReminderTimer
+            interval: 30000
+            repeat: true
+            running: true
+            triggeredOnStart: true
+            onTriggered: if (!calDueProc.running) calDueProc.running = true
+        }
+        Process {
+            id: calDueProc
+            command: ["python3", "-B", Quickshell.shellPath("bin/calendar.py"), "due"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        var o = JSON.parse(text);
+                        for (var i = 0; i < o.due.length; i++) {
+                            var d = o.due[i];
+                            Quickshell.execDetached(["notify-send", "-a", "Calendar", d.title,
+                                "Event time " + Qt.formatDateTime(new Date(d.start), "HH:mm")]);
+                        }
+                    } catch (err) { }
+                }
+            }
+        }
+
+        // quick-add: a sentence in, an event out. "calendar add rapat besok jam 10"
+        // parses the sentence (id/en), schedules it when unambiguous, and holds it
+        // back with a preview notification when the parser had to guess (GG-15).
+        Process {
+            id: calParseProc
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        var p = JSON.parse(text).preview;
+                        if (!p) return;
+                        var when = p.allDay ? p.start
+                                 : Qt.formatDateTime(new Date(p.start), "dddd d MMM yyyy, HH:mm");
+                        if (p.ambiguities.length > 0) {
+                            Quickshell.execDetached(["notify-send", "-a", "Calendar",
+                                "Periksa dulu — belum disimpan", p.title + " · " + when]);
+                            return;
+                        }
+                        Quickshell.execDetached(["notify-send", "-a", "Calendar",
+                            "Terjadwal: " + p.title, when]);
+                        calSaveProc.command = ["python3", "-B", Quickshell.shellPath("bin/calendar.py"),
+                            "new", "--json", JSON.stringify({ title: p.title, start: p.start,
+                                end: p.end, allDay: p.allDay, reminders: p.reminders })];
+                        calSaveProc.running = true;
+                    } catch (err) { }
+                }
+            }
+        }
+        Process {
+            id: calSaveProc
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        var r = JSON.parse(text);
+                        if (r.error) Quickshell.execDetached(["notify-send", "-a", "Calendar",
+                            "Gagal menyimpan event", String(r.error)]);
+                    } catch (err) { }
+                }
+            }
+        }
     }
 
     DesktopController { id: desktopManager; hub: sharedHub }
@@ -297,7 +383,12 @@ ShellRoot {
     MacMinimize { id: macMinimize; hub: sharedHub }
     MacWidgets { id: macWidgets; hub: sharedHub }
     ClockApp { id: clockApp; hub: sharedHub }
+    NotesApp { id: notesApp; hub: sharedHub }
+    GoldenGate.VisualIntelligence { hub: sharedHub }
     AboutSystem { id: aboutSystem; hub: sharedHub }
+    LumaController { id: lumaAi; hub: sharedHub }
+    // Independent desktop menu; its gradient stays above the liquid surface.
+    LumaSearchMenu { controller: lumaAi; hub: sharedHub }
 
     // macOS-style minimize (window flies to its Dock icon):
     //   qs -c MacShell ipc call minimize focused            yellow hyprbars button / SUPER+M
@@ -319,7 +410,7 @@ ShellRoot {
     IpcHandler {
         target: "settings"
         function open(): void { macDock.openPrefs("general"); }
-        // qs -c MacShell ipc call settings pane wallpaper   (general, dock, menubar, appearance, wallpaper, behavior, apps, about)
+        // qs -c MacShell ipc call settings pane wallpaper   (general, dock, menubar, notch, appearance, wallpaper, behavior, apps, about)
         function pane(id: string): void { macDock.openPrefs(id); }
     }
     IpcHandler {
@@ -334,6 +425,24 @@ ShellRoot {
         function tab(name: string): void { clockApp.open(name); }
         function stop(): void { clockApp.stopRing(); }
         function snooze(): void { clockApp.snooze(); }
+    }
+    // qs -c MacShell ipc call notes open | create
+    IpcHandler {
+        target: "notes"
+        function open(): void { notesApp.open(); }
+        function create(): void { notesApp.open(); notesApp.newNote(); }
+    }
+    // qs -c MacShell ipc call calendar due     (check the calendar bridge for reminders that are due)
+    // qs -c MacShell ipc call calendar add "rapat besok jam 10 selama 1 jam"
+    IpcHandler {
+        target: "calendar"
+        function open(): void { Quickshell.execDetached(["gnome-calendar"]); }
+        function due(): void { calDueProc.running = true; }
+        function add(text: string): void {
+            calParseProc.command = ["python3", "-B", Quickshell.shellPath("bin/calendar.py"),
+                "parse", "--text", text];
+            calParseProc.running = true;
+        }
     }
     IpcHandler {
         target: "notifications"
@@ -357,5 +466,7 @@ ShellRoot {
         // Same saved, live preference as Appearance → Liquid Glass.
         function material(mode: string): void { Common.GlassMaterial.setMode(mode); }
         function materialMode(): string { return Common.GlassMaterial.mode; }
+        function intensity(value: real): void { Common.GlassMaterial.setIntensity(value); }
+        function materialIntensity(): real { return Common.GlassMaterial.intensity; }
     }
 }

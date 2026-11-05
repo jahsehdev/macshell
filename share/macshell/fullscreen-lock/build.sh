@@ -8,3 +8,7 @@ c++ -std=c++2c -O2 -shared -fPIC -fno-gnu-unique \
     $(pkg-config --cflags hyprland) "$lock_dir/fullscreen-lock.cpp" \
     $(pkg-config --libs hyprland) -o "$lock_tmp"
 mv -f -- "$lock_tmp" "$lock_dir/fullscreen-lock.so"
+c++ $(pkg-config --cflags hyprland) -dM -E -x c++ \
+    -include hyprland/src/version.h /dev/null \
+    | sed -n 's/^#define GIT_COMMIT_HASH "\(.*\)"$/\1/p' > "$lock_dir/fullscreen-lock.so.commit.tmp"
+mv -f -- "$lock_dir/fullscreen-lock.so.commit.tmp" "$lock_dir/fullscreen-lock.so.commit"

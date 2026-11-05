@@ -6,18 +6,31 @@ import "GlassMaterial.js" as Preset
 
 Scope {
     id: material
-    // One blur preset for the entire shell, independent of icon tint and the
-    // translucency slider. Older installations stay Clear.
-    property string mode: "clear"
-    readonly property bool tinted: mode === "tinted"
+    // Shared continuous material. The old mode-only preference maps to the
+    // two endpoints; keep that API for existing IPC callers.
+    property real intensity: 0
+    readonly property string mode: intensity >= 0.5 ? "tinted" : "clear"
+    readonly property bool tinted: intensity >= 1
     readonly property string configDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/macshell"
 
-    function blurRadius(clearRadius) { return Preset.blurRadius(mode, clearRadius); }
+    function blurRadius(clearRadius) { return Preset.blurAt(intensity, clearRadius); }
+    function opacity(base) { return Preset.opacityAt(intensity, base); }
+
+    function setIntensity(value) {
+        intensity = Preset.intensity(value);
+        saveTimer.restart();
+    }
 
     function setMode(value) {
         if (value !== "clear" && value !== "tinted") return;
-        mode = value;
-        preference.setText(JSON.stringify({ mode: mode }, null, 2));
+        setIntensity(value === "tinted" ? 1 : 0);
+    }
+
+    // Apply every drag frame in memory; coalesce disk writes after movement.
+    Timer {
+        id: saveTimer
+        interval: 160
+        onTriggered: preference.setText(JSON.stringify({ mode: material.mode, intensity: material.intensity }, null, 2))
     }
 
     Component.onCompleted: Quickshell.execDetached(["mkdir", "-p", configDir])
@@ -25,14 +38,15 @@ Scope {
         id: preference
         path: material.configDir + "/liquidglass.json"
         watchChanges: true
+        atomicWrites: true
         printErrors: false
         onFileChanged: reload()
         onLoaded: {
             try {
-                var saved = JSON.parse(text());
-                material.mode = Preset.normalize(saved.mode);
+                const saved = JSON.parse(text());
+                if (!saveTimer.running) material.intensity = Preset.fromSaved(saved);
             } catch (error) { /* Keep the last valid material during partial writes. */ }
         }
-        onLoadFailed: material.mode = "clear"
+        onLoadFailed: material.intensity = 0
     }
 }

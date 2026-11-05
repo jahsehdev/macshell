@@ -134,6 +134,7 @@ class Controller:
     def eligible(c):
         return (address(c.get('address')) and c.get('mapped', True) and c.get('pid', 0) > 0
                 and not c.get('pinned') and c.get('class') and c.get('size', [0, 0])[0] > 1
+                and c.get('title') != 'qs-launchpad-backdrop'
                 and c.get('class') not in ('qs-launchpad-backdrop', 'qs-launchpad', 'hyprlock'))
 
     def scope(self, c, r=None):

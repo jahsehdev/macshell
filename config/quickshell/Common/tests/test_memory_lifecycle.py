@@ -39,13 +39,7 @@ ShellRoot {
             releaseDelay: 200
             sourceComponent: Item { Component.onDestruction: host.released++ }
         }
-        Loader {
-            id: scene
-            anchors.fill: parent
-            focus: true
-            active: Launchpad.LaunchpadState.windowVisible
-            Component.onCompleted: setSource(Qt.resolvedUrl("config/quickshell/launchpad/components/LaunchpadContent.qml"), {win: host})
-        }
+        PRODUCTION_CONTENT_LOADER
         Common.LaunchpadBackground {
             id: background
             visible: false
@@ -58,6 +52,9 @@ ShellRoot {
             when: host.visible
             onCompletedChanged: if (completed)
                 console.log("TOTALS", qtest_results.passCount, "passed,", qtest_results.failCount, "failed")
+            function cleanup() {
+                console.log(qtest_results.functionName, qtest_results.failed ? "FAILED" : "PASS");
+            }
 
             function initTestCase() {
                 wait(350);
@@ -70,6 +67,8 @@ ShellRoot {
                 Launchpad.LaunchpadState.mockMode = true;
                 Launchpad.LaunchpadState.pages = Launchpad.LaunchpadState.buildMockPages();
                 Launchpad.LaunchpadState.refreshView();
+                compare(scene.releaseDelay, 15000);
+                scene.releaseDelay = 300;
             }
             function test_delayedReleaseAndRapidReopen() {
                 compare(retained.item, null);
@@ -104,9 +103,48 @@ ShellRoot {
                     state.close();
                     compare(scene.item, current, "keep UI until close animation finishes");
                     tryCompare(state, "windowVisible", false, 2000);
-                    compare(scene.item, null, "release hidden visual subtree");
+                    compare(scene.item, current, "reuse the prepared page on quick reopen");
+                    state.open();
+                    tryCompare(state, "shown", true, 1000);
+                    compare(scene.item, current, "reopen must not rebuild icons or search");
+                    state.close();
+                    tryCompare(state, "windowVisible", false, 2000);
+                    tryCompare(scene, "item", null, 1500, "release after the idle cache expires");
                     compare(JSON.stringify(state.pages.map(p => p.map(state.serializeItem))), layout);
                 }
+            }
+            function test_searchEditingAndSingleLinePaste() {
+                const state = Launchpad.LaunchpadState;
+                state.open();
+                tryVerify(() => scene.item !== null && state.shown, 2000);
+                tryVerify(() => host.activeFocusItem !== null
+                    && host.activeFocusItem.text !== undefined, 1000);
+                const input = host.activeFocusItem;
+                verify(input.toString().indexOf("TextEdit") >= 0);
+                keyClick(Qt.Key_M);
+                tryCompare(state, "query", "m", 1000);
+                input.selectAll();
+                keyClick(Qt.Key_C, Qt.ControlModifier);
+                input.deselect();
+                input.cursorPosition = input.length;
+                keyClick(Qt.Key_V, Qt.ControlModifier);
+                tryCompare(state, "query", "mm", 1000);
+                input.text = "Safari\nMail\r\nNotes";
+                tryCompare(state, "query", "Safari Mail Notes", 1000);
+                input.text = "<b>Safari</b>";
+                compare(state.query, "<b>Safari</b>", "search always treats text as plain text");
+                input.text = Array(150).join("m");
+                input.cursorPosition = input.length;
+                wait(50);
+                verify(input.parent.parent.contentX > 0, "long queries follow the caret");
+                keyClick(Qt.Key_Escape);
+                tryCompare(state, "query", "", 1000);
+                keyPress(Qt.Key_Alt);
+                state.close();
+                keyRelease(Qt.Key_Alt);
+                wait(650);
+                compare(state.editMode, false, "retained UI must not enter edit mode after close");
+                tryCompare(scene, "item", null, 1500);
             }
             function test_wallpaperDecodeBoundAndFallbackRelease() {
                 tryVerify(() => background.cachedSource.toString() !== "", 5000);
@@ -146,7 +184,21 @@ class MemoryLifecycleTests(unittest.TestCase):
             runtime.mkdir(mode=0o700)
             wallpaper = root / "wallpaper.jpg"
             Image.new("RGB", (3840, 2160), "#aabbee").save(wallpaper)
-            (root / "shell.qml").write_text(QML.replace("WALLPAPER", '"' + wallpaper.as_uri() + '"'))
+            # Exercise the actual production cache/async bindings, rather than
+            # maintaining a second Loader implementation in the test.
+            window = (COMMON.parent / "launchpad/components/LaunchpadWindow.qml").read_text()
+            loader = "    Corners.ActivityLoader {" + window.split("    Corners.ActivityLoader {", 1)[1]
+            loader = loader.rsplit("\n}", 1)[0]
+            loader = (loader.replace("Corners.ActivityLoader", "Common.ActivityLoader")
+                      .replace("id: contentLoader", "id: scene")
+                      .replace("hostWindow: win", "hostWindow: host")
+                      .replace("win.focusedHere", "host.focusedHere")
+                      .replace("contentLoader.hostWindow", "scene.hostWindow")
+                      .replace("LaunchpadState.", "Launchpad.LaunchpadState.")
+                      .replace('Qt.resolvedUrl("LaunchpadContent.qml")',
+                               'Qt.resolvedUrl("config/quickshell/launchpad/components/LaunchpadContent.qml")'))
+            (root / "shell.qml").write_text(QML.replace("PRODUCTION_CONTENT_LOADER", loader)
+                                           .replace("WALLPAPER", '"' + wallpaper.as_uri() + '"'))
             env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",
                        XDG_RUNTIME_DIR=str(runtime), XDG_CONFIG_HOME=str(root / "config"),
                        XDG_STATE_HOME=str(root / "state"), XDG_CACHE_HOME=str(root / "cache"))

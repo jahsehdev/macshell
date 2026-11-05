@@ -95,6 +95,14 @@ layout(std140, binding = 0) uniform buf {
     float ringW;        // width in px of a thin border line along the very edge (0 = none); < 0 = corner light
     float flatInner;    // 1 = no inner AO band
     float squircle;     // 0 = circular corners, 1..: continuous superellipse corners (upstream corner_smoothing)
+#ifdef DOCK_TOOLTIP
+    float bodyHeight;
+    float tailHeight;
+    float tailX;
+    float tailWidth;
+    float pointerUp;
+    vec4 backdropBounds; // local capture pixels: left, top, right, bottom
+#endif
 #ifdef SPOTLIGHT_GOOEY
     float pillWidth;
     float mergeRadius;
@@ -103,6 +111,12 @@ layout(std140, binding = 0) uniform buf {
     vec4 button2;
     vec4 button3;
     vec4 button4;
+#endif
+#ifdef LUMA_GOOEY
+    vec4 lumaInput;
+    vec4 lumaBody;
+    float lumaBodyRadius;
+    float lumaMergeRadius;
 #endif
 };
 
@@ -190,10 +204,14 @@ float superLength(vec2 q, float n)
 // Signed distance to a rounded rectangle whose corners are superellipses:
 // negative inside, 0 on the edge, divided by its gradient's length so the rim,
 // the bevel and the anti-aliasing keep the same width all round.
-#ifdef SPOTLIGHT_GOOEY
+#ifdef DOCK_TOOLTIP
+#include "docktooltip-shape.glsl"
+#elif defined(SPOTLIGHT_GOOEY)
 // Same glass material, with a single animated capsule/metaball silhouette.
 // Build: qsb --qt6 -D SPOTLIGHT_GOOEY -o spotlightgooey.frag.qsb liquidglass.frag
 #include "spotlightgooey.glsl"
+#elif defined(LUMA_GOOEY)
+#include "lumagooey.glsl"
 #else
 float sdRoundRect(vec2 p, vec2 b, vec2 corner)
 {
@@ -283,6 +301,16 @@ vec2 heightGradient(vec2 p, vec2 b, vec2 corner, float band, float zScale, vec2 
 // refraction compresses tens of source pixels into a few screen pixels near
 // the edge, and point sampling that aliases; `ext` is half that footprint in
 // px along the compression (vec2(0) keeps the plain four RGSS taps).
+vec2 backdropUv(vec2 pixel)
+{
+#ifdef DOCK_TOOLTIP
+    // Keep the lens on the same visible surface when the tooltip is over a
+    // window. A deep edge bend must not pull wallpaper through that window.
+    pixel = clamp(pixel, backdropBounds.xy, backdropBounds.zw);
+#endif
+    return clamp(pixel / srcSize, vec2(0.001), vec2(0.999));
+}
+
 vec3 sampleBackdropPx(vec2 samplePx, vec2 ext, vec2 spread)
 {
     vec2 o1 = vec2( 0.375, -0.125) * spread;
@@ -290,19 +318,19 @@ vec3 sampleBackdropPx(vec2 samplePx, vec2 ext, vec2 spread)
     vec2 o3 = vec2(-0.375,  0.125) * spread;
     vec2 o4 = vec2(-0.125, -0.375) * spread;
     vec3 sum =
-        texture(src, clamp((samplePx + o1 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx + o2 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx + o3 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx + o4 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb;
+        texture(src, backdropUv(samplePx + o1 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx + o2 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx + o3 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx + o4 + srcOffset)).rgb;
     if (dot(ext, ext) <= 0.0)
         return sum * 0.25;
     sum +=
-        texture(src, clamp((samplePx + ext * 0.90 + o1 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx + ext * 0.55 + o2 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx + ext * 0.22 + o3 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx - ext * 0.22 + o4 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx - ext * 0.55 + o1 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb +
-        texture(src, clamp((samplePx - ext * 0.90 + o2 + srcOffset) / srcSize, vec2(0.001), vec2(0.999))).rgb;
+        texture(src, backdropUv(samplePx + ext * 0.90 + o1 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx + ext * 0.55 + o2 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx + ext * 0.22 + o3 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx - ext * 0.22 + o4 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx - ext * 0.55 + o1 + srcOffset)).rgb +
+        texture(src, backdropUv(samplePx - ext * 0.90 + o2 + srcOffset)).rgb;
     return sum * 0.1;
 }
 
@@ -425,7 +453,7 @@ void main()
     float outsideMask = outsideTransition;
 
     if (debug > 0.5) {
-        vec4 s = texture(src, clamp((p + srcOffset) / srcSize, vec2(0.001), vec2(0.999)));
+        vec4 s = texture(src, backdropUv(p + srcOffset));
         fragColor = (s.a < 0.01 ? vec4(1.0, 0.0, 1.0, 1.0) : vec4(s.rgb / max(s.a, 1e-3), 1.0)) * insideMask * qt_Opacity;
         return;
     }

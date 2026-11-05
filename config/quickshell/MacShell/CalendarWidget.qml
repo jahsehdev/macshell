@@ -54,13 +54,15 @@ Item {
 
     readonly property bool isSmall: size === "small"
     readonly property bool isMedium: size === "medium"
-    readonly property bool isLarge: size === "large"
+    readonly property bool isXL: size === "xl"
+    readonly property bool isLarge: size === "large" || isXL
     // Small / Medium are slightly enlarged; Large shares the widened footprint without stretching its vertical content.
     readonly property real s: scaleF * (isSmall ? 168 / 158 : (isMedium ? 358 / 338 : 1.0))
     readonly property real radiusPx: 28 * s
     readonly property bool glassOn: style === "liquid" && glassReady && !preview && wallUrl != ""
-    width: (isSmall ? 158 : (isLarge ? 358 : 338)) * s
-    height: (isLarge ? 354 : 168) * scaleF
+                                    && !Corners.DesktopPreferences.reduceTransparency
+    width: isXL ? 560 * scaleF : (isSmall ? 158 : (isLarge ? 358 : 338)) * s
+    height: isXL ? 385 * scaleF : (isLarge ? 354 : 168) * scaleF
 
     // ── light / dark ──
     readonly property bool dark: tinted || style === "dark" ? true : style === "liquid" ? darkGlass : (mode === "dark" || (mode !== "light" && darkGlass))
@@ -229,7 +231,7 @@ Item {
         id: grid
         x: (w.isSmall ? 12 : (w.isMedium ? 172 : 15)) * w.s
         y: (w.isSmall ? 32 : (w.isMedium ? 11 : 58)) * w.s
-        width: (w.isSmall ? 134 : (w.isMedium ? 152 : 308)) * w.s
+        width: w.isXL ? w.width - 2 * w.pad : (w.isSmall ? 134 : (w.isMedium ? 152 : 308)) * w.s
         height: wdH + 6 * rowH
         readonly property real cw: width / 7
         readonly property real wdH: (w.isSmall ? 16 : (w.isMedium ? 18 : 24)) * w.s

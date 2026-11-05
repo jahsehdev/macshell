@@ -13,3 +13,5 @@ MenuHighlight 1.0 MenuHighlight.qml
 
 singleton DesktopPreferences 1.0 DesktopPreferences.qml
 singleton AppMenu 1.0 AppMenu.qml
+
+GlassSlider 1.0 GlassSlider.qml

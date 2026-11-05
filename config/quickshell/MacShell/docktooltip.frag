@@ -2,7 +2,7 @@
 #extension GL_GOOGLE_include_directive : require
 // Dock tooltip: MacShell Liquid Glass optics with a capsule and rounded tail.
 //
-// Build:  qsb --qt6 -o docktooltip.frag.qsb docktooltip.frag
+// Build: qsb --qt6 -o docktooltip-adaptive-tail-v2.frag.qsb docktooltip.frag
 // Rebuild this alongside the source when changing the tooltip silhouette.
 //
 // The shader treats the Dock as a slab of curved glass sitting on top of a live backdrop texture:
@@ -44,6 +44,7 @@ layout(std140, binding = 0) uniform buf {
     float tailX;
     float tailWidth;
     float squircle;     // 0 = classic circular corners, 1 = superellipse (Lamé) continuous "squircle" corners. Unset = 0
+    float pointerUp;
 };
 
 layout(binding = 1) uniform sampler2D src;
@@ -142,6 +143,8 @@ float triangleDistance(vec2 p, vec2 a, vec2 b, vec2 c)
 }
 float bubbleDistance(vec2 p)
 {
+    // Reflect only the silhouette. Backdrop sampling stays in screen coordinates.
+    if (pointerUp > 0.5) p.y = glassSize.y - p.y;
     vec2 hs = vec2(glassSize.x,bodyHeight)*0.5;
     float body = roundBoxN(p-hs,hs-vec2(0.5),bodyHeight*0.5-0.5,cornerN(squircle));
     float tail = triangleDistance(p,vec2(tailX-tailWidth,bodyHeight-2.0),

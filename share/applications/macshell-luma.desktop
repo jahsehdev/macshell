@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Luma AI
+Comment=Your local MacShell assistant
+Exec=macshell-luma
+Icon=@DATA_HOME@/macshell/icons/luma-ai.png
+Terminal=false
+Categories=Utility;
+Keywords=AI;Assistant;Local;Offline;Chat;
+StartupWMClass=quickshell

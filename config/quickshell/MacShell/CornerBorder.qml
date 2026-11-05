@@ -14,12 +14,13 @@ Item {
     property real cornerSmoothing: Corners.CornerTheme.smoothing
     onCornerSmoothingChanged: cv.requestPaint()
     property real amount: 1
-    Behavior on tint { ColorAnimation { duration: 450; easing.type: Easing.OutCubic } }
+    Behavior on tint { ColorAnimation { duration: Corners.DesktopPreferences.anim(100); easing.type: Easing.OutCubic } }
     onTintChanged: cv.requestPaint()
     onDarkChanged: cv.requestPaint()
     onCornerRChanged: cv.requestPaint()
     onLineWChanged: cv.requestPaint()
     onAmountChanged: cv.requestPaint()
+    Connections { target: Corners.DesktopPreferences; function onShowBordersChanged() { cv.requestPaint(); } }
     Canvas {
         id: cv
         anchors.fill: parent
@@ -29,7 +30,7 @@ Item {
         onPaint: {
             var ctx = getContext("2d");
             ctx.clearRect(0, 0, width, height);
-            var w = width, h = height, lw = cb.lineW;
+            var w = width, h = height, lw = Corners.DesktopPreferences.showBorders ? Math.max(1.4, cb.lineW) : cb.lineW;
             if (w < 2 * lw || h < 2 * lw || cb.amount <= 0) return;
             // same colour as the background, but brighter (white mixed in, a bit more on light panels)
             var k = cb.dark ? 0.42 : 0.55;

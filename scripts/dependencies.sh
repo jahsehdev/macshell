@@ -7,7 +7,7 @@ packages=(git base-devel cmake ninja pkgconf python python-pillow qt6-base qt6-d
     gnome-text-editor qt6ct kvantum networkmanager bluez bluez-utils pipewire pipewire-pulse
     wireplumber xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-user-dirs xdg-utils
     wl-clipboard cliphist grim slurp swappy wf-recorder ffmpeg brightnessctl playerctl
-    inter-font noto-fonts noto-fonts-emoji libnotify jq curl)
+    inter-font noto-fonts noto-fonts-emoji libnotify libcanberra jq curl)
 if [[ $mode == --check ]]; then
     missing=0
     for executable in qs Hyprland cmake ninja pkg-config python3 jq ffmpeg nautilus gio rsvg-convert fc-match; do

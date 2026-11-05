@@ -28,6 +28,8 @@ def hypr(*args):
     result = subprocess.run(["hyprctl", *args], capture_output=True, text=True, timeout=3)
     if result.returncode:
         raise RuntimeError("Hyprland is unavailable")
+    if args[:1] == ("dispatch",) and result.stdout.strip() != "ok":
+        raise RuntimeError("Hyprland rejected the window action")
     return result.stdout
 
 
@@ -38,6 +40,33 @@ def belongs(window, app, pid=None, title=None):
         return False
     actual = window.get("title", "")
     return not title or actual == title or actual.startswith(title + " — ") or actual.startswith(title + " – ")
+
+
+def begin_spotify_move(pid):
+    if type(pid) is not int or pid <= 0:
+        return False
+    result = hypr("eval", f'assert(hl.plugin.macshell_spotify.move({pid}), "Spotify drag was not started")')
+    return result.strip() == "ok"
+
+
+def minimize_spotify(window):
+    # XWayland windows can be absent from Quickshell's focused toplevel list.
+    # Its address endpoint targets the same compositor window we just verified.
+    result = subprocess.run(["qs", "-c", "MacShell", "ipc", "call", "minimize", "addr", window["address"]],
+                            capture_output=True, text=True, timeout=3)
+    if result.returncode or result.stdout.strip():
+        return False
+    # IPC acceptance alone does not mean that a window was actually hidden.
+    for _ in range(60):
+        windows = json.loads(hypr("-j", "clients"))
+        match = next((w for w in windows if w.get("address") == window["address"] and
+                      belongs(w, "spotify", window["pid"])), None)
+        if match is None:
+            return False
+        if match.get("workspace", {}).get("name") == "special:minimized":
+            return True
+        time.sleep(0.1)
+    return False
 
 
 def dispatch(action, address):
@@ -70,7 +99,13 @@ def perform(action, app, pid=None, title=None):
     window = json.loads(hypr("-j", "activewindow"))
     if not belongs(window, app, pid, title):
         return False
+    if action == "move":
+        if app != "spotify" or not window.get("xwayland"):
+            return False
+        return begin_spotify_move(window["pid"])
     if action == "minimize":
+        if app == "spotify":
+            return minimize_spotify(window)
         helper = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "hypr/minimize.sh"
         return subprocess.run(["/bin/sh", str(helper), "minimize"], timeout=8).returncode == 0
     dispatch(action, window["address"])
@@ -79,7 +114,7 @@ def perform(action, app, pid=None, title=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("ready", "close", "minimize", "maximize"))
+    parser.add_argument("action", choices=("ready", "close", "minimize", "maximize", "move"))
     parser.add_argument("app", choices=CLASSES)
     parser.add_argument("--pid", type=int)
     parser.add_argument("--title")

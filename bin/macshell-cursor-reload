@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Load shake to find without restarting Hyprland or closing applications."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+def hypr(*args, expect_ok=False):
+    result = subprocess.run(['hyprctl', *args], text=True, capture_output=True)
+    output = result.stdout.strip()
+    if result.returncode or (expect_ok and output != 'ok'):
+        raise RuntimeError((output + '\n' + result.stderr.strip()).strip() or 'Hyprland tidak dapat diakses')
+    return output
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--ensure', action='store_true', help='Keep an already current plugin loaded')
+    args = parser.parse_args()
+    data = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
+    directory = data / 'macshell/shake-to-find'
+    library = directory / 'shake-to-find.so'
+    stamp = directory / 'shake-to-find.so.commit'
+    try:
+        match = re.search(r'\b[0-9a-f]{40}\b', hypr('version'))
+        if not match or not library.is_file() or not stamp.is_file():
+            raise RuntimeError(f'Periksa sesi Hyprland dan build plugin: sh "{directory / "build.sh"}"')
+        if match.group() != stamp.read_text().strip():
+            raise RuntimeError('Build plugin berbeda dengan sesi Hyprland. Bangun dengan header versi sesi yang sama.')
+        loaded = {entry['name']: str(entry.get('version', '')) for entry in json.loads(hypr('-j', 'plugin', 'list'))}
+        if 'dynamic-cursors' in loaded:
+            raise RuntimeError('Plugin dynamic-cursors sudah mengatur kursor. Nonaktifkan sebelum memuat shake to find MacShell.')
+        if args.ensure and loaded.get('macshell-shake-to-find') == '1.1':
+            print('Shake to find sudah aktif.')
+            return 0
+        if 'macshell-shake-to-find' in loaded:
+            hypr('plugin', 'unload', str(library), expect_ok=True)
+        hypr('plugin', 'load', str(library), expect_ok=True)
+        # Clear a configuration error left by a previously failed plugin load.
+        try:
+            hypr('reload', expect_ok=True)
+        except RuntimeError as error:
+            print('Shake to find aktif, tetapi config belum berhasil dimuat ulang: ' + str(error), file=sys.stderr)
+            return 1
+        print('Shake to find aktif. Gerakkan mouse cepat bolak-balik untuk memperbesar kursor.')
+        return 0
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError) as error:
+        print('Shake to find belum dimuat: ' + str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

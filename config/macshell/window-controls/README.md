@@ -1,7 +1,31 @@
-# Default MacTahoe window controls
+# Default MacShell glass window controls
 
-The light and dark PNGs are unchanged copies of Nautilus's MacTahoe theme in
-`~/.local/share/macshell/nautilus/themes/MacTahoe-{Light,Dark}/gtk-4.0/windows-assets/`.
+The default light and dark PNGs use the glass traffic-light design: a soft
+lower reflection, a brighter upper/lower rim, and subtle inner shading.
+Inactive windows use neutral gray glass. Hover reveals the action glyph only;
+the glass fill, border highlights and inactive gray remain unchanged.
+The shared QML controls use no scale animation. Pressed and maximize/restore
+artwork retain their existing filenames and interaction roles.
+Artwork stays 14px across inside the original 16px/32px transparent canvases;
+button spacing, hit areas and window actions are unchanged.
+
+`scripts/generate-window-controls.py` renders the artwork from native SVG using
+`rsvg-convert` (librsvg). It refreshes these shared PNGs, the repo's GTK 3/4
+MacTahoe theme copies, Nautilus's bundled themes, and Photo Booth's source assets.
+Pass `--install` to refresh existing user-installed shared/GTK theme copies too:
+
+```sh
+python3 scripts/generate-window-controls.py --install \
+  --backup-dir "$HOME/.local/state/macshell/backups/glass-traffic-lights-$(date +%Y%m%d-%H%M%S)"
+```
+
+The backup contains every replaced original and a `manifest.json` with absolute
+source/backup paths and before/after hashes. To restore, copy each manifest
+entry's `backup` file to its `path`. Close and reopen applications normally to
+discard cached artwork. Photo Booth prefers the installed shared artwork;
+its embedded fallback is refreshed on the next build. Electron overlay
+fingerprints include the shared PNGs so a relaunch regenerates embedded CSS
+when the artwork changes.
 
 - GTK 3 and GTK 4 use their existing MacTahoe themes and left-hand close/minimize/maximize layout.
 - Firefox's shared customChrome.css imports firefox.css, covering both installed profiles and all native button states.
