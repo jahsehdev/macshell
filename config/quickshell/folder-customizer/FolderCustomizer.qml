@@ -300,12 +300,24 @@ FocusScope {
             TextField {
                 id: emojiSearch
                 objectName: "emojiSearch"
-                x: 0; y: 0; width: parent.width; height: 31
+                x: 0; y: 0; width: parent.width; height: 32
                 placeholderText: "Search"; selectByMouse: true
                 color: panel.foreground
-                leftPadding: 26; font.pixelSize: 13
+                placeholderTextColor: panel.secondary
+                leftPadding: 34; rightPadding: 12
+                topPadding: 0; bottomPadding: 0
+                verticalAlignment: TextInput.AlignVCenter
+                font.family: panel.fontFamily; font.pixelSize: 13
                 background: Rectangle { color: panel.dark ? "#25252a" : "white"; radius: 16; border.color: emojiSearch.activeFocus ? "#5aa0ff" : "#99999f"; border.width: emojiSearch.activeFocus ? 3 : 1 }
-                Text { x: 10; anchors.verticalCenter: parent.verticalCenter; text: "⌕"; color: panel.secondary; font.pixelSize: 18 }
+                Image {
+                    objectName: "emojiSearchIcon"
+                    x: 11; anchors.verticalCenter: parent.verticalCenter
+                    width: 16; height: 16
+                    sourceSize: Qt.size(48, 48)
+                    source: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+                        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="'
+                        + panel.secondary + '" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>')
+                }
                 onTextChanged: panel.emojiQuery = text
                 Keys.onDownPressed: emojiGrid.forceActiveFocus()
                 Keys.onEscapePressed: emojiPicker.close()
