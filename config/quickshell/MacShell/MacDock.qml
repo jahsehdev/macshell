@@ -2559,13 +2559,17 @@ Scope {
                         title: "Font"
                         subtitle: "Used for labels and menus"
                         SPopUp {
+                            id: typographyFont
                             objectName: "typographyFontDropdown"
                             t: pal
                             accessibleLabel: "Interface font"
-                            model: ["SF Pro Text", "SF Pro Display", "System"]
+                            readonly property var sfFamilies: Qt.fontFamilies().filter(family => /^SF(?:\s|$)/i.test(family)).sort()
+                            model: sfFamilies.concat(["System"])
+                            searchable: true
+                            searchPlaceholder: "Search fonts"
                             width: 190
-                            current: root.fontFamily === "SF Pro Text" ? 0 : (root.fontFamily === "SF Pro Display" ? 1 : 2)
-                            onPicked: i => root.setLook("fontFamily", ["SF Pro Text", "SF Pro Display", "sans-serif"][i])
+                            current: sfFamilies.indexOf(root.fontFamily) >= 0 ? sfFamilies.indexOf(root.fontFamily) : sfFamilies.length
+                            onPicked: i => root.setLook("fontFamily", i < typographyFont.sfFamilies.length ? typographyFont.sfFamilies[i] : "sans-serif")
                         }
                     }
                 }

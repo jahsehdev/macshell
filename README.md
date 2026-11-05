@@ -268,8 +268,10 @@ folders, and the targeted feature updater.
 Desktop widgets offer **Extra Large** from their context menu when supported;
 the Clock widget supports Small, Medium, and Large.
 
-**Settings → Appearance → Typography → Font** provides a dropdown with
-**SF Pro Text**, **SF Pro Display**, and **System** for interface labels and menus.
+**Settings → Appearance → Typography → Font** provides a searchable dropdown with
+all installed SF font families, including **SF Pro Text**, **SF Pro Display**,
+**SF Pro Rounded**, and **SF Mono**, plus **System** for interface labels and menus.
+Type in **Search fonts** to filter the list; the current font has a check mark.
 SF Pro Text is the default for the Luma panels, recording overlay, and folder
 customizer. Install the San Francisco font files with
 `~/.local/bin/macshell-install-sf-fonts` after installing the config, then restart

@@ -1,6 +1,6 @@
 pragma ComponentBehavior: Bound
-// macOS pop-up button (System Settings style): right-aligned value + grey chevrons; opens a menu ON the button with
-// the current item lined up on it, a check mark, accent hover, and a fade/scale animation
+// macOS Settings pop-up button. Search is opt-in; regular menus align the selected row
+// with the button, while searchable menus open below it with a fixed search header.
 import "Common" as Corners
 import QtQuick
 import QtQuick.Controls
@@ -13,6 +13,15 @@ Item {
     property var colorSwatches: []
     property bool allowReselect: false
     property string accessibleLabel: ""
+    property bool searchable: false
+    property string searchPlaceholder: "Search"
+    readonly property var filteredIndices: {
+        const query = searchable ? searchField.text.trim().toLocaleLowerCase() : "";
+        const indices = [];
+        for (let i = 0; i < model.length; i++)
+            if (!query || String(model[i]).toLocaleLowerCase().includes(query)) indices.push(i);
+        return indices;
+    }
     signal picked(int index)
     width: 220; height: 26
     activeFocusOnTab: true
@@ -58,22 +67,46 @@ Item {
         }
     }
     function openMenu() { menu.open(); }
-    MouseArea { id: puMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: menu.open() }
+    function pickRow(index) {
+        if (index < 0 || index >= filteredIndices.length) return;
+        const originalIndex = filteredIndices[index];
+        menu.close();
+        if (allowReselect || originalIndex !== current) picked(originalIndex);
+    }
+    function moveSelection(step) {
+        if (!filteredIndices.length) return;
+        results.currentIndex = (results.currentIndex + step + filteredIndices.length) % filteredIndices.length;
+        results.positionViewAtIndex(results.currentIndex, ListView.Contain);
+    }
+    MouseArea { id: puMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: pu.openMenu() }
 
     Popup {
         id: menu
-        readonly property real rowH: 26
-        width: Math.max(pu.width, 180)
+        objectName: "settingsPopupMenu"
+        readonly property real rowH: pu.searchable ? 32 : 26
+        readonly property real searchH: pu.searchable ? 44 : 0
+        readonly property real resultsH: Math.max(pu.filteredIndices.length, pu.searchable ? 1 : 0) * rowH
+        width: Math.max(pu.width, pu.searchable ? 248 : 180)
         x: pu.width - width
         // macOS: the current item sits right on the button; if that would leave the window, the menu shifts to fit,
         // and a menu taller than the window scrolls (no separate popup window: those fought Hyprland's pointer grabs)
         // Qt keeps the popup inside the window (8 px margin): it shifts up and, if still too tall, shrinks — the list scrolls
         margins: 8
-        height: pu.model.length * rowH + 2 * padding
-        y: -(padding + pu.current * rowH)
+        height: searchH + (pu.searchable ? Math.min(resultsH, 256) : resultsH) + 2 * padding
+        y: pu.searchable ? pu.height + 4 : -(padding + pu.current * rowH)
         padding: Corners.CornerTheme.menuInset
         modal: false; focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        onAboutToShow: {
+            searchField.clear();
+            results.currentIndex = Math.max(0, pu.filteredIndices.indexOf(pu.current));
+            results.positionViewAtIndex(results.currentIndex, ListView.Contain);
+        }
+        onOpened: {
+            if (pu.searchable) searchField.forceActiveFocus();
+            else results.forceActiveFocus();
+        }
+        onClosed: pu.forceActiveFocus()
         enter: Transition {
             ParallelAnimation {
                 NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 220; easing.type: Easing.OutCubic }
@@ -93,48 +126,100 @@ Item {
                 border.width: 1; border.color: pu.t.dark ? Qt.rgba(1, 1, 1, 0.13) : Qt.rgba(0, 0, 0, 0.10)
             }
         }
-        contentItem: Flickable {
-            clip: true
-            contentHeight: menuCol.height
-            boundsBehavior: Flickable.StopAtBounds
-            Component.onCompleted: contentY = Math.max(0, Math.min(contentHeight - height, (pu.current - 2) * menu.rowH))
-        Column {
-            id: menuCol
-            Repeater {
-                model: pu.model
+        contentItem: Item {
+            TextField {
+                id: searchField
+                objectName: "settingsPopupSearch"
+                visible: pu.searchable
+                width: parent.width; height: 34
+                leftPadding: 32; rightPadding: 10
+                topPadding: 0; bottomPadding: 0
+                verticalAlignment: TextInput.AlignVCenter
+                placeholderText: pu.searchPlaceholder
+                Accessible.name: pu.searchPlaceholder
+                color: pu.t.text; placeholderTextColor: pu.t.text2
+                selectionColor: pu.t.accent
+                font.family: pu.t.fam; font.pixelSize: 13
+                selectByMouse: true
+                onTextChanged: results.currentIndex = pu.filteredIndices.length ? 0 : -1
+                Keys.onDownPressed: pu.moveSelection(1)
+                Keys.onUpPressed: pu.moveSelection(-1)
+                onAccepted: pu.pickRow(results.currentIndex)
+                background: Corners.ContinuousRectangle {
+                    radius: 10
+                    color: pu.t.dark ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(0, 0, 0, 0.04)
+                    border.width: searchField.activeFocus ? 1.5 : 1
+                    border.color: searchField.activeFocus ? pu.t.accent : pu.t.text3
+                }
+                Canvas {
+                    x: 11; anchors.verticalCenter: parent.verticalCenter
+                    width: 14; height: 14
+                    property color ink: pu.t.text2
+                    onInkChanged: requestPaint()
+                    onPaint: {
+                        const c = getContext("2d"); c.reset();
+                        c.strokeStyle = ink; c.lineWidth = 1.5; c.lineCap = "round";
+                        c.beginPath(); c.arc(5.5, 5.5, 4, 0, Math.PI * 2); c.stroke();
+                        c.beginPath(); c.moveTo(8.5, 8.5); c.lineTo(12, 12); c.stroke();
+                    }
+                }
+            }
+            ListView {
+                id: results
+                objectName: "settingsPopupResults"
+                y: menu.searchH
+                width: parent.width; height: parent.height - y
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: pu.filteredIndices
+                keyNavigationEnabled: false
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                Keys.onUpPressed: pu.moveSelection(-1)
+                Keys.onDownPressed: pu.moveSelection(1)
+                Keys.onReturnPressed: pu.pickRow(currentIndex)
+                Keys.onEnterPressed: pu.pickRow(currentIndex)
+                Keys.onSpacePressed: pu.pickRow(currentIndex)
                 delegate: Item {
                     id: row
-                    required property var modelData
+                    required property int modelData
                     required property int index
+                    readonly property bool highlighted: rowMa.containsMouse || (results.activeFocus || pu.searchable) && results.currentIndex === index
                     width: menu.width - 2 * menu.padding; height: menu.rowH
                     Corners.MenuHighlight {
                         anchors.fill: parent
-                        color: rowMa.containsMouse ? pu.t.accent : "transparent"
+                        color: row.highlighted ? pu.t.accent : "transparent"
                     }
                     Text {
                         x: 8; anchors.verticalCenter: parent.verticalCenter
-                        text: "\u2713"; visible: row.index === pu.current
-                        color: rowMa.containsMouse ? "white" : pu.t.text; font.pixelSize: 12; font.bold: true
+                        text: "\u2713"; visible: row.modelData === pu.current
+                        color: row.highlighted ? "white" : pu.t.text; font.pixelSize: 12; font.bold: true
                     }
                     Text {
                         x: pu.colorSwatches.length > 0 ? 49 : 26; anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - x - 8; elide: Text.ElideRight
-                        text: row.modelData
-                        color: rowMa.containsMouse ? "white" : pu.t.text; font.family: pu.t.fam; font.pixelSize: 13
+                        text: pu.model[row.modelData]
+                        color: row.highlighted ? "white" : pu.t.text; font.family: pu.t.fam; font.pixelSize: 13
                     }
                     Corners.ColorDot {
                         visible: pu.colorSwatches.length > 0
-                        value: pu.colorSwatches[row.index] || "multicolor"
+                        value: pu.colorSwatches[row.modelData] || "multicolor"
                         x: 27; width: 16; height: 16
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     MouseArea {
                         id: rowMa; anchors.fill: parent; hoverEnabled: true
-                        onClicked: { menu.close(); if (pu.allowReselect || row.index !== pu.current) pu.picked(row.index); }
+                        onPositionChanged: results.currentIndex = row.index
+                        onClicked: pu.pickRow(row.index)
                     }
                 }
             }
-        }
+            Text {
+                visible: pu.searchable && pu.filteredIndices.length === 0
+                y: menu.searchH; width: parent.width; height: menu.rowH
+                text: "No results"
+                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                color: pu.t.text2; font.family: pu.t.fam; font.pixelSize: 13
+            }
         }
     }
 }
