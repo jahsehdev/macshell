@@ -68,12 +68,14 @@ FocusScope {
     }
     function openWidgetMenu(id, x, y) {
         widgetTarget = id;
+        var canXL = widgets.supportsXL(widgets.typeOf(id));
         showMenu([
             { label: "Edit Widgets…", action: "widgets" },
             { separator: true },
             { label: "Small", action: "small" },
             { label: "Medium", action: "medium" },
             { label: "Large", action: "large" },
+            { label: "Extra Large", action: "xl", enabled: canXL },
             { separator: true },
             { label: "Remove Widget", action: "removeWidget" }
         ], x, y);
@@ -212,7 +214,7 @@ FocusScope {
             else if (action === "customize") surface.customizeFolder();
             else if (action.indexOf("folderColor:") === 0 && surface.selectedFolder()) surface.desktop.send({ action: "customize", name: surface.selectedFolder().name, color: action.slice(12) });
             else if (action === "removeWidget") surface.widgets.removeWidget(surface.widgetTarget);
-            else if (action === "small" || action === "medium" || action === "large") surface.widgets.setSize(surface.widgetTarget, action);
+            else if (action === "small" || action === "medium" || action === "large" || action === "xl") surface.widgets.setSize(surface.widgetTarget, action);
             else if (action === "wallpaper" && surface.widgets.hub) surface.widgets.hub.openSettings("wallpaper");
         }
     }
