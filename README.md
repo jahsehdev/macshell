@@ -242,12 +242,35 @@ installation needs the compiled applications and native plugins.
 | Screenshot | Print / Super+Shift+S |
 | Record screen or area | Control Center → Record → Entire Screen / Selected Area |
 | Settings | Apple menu or Dock |
+| Interface font | Settings → Appearance → Typography → Font |
+| Customize a folder | Right-click one local folder on the desktop or in Files → Customize Folder… |
+| Resize a desktop widget | Right-click the widget → Small / Medium / Large / Extra Large |
 | Photo Booth | Launchpad → Photo Booth / `tahoe-photobooth` |
 
 Application details: [Photo Booth](apps/tahoe-photobooth/README.md).
 
 **Shake to find** temporarily enlarges the current cursor up to 4× and smoothly
 restores it after shaking stops. See [cursor configuration and rebuild instructions](share/macshell/shake-to-find/README.md).
+
+**Customize Folder** changes an individual folder's color and adds a symbol or
+emoji, with a live preview. Use the context-menu color circles for a quick color
+change, or open **Customize Folder…** for symbols and the searchable emoji picker.
+Emoji use an installed, usable **Apple Color Emoji** font when available and
+fall back to **Noto Color Emoji**. **Clear** restores the previous folder icon;
+press **Esc** or click outside the desktop popover to dismiss it. See
+[folder customization](docs/FOLDER-CUSTOMIZATION.md) for font setup, supported
+folders, and the targeted feature updater.
+
+Desktop widgets offer **Extra Large** from their context menu when supported;
+the Clock widget supports Small, Medium, and Large.
+
+**Settings → Appearance → Typography → Font** provides a dropdown with
+**SF Pro Text**, **SF Pro Display**, and **System** for interface labels and menus.
+SF Pro Text is the default for the Luma panels, recording overlay, and folder
+customizer. Install the San Francisco font files with
+`~/.local/bin/macshell-install-sf-fonts` after installing the config, then restart
+MacShell and applications to refresh their fonts. Missing font families use an
+installed fallback; emoji keep their separate color font.
 
 **Dynamic Notch** sits at the top center, above the menu-bar contents. Hover or
 click to reveal music controls, timers, recording, charging and volume/brightness
