@@ -13,6 +13,9 @@ the customization panel. The interface follows MacShell's light/dark palette.
 The popover has no close button; use Escape or click outside it on the desktop.
 Desktop context-menu actions have aligned outline icons, including the tag
 symbol for Customize Folder, a pencil for Rename, and a bin for Move to Trash.
+Button tooltips copy the Dock label's frosted capsule, continuous pointer,
+light/dark colors, and typography. They stay inside the window and flip below
+their button near the top edge.
 
 The panel layout follows the supplied macOS Tahoe references: preview and name
 above the color circles, scrollable symbol categories below a separator, and

@@ -158,5 +158,62 @@ Window {
             verify(surface.outline.indexOf(" C ") >= 0);
             surface.shadow = true;
         }
+        function test_12_tooltip_matches_dock_label() {
+            const button = findChild(panel, "customColorButton");
+            const popup = findChild(window, "folderTooltip-customColorButton");
+            verify(popup !== null);
+            panel.dark = false;
+            mouseMove(button, button.width / 2, button.height / 2);
+            tryCompare(popup, "opened", true, 2000);
+            const bubble = popup.contentItem;
+            const component = Qt.createComponent(Qt.resolvedUrl("../../MacShell/DockTooltip.qml"));
+            compare(component.status, Component.Ready);
+            const dockLabel = component.createObject(window.contentItem, {
+                visible: false, text: popup.text, frosted: true,
+                width: bubble.width, pointerX: bubble.tailX
+            });
+            verify(dockLabel !== null);
+            tryCompare(bubble, "height", dockLabel.implicitHeight);
+            compare(bubble.outline(0.5), dockLabel.outline(0.5));
+            compare(bubble.outline(1.5), dockLabel.outline(1.5));
+            const label = findChild(bubble, "folderTooltipLabel");
+            const original = findChild(dockLabel, "dockTooltipLabel");
+            compare(label.font.family, original.font.family);
+            compare(label.font.pixelSize, original.font.pixelSize);
+            compare(label.font.weight, original.font.weight);
+            for (const dark of [false, true]) {
+                panel.dark = dark;
+                dockLabel.dark = dark;
+                compare(label.color, original.color);
+                wait(150);
+                const dir = Quickshell.env("MACSHELL_PREVIEW_DIR");
+                if (dir) {
+                    let done = false;
+                    window.contentItem.grabToImage(function(result) {
+                        result.saveToFile(dir + "/customize-folder-tooltip-" + (dark ? "dark" : "light") + ".png");
+                        done = true;
+                    });
+                    tryVerify(function() { return done; });
+                }
+            }
+            dockLabel.destroy();
+            mouseMove(window.contentItem, window.width - 2, window.height - 2);
+            tryCompare(popup, "visible", false);
+        }
+        function test_13_tooltip_flips_and_stays_inside_window() {
+            const button = findChild(panel, "restoreFolderButton");
+            const popup = findChild(window, "folderTooltip-restoreFolderButton");
+            panel.customized = true;
+            panel.x = -10; panel.y = -120;
+            mouseMove(button, button.width / 2, button.height / 2);
+            tryCompare(popup, "opened", true, 2000);
+            verify(popup.below);
+            verify(popup.x >= 8);
+            verify(popup.x + popup.width <= window.width - 8);
+            verify(popup.y >= popup.bottomAnchor.y + 6);
+            mouseMove(window.contentItem, window.width - 2, window.height - 2);
+            tryCompare(popup, "visible", false);
+            panel.x = 48; panel.y = 30;
+        }
     }
 }

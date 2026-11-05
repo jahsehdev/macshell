@@ -22,9 +22,10 @@ PY
 )
 cat > "$folder_test_root/shell.qml" <<'QML'
 import Quickshell
+import "." as GoldenGate
 import "Customizer/tests"
 ShellRoot {
-    DesktopMenu { entries: [{ label: "Open", action: "open" }] }
+    GoldenGate.DesktopMenu { entries: [{ label: "Open", action: "open" }] }
     FolderCustomizerTests {}
     DesktopFolderTests {}
 }
