@@ -72,7 +72,7 @@ The package groups used by the installer and config are:
 | Brightness and media keys | `brightnessctl playerctl` |
 | Battery reporting and power profiles | `upower power-profiles-daemon` |
 | MacLock authentication | `hyprlock` |
-| Fonts and emoji | `inter-font noto-fonts noto-fonts-emoji` |
+| Fallback fonts and emoji | `inter-font noto-fonts noto-fonts-emoji` |
 | Notifications, sounds, and filesystem watching | `libnotify libcanberra inotify-tools` |
 | JSON and HTTP helpers | `jq curl` |
 
@@ -319,10 +319,20 @@ Automatic installation targets Arch Linux and its derivatives, Hyprland with
 Lua configuration support (0.55+), Qt 6.9+, and a C++26 compiler for the Hyprland
 plugins. Rebuild the plugins after a Hyprland ABI upgrade.
 
-San Francisco fonts are not bundled. The system uses fallback fonts when
-those families are unavailable. The included default wallpaper is an SVG
-that you can replace in Settings. An optional `macshell-install-sf-fonts`
-helper is available for users who want to install those fonts separately.
+MacShell uses **SF Pro Text** and **SF Pro Display** for interface text.
+San Francisco font files are installed separately. After
+installing the config, run:
+
+```sh
+~/.local/bin/macshell-install-sf-fonts
+```
+
+The helper downloads SF Pro from
+[sahibjotsaggu/San-Francisco-Pro-Fonts](https://github.com/sahibjotsaggu/San-Francisco-Pro-Fonts)
+and SF Mono for fixed-width text, then updates the font cache and session
+preferences. Restart MacShell and applications to refresh their loaded fonts.
+Without the font files, the system substitutes an installed fallback such as
+Noto. The included default wallpaper is an SVG that you can replace in Settings.
 
 This distribution includes customizations of
 [0-ss/MacShell](https://github.com/0-ss/MacShell),

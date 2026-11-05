@@ -5,7 +5,7 @@ Item {
     id: root
     required property rect region
     property string statusText: "REC 0:00"
-    property string fontFamily: "sans-serif"
+    property string fontFamily: "SF Pro Text"
     visible: region.width > 0 && region.height > 0
     clip: true
 

@@ -8,7 +8,7 @@ FocusScope {
     property Item backdrop: null
     property size screenSize: Qt.size(1920, 1080)
     property point screenPosition: Qt.point(0, 0)
-    property string fontFamily: "sans-serif"
+    property string fontFamily: "SF Pro Text"
     property real maxBodyHeight: 360
     property bool microphoneAllowed: true
     property bool dictationEnabled: true

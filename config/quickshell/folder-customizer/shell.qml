@@ -6,7 +6,7 @@ import Quickshell.Hyprland
 ShellRoot {
     id: app
     property bool dark: false
-    property string fontFamily: "sans-serif"
+    property string fontFamily: "SF Pro Text"
     FileView {
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/macbar/settings.json"
         printErrors: false

@@ -6,7 +6,7 @@ FocusScope {
     id: root
     required property var controller
     property bool dark: true
-    property string fontFamily: "sans-serif"
+    property string fontFamily: "SF Pro Text"
     property color accent: "#007aff"
     property bool externalSurface: false
     property bool microphoneActive: false

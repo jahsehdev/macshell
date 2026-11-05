@@ -10,7 +10,7 @@ FocusScope {
     id: panel
     required property string folderPath
     property bool dark: false
-    property string fontFamily: "sans-serif"
+    property string fontFamily: "SF Pro Text"
     property string emojiFontFamily: Qt.fontFamilies().indexOf("Apple Color Emoji") >= 0 ? "Apple Color Emoji" : "Noto Color Emoji"
     property url emojiFontUrl: ""
     property real pointerY: 124

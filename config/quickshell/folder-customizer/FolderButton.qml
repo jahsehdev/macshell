@@ -32,7 +32,7 @@ Button {
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
     }
-    font.family: "sans-serif"
+    font.family: "SF Pro Text"
     font.pixelSize: 13
     ToolTip {
         id: popup
