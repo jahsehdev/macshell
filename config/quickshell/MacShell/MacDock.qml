@@ -298,7 +298,27 @@ Scope {
     property bool showTrash: true
     property string fontFamily: "SF Pro Text"  // installed by macshell-install-sf-fonts
     property string fontStyleName: ""
-    onFontFamilyChanged: if (fontFamily.indexOf("Inter") === 0) fontFamily = "SF Pro Text"
+    onFontFamilyChanged: {
+        if (fontFamily.indexOf("Inter") === 0) fontFamily = "SF Pro Text";
+        if (settingsReady) nativeFontDelay.restart();
+    }
+    onFontStyleNameChanged: if (settingsReady) nativeFontDelay.restart()
+    onSettingsReadyChanged: if (settingsReady) nativeFontDelay.restart()
+    Timer {
+        id: nativeFontDelay
+        interval: 300
+        onTriggered: {
+            if (nativeFontSync.running) restart();
+            else nativeFontSync.running = true;
+        }
+    }
+    Process {
+        id: nativeFontSync
+        command: ["python3", (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/Common/sync_fonts.py",
+                  "--family", root.fontFamily, "--style", root.fontStyleName || "Regular"]
+        stdout: StdioCollector { onStreamFinished: if (text.trim()) console.log("[native-fonts]", text.trim()) }
+        stderr: StdioCollector { onStreamFinished: if (text.trim()) console.warn("[native-fonts]", text.trim()) }
+    }
     property bool magnificationEnabled: true
     property bool showLabels: true       // hover tooltips
     property bool showIndicators: true   // dots under running apps

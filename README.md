@@ -274,7 +274,12 @@ all installed SF font variants from **SF Pro Text**, **SF Pro Display**,
 Each installed weight and italic face is listed separately, such as **SF Pro Text
 Medium** or **SF Pro Display Bold Italic**. Type in **Search fonts** to filter the
 list; the current variant has a check mark. Both the family and style are saved
-and applied to Settings, Dock labels, and menu-bar text.
+and applied to Settings, Dock labels, menu-bar text, GTK 3/4 preferences, qt6ct,
+and Fontconfig's default UI font. Existing qt5ct preferences are updated too.
+GTK applications can follow the live desktop setting; restart applications that
+cache their font, including browser UI, to refresh it. Applications with their
+own font settings and websites with explicit fonts keep those choices.
+To reapply the saved selection manually, run `~/.local/bin/macshell-apply-fonts`.
 SF Pro Text is the default for the Luma panels, recording overlay, and folder
 customizer. Install the San Francisco font files with
 `~/.local/bin/macshell-install-sf-fonts` after installing the config, then restart
