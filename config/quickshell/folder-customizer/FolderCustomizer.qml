@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
-import QtQuick.Dialogs
 import Quickshell
 import Quickshell.Io
 import "EmojiData.js" as Emojis
@@ -29,6 +28,7 @@ FocusScope {
     property var symbols: []
     property bool ready: false
     property bool busy: false
+    readonly property bool pickerBusy: nativePicker.running
     property bool customized: false
     property string error: ""
     property var confirmedSettings: null
@@ -86,7 +86,14 @@ FocusScope {
     }
     function showEmojiPicker() { emojiPicker.open(); emojiSearch.forceActiveFocus(); }
     function setArtworkStyle(value) { artworkStyle = value; send({ action: "apply", settings: settings() }); }
-    function localPath(url) { return decodeURIComponent(url.toString().replace(/^file:\/\//, "")); }
+    function chooseNativeFile(mode) {
+        if (!ready || busy || pickerBusy) return;
+        error = "";
+        nativePicker.mode = mode;
+        nativePicker.selection = "";
+        nativePicker.diagnostic = "";
+        nativePicker.running = true;
+    }
     Keys.onEscapePressed: event => {
         if (emojiPicker.opened) emojiPicker.close();
         else if (colorPicker.opened) colorPicker.close();
@@ -186,7 +193,7 @@ FocusScope {
             objectName: "restoreFolderButton"
             width: 25; height: 29; hint: "Restore the original folder icon"
             dark: panel.dark; subtle: true
-            enabled: panel.ready && !panel.busy && panel.customized
+            enabled: panel.ready && !panel.busy && !panel.pickerBusy && panel.customized
             contentItem: Item {
                 Image {
                     anchors.centerIn: parent
@@ -204,7 +211,7 @@ FocusScope {
                 id: swatch
                 required property string modelData
                 width: 27; height: 29
-                enabled: panel.ready && !panel.busy
+                enabled: panel.ready && !panel.busy && !panel.pickerBusy
                 Accessible.name: "Folder color " + modelData
                 background: Rectangle {
                     anchors.centerIn: parent; width: 27; height: 27; radius: 14
@@ -223,7 +230,7 @@ FocusScope {
         FolderButton {
             objectName: "customColorButton"
             width: 29; height: 29; text: "+"; hint: "Choose a custom color"; font.pixelSize: 22
-            dark: panel.dark; enabled: panel.ready && !panel.busy
+            dark: panel.dark; enabled: panel.ready && !panel.busy && !panel.pickerBusy
             onClicked: { hexField.text = panel.colorValue; colorPicker.open(); }
         }
     }
@@ -234,7 +241,7 @@ FocusScope {
             width: 112; height: 29; text: "Engraved"; dark: panel.dark
             selected: panel.artworkStyle === "engraved"
             hint: "Toggle Folderify-style engraving for symbols and PNG masks"
-            enabled: panel.ready && !panel.busy
+            enabled: panel.ready && !panel.busy && !panel.pickerBusy
             Accessible.checkable: true
             Accessible.checked: selected
             onClicked: panel.setArtworkStyle(selected ? "standard" : "engraved")
@@ -243,15 +250,15 @@ FocusScope {
             objectName: "importFolderMaskButton"
             width: 112; height: 29; text: "Import PNG…"; dark: panel.dark
             hint: panel.maskValue ? "Replace the imported PNG mask" : "Use a transparent PNG symbol"
-            enabled: panel.ready && !panel.busy
-            onClicked: maskDialog.open()
+            enabled: panel.ready && !panel.busy && !panel.pickerBusy
+            onClicked: panel.chooseNativeFile("mask")
         }
         FolderButton {
             objectName: "exportFolderIconButton"
             width: 96; height: 29; text: "Export…"; dark: panel.dark
             hint: "Export ten PNG sizes in an iconset folder"
-            enabled: panel.ready && !panel.busy
-            onClicked: exportDialog.open()
+            enabled: panel.ready && !panel.busy && !panel.pickerBusy
+            onClicked: panel.chooseNativeFile("directory")
         }
     }
     Rectangle { x: 1; y: 248; width: parent.width - 2; height: 1; color: panel.dark ? "#30ffffff" : "#20000000" }
@@ -286,7 +293,7 @@ FocusScope {
                                 required property var modelData
                                 width: 46; height: 44; subtle: true; round: true; dark: panel.dark
                                 hint: modelData.label; selected: panel.symbolValue === modelData.id
-                                enabled: panel.ready && !panel.busy
+                                enabled: panel.ready && !panel.busy && !panel.pickerBusy
                                 contentItem: Item {
                                     Image {
                                         source: panel.symbolSource(symbolButton.modelData, symbolButton.selected ? "#347cff" : panel.dark ? "#bcbcc2" : "#77777b")
@@ -308,13 +315,13 @@ FocusScope {
         FolderButton {
             objectName: "clearFolderButton"
             width: 165; height: 27; text: "Clear"; dark: panel.dark
-            enabled: panel.ready && !panel.busy && panel.customized
+            enabled: panel.ready && !panel.busy && !panel.pickerBusy && panel.customized
             onClicked: panel.clear()
         }
         FolderButton {
             objectName: "emojiButton"
             width: 165; height: 27; text: "☻  Emoji"; dark: panel.dark
-            enabled: panel.ready && !panel.busy
+            enabled: panel.ready && !panel.busy && !panel.pickerBusy
             onClicked: panel.showEmojiPicker()
         }
     }
@@ -340,17 +347,31 @@ FocusScope {
             wrapMode: Text.Wrap; font.family: panel.fontFamily; font.pixelSize: 12
         }
     }
-    FileDialog {
-        id: maskDialog
-        title: "Choose a transparent PNG mask"
-        nameFilters: ["PNG masks (*.png)"]
-        fileMode: FileDialog.OpenFile
-        onAccepted: panel.send({ action: "import-mask", path: panel.localPath(selectedFile), settings: panel.settings() })
-    }
-    FolderDialog {
-        id: exportDialog
-        title: "Export folder iconset"
-        onAccepted: panel.send({ action: "export-iconset", directory: panel.localPath(selectedFolder), settings: panel.settings() })
+    Process {
+        id: nativePicker
+        objectName: "nativeFolderFilePicker"
+        property string mode: "mask"
+        property string selection: ""
+        property string diagnostic: ""
+        // Zenity uses GTK's native chooser, so it inherits the same theme and
+        // desktop font as Files instead of Qt Quick's generic fallback dialog.
+        command: ["zenity", "--file-selection",
+                  "--title=" + (mode === "mask" ? "Choose a transparent PNG mask" : "Export folder iconset"),
+                  "--filename=" + (panel.folderPath || Quickshell.env("HOME")) + "/"]
+                 .concat(mode === "mask" ? ["--file-filter=PNG masks | *.png *.PNG"] : ["--directory"])
+        stdout: StdioCollector {
+            onStreamFinished: nativePicker.selection = text.endsWith("\n") ? text.slice(0, -1) : text
+        }
+        stderr: StdioCollector { onStreamFinished: nativePicker.diagnostic = text.trim() }
+        onExited: (code, status) => {
+            if (code === 1 && status === 0) return; // Cancel leaves folder settings untouched.
+            if (code !== 0 || status !== 0 || !selection) {
+                panel.error = diagnostic || "Could not open the GTK file chooser. Install zenity and try again.";
+                return;
+            }
+            if (mode === "mask") panel.send({ action: "import-mask", path: selection, settings: panel.settings() });
+            else panel.send({ action: "export-iconset", directory: selection, settings: panel.settings() });
+        }
     }
     BusyIndicator { anchors.centerIn: parent; running: !panel.ready && !panel.error; visible: running }
 
@@ -472,7 +493,7 @@ FocusScope {
                 }
                 FolderButton {
                     width: 84; height: 32; text: "Apply"; dark: panel.dark
-                    enabled: hexField.acceptableInput && !panel.busy
+                    enabled: hexField.acceptableInput && !panel.busy && !panel.pickerBusy
                     onClicked: { panel.applyColor(hexField.text); colorPicker.close(); }
                 }
             }

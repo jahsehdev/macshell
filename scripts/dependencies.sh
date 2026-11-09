@@ -3,14 +3,14 @@ set -euo pipefail
 mode=${1:-install}
 packages=(git base-devel cmake ninja pkgconf python python-pillow qt6-base qt6-declarative
     qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat gtk3 gtk4 libadwaita
-    json-glib librsvg fontconfig hyprland quickshell nautilus gvfs gnome-calculator gnome-console
+    json-glib librsvg fontconfig zenity hyprland quickshell nautilus gvfs gnome-calculator gnome-console
     gnome-text-editor qt6ct kvantum networkmanager bluez bluez-utils pipewire pipewire-pulse
     wireplumber xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-user-dirs xdg-utils
     wl-clipboard cliphist grim slurp swappy wf-recorder ffmpeg brightnessctl playerctl
     inter-font noto-fonts noto-fonts-emoji libnotify libcanberra jq curl)
 if [[ $mode == --check ]]; then
     missing=0
-    for executable in qs Hyprland cmake ninja pkg-config python3 jq ffmpeg nautilus gio rsvg-convert fc-match; do
+    for executable in qs Hyprland cmake ninja pkg-config python3 jq ffmpeg nautilus gio rsvg-convert fc-match zenity; do
         if command -v "$executable" >/dev/null; then
             printf 'OK      %s\n' "$executable"
         else

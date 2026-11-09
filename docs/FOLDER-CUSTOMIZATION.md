@@ -21,6 +21,11 @@ The additional controls provide a portable adaptation of
   containing the ten standard 1×/2× PNG representations from 16px to 1024px.
   Existing exports are never overwritten. Exporting does not modify the folder.
 
+Import and export use Zenity's GTK/GNOME file chooser, following the same desktop
+theme, icons and font as Files. They do not use Qt Quick's fallback file dialog.
+Import filters PNG files; export selects a directory. Cancel leaves the folder
+unchanged. The `zenity` package is included in the dependency installer.
+
 This is a Linux implementation using Pillow, librsvg and the existing MacTahoe
 folder material. It does not bundle or run Folderify's Rust binary, redistribute
 Apple folder templates, or require `iconutil`/Cocoa. The PNG iconset format can
@@ -73,7 +78,8 @@ the upstream MIT license covers its code, not Apple's emoji artwork.
 
 The normal `./install.sh` installer includes the interface, launcher, artwork
 backend, and native Nautilus integration. Required packages include Nautilus,
-GVfs, librsvg (`rsvg-convert`), Fontconfig, and Pillow. For emoji, install
+GVfs, librsvg (`rsvg-convert`), Fontconfig, Pillow, and Zenity for native file
+selection. For emoji, install
 **Apple Color Emoji** using the Linux build described above; **Noto Color Emoji**
 is supported as a fallback.
 

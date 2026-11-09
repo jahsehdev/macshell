@@ -61,7 +61,7 @@ The package groups used by the installer and config are:
 | Download, build, and Python helpers | `git base-devel cmake ninja pkgconf python python-pillow` |
 | Compositor and shell | `hyprland quickshell` |
 | Qt/QML, media, shaders, and Wayland | `qt6-base qt6-declarative qt6-multimedia qt6-shadertools qt6-wayland qt6-svg qt6-5compat` |
-| GTK and native integrations | `gtk3 gtk4 libadwaita json-glib librsvg fontconfig` |
+| GTK and native integrations | `gtk3 gtk4 libadwaita json-glib librsvg fontconfig zenity` |
 | File manager and bundled application launchers | `nautilus gvfs gnome-calculator gnome-console gnome-text-editor` |
 | Qt appearance | `qt6ct kvantum` |
 | Network and Bluetooth | `networkmanager bluez bluez-utils` |
