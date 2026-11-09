@@ -7,6 +7,36 @@ custom hexadecimal colors, 71 symbols in four categories, and a searchable
 emoji picker with categories and recent selections. A symbol and an emoji are
 alternative emblems; either can be combined with a folder color.
 
+The additional controls provide a portable adaptation of
+[Folderify](https://github.com/lgarron/folderify)'s mask-based workflow:
+
+- **Engraved** switches symbols and imported masks between a flat mark and an
+  inset fill with opposing highlights and shadows. Emoji retain their colors.
+- **Import PNG…** accepts a visible symbol on a transparent background. Empty
+  margins are trimmed; the symbol is centered without changing its proportions.
+  Imports are limited to 16 MiB and 4096 × 4096 pixels. An immutable copy is kept
+  under `$XDG_DATA_HOME/macshell/folder-masks`, so moving or deleting the source
+  PNG does not break the folder icon. Selecting a symbol or emoji replaces it.
+- **Export…** creates a new `MacShell-*.iconset` directory in the chosen folder,
+  containing the ten standard 1×/2× PNG representations from 16px to 1024px.
+  Existing exports are never overwritten. Exporting does not modify the folder.
+
+This is a Linux implementation using Pillow, librsvg and the existing MacTahoe
+folder material. It does not bundle or run Folderify's Rust binary, redistribute
+Apple folder templates, or require `iconutil`/Cocoa. The PNG iconset format can
+be consumed separately; `.icns` conversion and Finder icon assignment remain
+macOS operations. Colors, custom symbols and emoji continue to work in the
+MacShell preview, desktop and Nautilus through the same PNG/GIO integration.
+
+The worker also exposes the workflow from a terminal:
+
+```sh
+python3 ~/.config/quickshell/folder-customizer/bin/folder_customizer.py \
+  --folder /path/to/folder --mask /path/to/mask.png --style engraved
+python3 ~/.config/quickshell/folder-customizer/bin/folder_customizer.py \
+  --folder /path/to/folder --export-iconset /path/to/exports
+```
+
 **Clear** restores the folder's previous custom icon, or the system folder icon
 when no previous icon was set. Escape dismisses an open picker before closing
 the customization panel. The interface follows MacShell's light/dark palette.

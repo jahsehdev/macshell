@@ -94,6 +94,24 @@ Window {
             keyClick(Qt.Key_Escape);
             compare(dismissSpy.count, 1);
         }
+        function test_05a_engraving_and_png_emblems_preserve_color_and_clear_each_other() {
+            panel.maskValue = "a".repeat(64);
+            panel.colorValue = "#ffd43b";
+            mouseClick(findChild(panel, "engravedStyleButton"));
+            compare(panel.artworkStyle, "engraved");
+            compare(panel.settings().mask, "a".repeat(64));
+            compare(panel.colorValue, "#ffd43b");
+            panel.applySymbol("cutlery");
+            compare(panel.maskValue, "");
+            compare(panel.artworkStyle, "engraved");
+            panel.maskValue = "b".repeat(64);
+            panel.applyEmoji("🎮");
+            compare(panel.maskValue, "");
+            panel.clear();
+            compare(panel.artworkStyle, "standard");
+            verify(findChild(panel, "importFolderMaskButton").enabled);
+            verify(findChild(panel, "exportFolderIconButton").enabled);
+        }
         function test_06_light_preview() {
             panel.forceActiveFocus();
             panel.dark = false;

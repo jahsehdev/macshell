@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Dialogs
 import Quickshell
 import Quickshell.Io
 import "EmojiData.js" as Emojis
@@ -21,6 +22,9 @@ FocusScope {
     property string colorValue: "#0a84ff"
     property string symbolValue: ""
     property string emojiValue: ""
+    property string maskValue: ""
+    property string artworkStyle: "standard"
+    property string exportNotice: ""
     property string iconUrl: ""
     property var symbols: []
     property bool ready: false
@@ -50,9 +54,10 @@ FocusScope {
     height: 620
     focus: true
 
-    function settings() { return { color: colorValue, symbol: symbolValue, emoji: emojiValue }; }
+    function settings() { return { color: colorValue, symbol: symbolValue, emoji: emojiValue, mask: maskValue, style: artworkStyle }; }
     function send(request) {
         error = "";
+        exportNotice = "";
         if (demo) { customized = request.action !== "clear"; busy = false; changed(); return; }
         if (!worker.running || !ready) return;
         busy = true;
@@ -60,18 +65,18 @@ FocusScope {
     }
     function applyColor(value) { colorValue = value; send({ action: "apply", settings: settings() }); }
     function applySymbol(value) {
-        symbolValue = value === symbolValue ? "" : value; emojiValue = "";
+        symbolValue = value === symbolValue ? "" : value; emojiValue = ""; maskValue = "";
         send({ action: "apply", settings: settings() });
     }
     function applyEmoji(value) {
-        emojiValue = value; symbolValue = "";
+        emojiValue = value; symbolValue = ""; maskValue = "";
         recentEmoji = [value].concat(recentEmoji.filter(function(e) { return e !== value; })).slice(0, 24);
         recents.setText(JSON.stringify(recentEmoji));
         send({ action: "apply", settings: settings() });
         emojiPicker.close();
     }
     function clear() {
-        if (demo) { symbolValue = ""; emojiValue = ""; }
+        if (demo) { symbolValue = ""; emojiValue = ""; maskValue = ""; artworkStyle = "standard"; }
         send({ action: "clear" });
     }
     function symbolsIn(category) { return symbols.filter(function(s) { return s.category === category; }); }
@@ -80,6 +85,8 @@ FocusScope {
             .replace('viewBox="0 0 24 24"', 'viewBox="-2 -2 28 28"').replace(/\$COLOR/g, color));
     }
     function showEmojiPicker() { emojiPicker.open(); emojiSearch.forceActiveFocus(); }
+    function setArtworkStyle(value) { artworkStyle = value; send({ action: "apply", settings: settings() }); }
+    function localPath(url) { return decodeURIComponent(url.toString().replace(/^file:\/\//, "")); }
     Keys.onEscapePressed: event => {
         if (emojiPicker.opened) emojiPicker.close();
         else if (colorPicker.opened) colorPicker.close();
@@ -112,12 +119,21 @@ FocusScope {
                             panel.colorValue = panel.confirmedSettings.color;
                             panel.symbolValue = panel.confirmedSettings.symbol;
                             panel.emojiValue = panel.confirmedSettings.emoji;
+                            panel.maskValue = panel.confirmedSettings.mask || "";
+                            panel.artworkStyle = panel.confirmedSettings.style || "standard";
                         }
+                        return;
+                    }
+                    if (state.event === "exported") {
+                        panel.exportNotice = "Iconset exported to " + state.path;
                         return;
                     }
                     if (state.event === "state") {
                         panel.name = state.name; panel.colorValue = state.settings.color;
                         panel.symbolValue = state.settings.symbol; panel.emojiValue = state.settings.emoji;
+                        panel.maskValue = state.settings.mask || "";
+                        panel.artworkStyle = state.settings.style || "standard";
+                        panel.error = state.warning || "";
                         panel.confirmedSettings = state.settings;
                         panel.iconUrl = state.icon; panel.symbols = state.symbols;
                         panel.emojiFontFamily = state.emojiFontFamily || "Noto Color Emoji";
@@ -211,11 +227,38 @@ FocusScope {
             onClicked: { hexField.text = panel.colorValue; colorPicker.open(); }
         }
     }
-    Rectangle { x: 1; y: 216; width: parent.width - 2; height: 1; color: panel.dark ? "#30ffffff" : "#20000000" }
+    Row {
+        x: 13; y: 207; spacing: 7
+        FolderButton {
+            objectName: "engravedStyleButton"
+            width: 112; height: 29; text: "Engraved"; dark: panel.dark
+            selected: panel.artworkStyle === "engraved"
+            hint: "Toggle Folderify-style engraving for symbols and PNG masks"
+            enabled: panel.ready && !panel.busy
+            Accessible.checkable: true
+            Accessible.checked: selected
+            onClicked: panel.setArtworkStyle(selected ? "standard" : "engraved")
+        }
+        FolderButton {
+            objectName: "importFolderMaskButton"
+            width: 112; height: 29; text: "Import PNG…"; dark: panel.dark
+            hint: panel.maskValue ? "Replace the imported PNG mask" : "Use a transparent PNG symbol"
+            enabled: panel.ready && !panel.busy
+            onClicked: maskDialog.open()
+        }
+        FolderButton {
+            objectName: "exportFolderIconButton"
+            width: 96; height: 29; text: "Export…"; dark: panel.dark
+            hint: "Export ten PNG sizes in an iconset folder"
+            enabled: panel.ready && !panel.busy
+            onClicked: exportDialog.open()
+        }
+    }
+    Rectangle { x: 1; y: 248; width: parent.width - 2; height: 1; color: panel.dark ? "#30ffffff" : "#20000000" }
     Flickable {
         id: symbolScroll
         objectName: "symbolScroll"
-        x: 10; y: 225; width: parent.width - 20; height: parent.height - y - 46
+        x: 10; y: 257; width: parent.width - 20; height: Math.max(0, parent.height - y - 46)
         clip: true; contentHeight: symbolColumn.height
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
@@ -285,6 +328,29 @@ FocusScope {
             text: panel.error; color: panel.dark ? "#ffceca" : "#9e2921"
             wrapMode: Text.Wrap; font.pixelSize: 12
         }
+    }
+    Rectangle {
+        x: 10; y: parent.height - 104; width: parent.width - 20
+        height: exportLabel.implicitHeight + 18; radius: 8
+        color: panel.dark ? "#2d4938" : "#e0f4e6"; visible: panel.exportNotice !== "" && panel.error === ""
+        Text {
+            id: exportLabel
+            x: 9; y: 9; width: parent.width - 18
+            text: panel.exportNotice; color: panel.foreground
+            wrapMode: Text.Wrap; font.family: panel.fontFamily; font.pixelSize: 12
+        }
+    }
+    FileDialog {
+        id: maskDialog
+        title: "Choose a transparent PNG mask"
+        nameFilters: ["PNG masks (*.png)"]
+        fileMode: FileDialog.OpenFile
+        onAccepted: panel.send({ action: "import-mask", path: panel.localPath(selectedFile), settings: panel.settings() })
+    }
+    FolderDialog {
+        id: exportDialog
+        title: "Export folder iconset"
+        onAccepted: panel.send({ action: "export-iconset", directory: panel.localPath(selectedFolder), settings: panel.settings() })
     }
     BusyIndicator { anchors.centerIn: parent; running: !panel.ready && !panel.error; visible: running }
 

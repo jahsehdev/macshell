@@ -259,6 +259,8 @@ restores it after shaking stops. See [cursor configuration and rebuild instructi
 **Customize Folder** changes an individual folder's color and adds a symbol or
 emoji, with a live preview. Use the context-menu color circles for a quick color
 change, or open **Customize Folder…** for symbols and the searchable emoji picker.
+**Engraved**, **Import PNG…**, and **Export…** add a portable Folderify-style
+workflow: inset symbols, custom transparent PNG masks, and ten-size PNG iconsets.
 Emoji use an installed, usable **Apple Color Emoji** font when available and
 fall back to **Noto Color Emoji**. **Clear** restores the previous folder icon;
 press **Esc** or click outside the desktop popover to dismiss it. See
