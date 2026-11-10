@@ -20,7 +20,7 @@ ET.SubElement(config, 'dir').text = sys.argv[2]
 ET.ElementTree(config).write(sys.argv[1], encoding='utf-8', xml_declaration=True)
 PY
 export FONTCONFIG_FILE="$folder_test_root/fonts.conf"
-export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
+export QT_QPA_PLATFORM="${MACSHELL_FOLDER_TEST_PLATFORM:-offscreen}" QT_QUICK_BACKEND="${MACSHELL_FOLDER_TEST_BACKEND:-software}"
 export XDG_RUNTIME_DIR="$folder_test_root/runtime" XDG_CONFIG_HOME="$folder_test_root/config" XDG_DATA_HOME="$folder_test_root/data"
 export MACSHELL_CUSTOMIZE_FOLDER="$folder_test_root/Recipes" MACSHELL_PREVIEW_DIR="$folder_test_root/previews"
 unset WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE

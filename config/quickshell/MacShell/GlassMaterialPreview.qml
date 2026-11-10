@@ -271,33 +271,23 @@ Column {
             color: preview.t.dark ? Qt.rgba(0.16, 0.18, 0.19, 0.24 + preview.amount * 0.7)
                                   : Qt.rgba(1, 1, 1, 0.24 + preview.amount * 0.7)
         }
-        ShaderEffect {
+        Common.LiquidGlassSurface {
             anchors.fill: parent
             visible: !preview.software
-            fragmentShader: Qt.resolvedUrl("liquidglass-preview-v1.frag.qsb")
-            property variant src: preview.amount > 0 ? blurredBackdrop : backdrop
-            property vector2d itemSize: Qt.vector2d(width, height)
-            property vector2d glassSize: itemSize
-            property vector2d srcSize: Qt.vector2d(page.width, page.height)
-            property vector2d srcOffset: Qt.vector2d(pill.x, pill.y)
-            property real pad: 0
-            property real radius: height / 2
-            property real bezel: height * 0.22
-            property real thickness: 8.5 * (1 - preview.amount * 0.65)
-            property real dispersion: 0.03 * (1 - preview.amount)
-            property real blurPx: 0
-            property real tintMix: preview.reducedTransparency ? 1 : 0.06 + preview.amount * 0.88
-            property real saturation: 1.15
-            property real dark: preview.t.dark ? 1 : 0
-            property real debug: 0
-            property real rim: 0.45
-            property real grain: 0
-            property real magnify: 0.05 * (1 - preview.amount)
-            property real shadowAmt: 0
-            property real rimTint: 0
-            property real ringW: 0
-            property real flatInner: 0
-            property real squircle: 0
+            materialIntensity: preview.value
+            fragmentShader: Qt.resolvedUrl("Common/LiquidGlass.frag.dock.qsb")
+            src: preview.amount > 0 ? blurredBackdrop : backdrop
+            itemSize: Qt.vector2d(width, height)
+            glassSize: itemSize
+            srcSize: Qt.vector2d(page.width, page.height)
+            srcOffset: Qt.vector2d(pill.x, pill.y)
+            pad: 0
+            radius: height / 2
+            bezel: height * 0.22
+            dark: preview.t.dark ? 1 : 0
+            debug: 0
+            shadowAmt: 0
+            squircle: 0
         }
         Rectangle {
             anchors.fill: parent

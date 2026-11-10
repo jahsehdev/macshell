@@ -8,13 +8,26 @@ Corners.ContinuousRectangle {
     property var entries: []
     property bool dark: true
     property string fontFamily: "SF Pro Text"
+    property Item backdrop: null
+    property url wallpaperSource: ""
+    property size screenSize: Qt.size(1920, 1080)
+    property color borderTint: "#8A9AB5"
     signal chosen(string action)
     width: 228
     height: rows.height + 2 * Corners.CornerTheme.menuInset
     radius: Corners.CornerTheme.menuRadius
-    color: dark ? "#F02B2C32" : "#F0F4F4F6"
-    border.width: 1
-    border.color: dark ? "#50FFFFFF" : "#40000000"
+    color: "transparent"
+    Corners.FrostedMenuSurface {
+        objectName: "desktopMenuMaterial"
+        anchors.fill: parent
+        dark: menu.dark
+        radius: menu.effectiveRadius
+        backdrop: menu.backdrop
+        wallpaperSource: menu.wallpaperSource
+        screenSize: menu.screenSize
+        samplePosition: Qt.point(menu.x, menu.y)
+        borderTint: menu.borderTint
+    }
     visible: false
     z: 100
     // Built-in Image delegates avoid custom type discovery during live reload.
@@ -50,7 +63,7 @@ Corners.ContinuousRectangle {
                 Corners.MenuHighlight {
                     anchors.fill: parent
                     panelRadius: menu.effectiveRadius
-                    color: hit.containsMouse && row.allowed && !row.modelData.separator ? "#287AE5" : "transparent"
+                    color: hit.containsMouse && row.allowed && !row.modelData.separator ? Corners.ThemeColors.accentFor("shell") : "transparent"
                 }
                 Corners.ContinuousRectangle {
                     visible: row.modelData.separator === true

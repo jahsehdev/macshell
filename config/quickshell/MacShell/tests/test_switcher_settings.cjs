@@ -18,7 +18,7 @@ function extract(source,name) {
     }
     return source.slice(start,end);
 }
-const settingsIcon=path.join(os.homedir(),'.local/share/icons/MacTahoe/apps/scalable/preferences-system.svg');
+const settingsIcon=path.resolve(base,'../../../icons/macOS-27/apps/128/systemsettings.png');
 function switcher(windows, standalone=false) {
     const root={activeTl:windows[0],swMru:[],hub:null,
         lookup:id=>({name:id==='org.quickshell'?'Quickshell':id,icon:id+'.svg'}),
@@ -33,7 +33,8 @@ function switcher(windows, standalone=false) {
     return {apps:context.swBuild(),icon:context.swIcon};
 }
 const shell=title=>({appId:'org.quickshell',title});
-test('Settings uses its Dock identity, label and exact MacTahoe icon in Alt+Tab',()=>{
+test('Settings uses its Dock identity, label and theme artwork in Alt+Tab',()=>{
+    assert.match(dockSource, /settingAppIcon: Quickshell\.iconPath\("systemsettings", true\)/);
     const result=switcher([shell('Setting')]);
     assert.equal(result.apps[0].appId,'systemsettings');
     assert.equal(result.apps[0].name,'Settings');

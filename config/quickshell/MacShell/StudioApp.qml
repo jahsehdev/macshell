@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import Quickshell
@@ -12,7 +13,7 @@ Scope {
     required property string appKind
     property var hub: null
     property alias window: win
-    readonly property bool dark: Common.IconStyle.dark
+    readonly property bool dark: hub && hub.dock ? hub.dock.darkMode : Common.IconStyle.systemDark
     readonly property color fg: dark ? "#f5f5f7" : "#232327"
     readonly property color secondary: dark ? "#a2a2af" : "#676773"
     readonly property color bg: dark ? "#202024" : "#fafafa"
@@ -120,9 +121,25 @@ Scope {
         nameFilters:root.appKind==="calendar" ? ["Calendar (*.ics)"] : ["PNG image (*.png)","JPEG image (*.jpg)"]
         onAccepted:root.request(root.appKind+".export",{path:selectedFile.toString(),id:root.current.id,operation:root.exportOperation})
     }
-    Window {
+    ApplicationWindow {
         id:win;title:root.appTitle;width:1000;height:650;minimumWidth:740;minimumHeight:500
         visible:false;color:"transparent";flags:Qt.Window | Qt.FramelessWindowHint
+        background: null
+        palette.window: root.bg
+        palette.windowText: root.fg
+        palette.text: root.fg
+        palette.buttonText: root.fg
+        palette.base: root.dark ? "#292930" : "#ffffff"
+        palette.alternateBase: root.dark ? "#35353d" : "#ededf0"
+        palette.button: root.dark ? "#35353d" : "#ffffff"
+        palette.mid: root.dark ? "#60606c" : "#cfcfd8"
+        palette.dark: root.dark ? "#60606c" : "#cfcfd8"
+        palette.light: root.dark ? "#42424c" : "#e5e5ed"
+        palette.highlight: Common.ThemeColors.accentFor("shell")
+        palette.highlightedText: "white"
+        palette.placeholderText: root.secondary
+        palette.disabled.text: root.secondary
+        palette.disabled.windowText: root.secondary
         Rectangle {
             anchors.fill:parent;radius:16;color:root.bg
             border.width:Common.DesktopPreferences.showBorders ? 2 : 1
@@ -161,7 +178,7 @@ Scope {
                         Layout.fillWidth:true
                         StudioButton {text:"‹";onClicked:{root.month=root.weekView ? new Date(root.month.getFullYear(),root.month.getMonth(),root.month.getDate()-7) : new Date(root.month.getFullYear(),root.month.getMonth()-1,1);root.refresh();}}
                         Label { text:root.weekView ? "Week of "+Qt.formatDate(root.month,"d MMMM yyyy") : Qt.formatDate(root.month,"MMMM yyyy");color:root.fg;font.pixelSize:19;Layout.fillWidth:true;horizontalAlignment:Text.AlignHCenter }
-                        ComboBox {model:["Month","Week"];onActivated:{root.weekView=currentIndex===1;root.month=new Date();root.selectedDate="";root.refresh();}}
+                        Basic.ComboBox {model:["Month","Week"];onActivated:{root.weekView=currentIndex===1;root.month=new Date();root.selectedDate="";root.refresh();}}
                         StudioButton {text:"Today";onClicked:{root.month=root.weekView ? new Date() : new Date(new Date().getFullYear(),new Date().getMonth(),1);root.selectedDate="";root.refresh();}}
                         StudioButton {text:"›";onClicked:{root.month=root.weekView ? new Date(root.month.getFullYear(),root.month.getMonth(),root.month.getDate()+7) : new Date(root.month.getFullYear(),root.month.getMonth()+1,1);root.refresh();}}
                     }
@@ -223,7 +240,7 @@ Scope {
                                 StudioField {id:titleInput;Layout.fillWidth:true;placeholderText:"Event title"}
                                 StudioField {id:startInput;Layout.fillWidth:true;placeholderText:"Start · ISO date/time with offset"}
                                 StudioField {id:endInput;Layout.fillWidth:true;placeholderText:"End · ISO date/time with offset"}
-                                RowLayout {CheckBox {id:allDay;text:"All day"} ComboBox {id:recurrence;model:["Once","Daily","Weekly","Monthly"]}}
+                                RowLayout {CheckBox {id:allDay;text:"All day"} Basic.ComboBox {id:recurrence;model:["Once","Daily","Weekly","Monthly"]}}
                                 StudioText {id:notesInput;Layout.fillWidth:true;placeholderText:"Notes";wrapMode:TextEdit.Wrap;Layout.preferredHeight:80}
                                 RowLayout {
                                     StudioButton {text:root.current.id ? "Save changes" : "Create event";enabled:titleInput.text.trim()!=="";onClicked:root.request(root.current.id ? "calendar.save" : "calendar.new",{id:root.current.id,title:titleInput.text,start:startInput.text,end:endInput.text,notes:notesInput.text,allDay:allDay.checked,rrule:["","FREQ=DAILY","FREQ=WEEKLY","FREQ=MONTHLY"][Math.max(0,recurrence.currentIndex)],reminders:root.preview ? root.preview.reminders : root.current.reminders || [0]})}
@@ -263,7 +280,7 @@ Scope {
                                 StudioField {id:albumName;Layout.fillWidth:true;placeholderText:"Album name";text:root.current.album || "Library"}
                                 RowLayout {
                                     StudioButton {text:"Set album";enabled:!!root.current.id;onClicked:root.request("photos.album",{id:root.current.id,album:albumName.text})}
-                                    ComboBox {id:editOperation;model:["Copy original","Rotate 90°","Square crop"]}
+                                    Basic.ComboBox {id:editOperation;model:["Copy original","Rotate 90°","Square crop"]}
                                     StudioButton {text:"Export copy";enabled:!!root.current.id;onClicked:{root.exportOperation=["copy","rotate","square"][editOperation.currentIndex];exportDialog.open();}}
                                 }
                                 CheckBox {id:allowUploads;text:"Allow LAN participants to upload photos";enabled:!root.shareActive}
@@ -282,7 +299,7 @@ Scope {
                 Label {Layout.fillWidth:true;Layout.margins:10;text:root.message;color:root.secondary;wrapMode:Text.WordWrap;visible:text!==""}
             }
         }
-        Dialog {id:deleteConfirmation;title:"Delete selected item?";modal:true;anchors.centerIn:parent;standardButtons:Dialog.Ok | Dialog.Cancel;onAccepted:{root.request(root.appKind+".delete",{id:root.current.id});root.current=({});}}
+        Basic.Dialog {id:deleteConfirmation;title:"Delete selected item?";modal:true;anchors.centerIn:parent;standardButtons:Dialog.Ok | Dialog.Cancel;onAccepted:{root.request(root.appKind+".delete",{id:root.current.id});root.current=({});}}
         Shortcut {sequence:"Escape";onActivated:win.close()}
         Shortcut {sequence:"StandardKey.Refresh";onActivated:root.refresh()}
     }

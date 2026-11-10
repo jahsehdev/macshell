@@ -1,5 +1,10 @@
 .pragma library
 
+function sourcePath(source) {
+    const path = String(source || "").split(/[?#]/, 1)[0].replace(/^file:\/\//, "");
+    try { return decodeURIComponent(path); } catch (error) { return path; }
+}
+
 function color(value) { return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value); }
 function normalize(value) {
     var o = value && typeof value === "object" ? value : {};

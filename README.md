@@ -251,6 +251,10 @@ installation needs the compiled applications and native plugins.
 | Resize a desktop widget | Right-click the widget → Small / Medium / Large / Extra Large |
 | Photo Booth | Launchpad → Photo Booth / `tahoe-photobooth` |
 
+Glass & Corners controls are removed from System Settings. The shipped glass
+defaults use translucency 0, liquid strength 0.5, a 32 px Dock corner radius and
+57% Dock corner smoothing, including after resetting settings.
+
 Application details: [Photo Booth](apps/tahoe-photobooth/README.md).
 
 **Shake to find** temporarily enlarges the current cursor up to 4× and smoothly
@@ -387,5 +391,10 @@ This distribution includes customizations of
 [0-ss/MacShell](https://github.com/0-ss/MacShell),
 [MacTahoe GTK](https://github.com/vinceliuice/MacTahoe-gtk-theme), and
 [MacTahoe icons](https://github.com/vinceliuice/MacTahoe-icon-theme).
+The default application icon theme is `macOS-27`, using artwork from
+[zagnut531/macOS-27-Icons](https://github.com/zagnut531/macOS-27-Icons).
+Its 27 application mappings inherit missing icons and symbolic controls from
+MacTahoe-dark, and keep MacShell folder color/style customization. See
+[the icon theme notes](icons/macOS-27/README.md) for source and import details.
 See [THIRD_PARTY.md](THIRD_PARTY.md) for component licenses.
 This is an independent Linux project and is not affiliated with Apple.

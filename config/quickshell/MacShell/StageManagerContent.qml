@@ -74,13 +74,13 @@ Item {
                                     Column {
                                         anchors.centerIn: parent
                                         visible: !card.modelData.windows.length || !card.modelData.windows[0].shot
-                                        Image {
+                                        Common.AppIcon {
                                             anchors.horizontalCenter: parent.horizontalCenter
                                             width: 40; height: 40
                                             readonly property var entry: root.appEntry(card.modelData.windows.length ? card.modelData.windows[0].app : "")
-                                            source: entry ? Quickshell.iconPath(entry.icon) : ""
+                                            source: entry ? (Common.IconStyle.appSource(entry.icon) || Quickshell.iconPath(entry.icon)) : ""
                                             fillMode: Image.PreserveAspectFit
-                                            layer.enabled: Common.IconStyle.effectMode !== 0
+                                            layer.enabled: Common.IconStyle.effectFor(source) !== 0
                                             layer.effect: Common.IconStyleEffect {}
                                         }
                                         Text { width: 126; text: card.modelData.title; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; color: Common.IconStyle.dark ? "white" : "#343640"; font.pixelSize: 11 }
@@ -113,16 +113,21 @@ Item {
                                         }
                                     }
                                 }
-                                Menu {
+                                Common.ThemedMenu {
                                     id: stageMenu
+                                    dark: root.hub && root.hub.dock ? root.hub.dock.darkMode : Common.IconStyle.systemDark
+                                    wallpaperSource: root.hub && root.hub.dock ? root.hub.dock.fileUrl(root.hub.dock.wallpaperFor(panel.modelData.name)) : ""
+                                    screenSize: Qt.size(panel.modelData.width, panel.modelData.height)
+                                    screenOrigin: Qt.point(panel.modelData.x, panel.modelData.y)
+                                    borderTint: root.hub && root.hub.bar ? root.hub.bar.menuBorderColor : "#8A9AB5"
                                     onOpened: panel.menuOpen = true
                                     onClosed: panel.menuOpen = false
-                                    MenuItem { text: "Open Stage"; onTriggered: root.controller.activate(card.dragAddress) }
-                                    MenuItem { text: "Add to Current Group"; enabled: panel.currentGroup.length > 0; onTriggered: { for (var i = 0; i < card.modelData.windows.length; i++) root.controller.send({action: "join", addr: card.modelData.windows[i].addr}); } }
-                                    MenuSeparator {}
+                                    Common.ThemedMenuItem { text: "Open Stage"; onTriggered: root.controller.activate(card.dragAddress) }
+                                    Common.ThemedMenuItem { text: "Add to Current Group"; enabled: panel.currentGroup.length > 0; onTriggered: { for (var i = 0; i < card.modelData.windows.length; i++) root.controller.send({action: "join", addr: card.modelData.windows[i].addr}); } }
+                                    Common.ThemedMenuSeparator {}
                                     Repeater {
                                         model: card.modelData.windows
-                                        MenuItem {
+                                        Common.ThemedMenuItem {
                                             required property var modelData
                                             text: "Open: " + modelData.title
                                             onTriggered: root.controller.activate(modelData.addr)

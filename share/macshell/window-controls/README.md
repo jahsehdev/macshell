@@ -1,5 +1,10 @@
 # Integrated application window controls
 
+The global [window policy](../window-policy/README.md) now supplies fallback
+traffic lights for clients without a native integration and applies the default
+75% work-area size to new main windows. The native integrations below remain the
+preferred controls; their ready tag prevents a second titlebar.
+
 Installed on 2026-10-24. Red, yellow and green buttons live inside existing
 application rows. A window receives the `macshell-native-controls` Hyprland tag
 only after its application reports that its controls are ready. The tag disables
@@ -45,6 +50,13 @@ Spotify reuses that process and its existing bridge. A Spotify instance already
 running from the original installation must be closed normally before the local
 copy can become active.
 
+The local `spotify.desktop` entry starts `macshell-spotify`, which preserves
+`~/.config/spotify-flags.conf` and forwards Spotify URI arguments to the overlay.
+The native menu inset patch supports the verified 1.3.4.258 and 1.3.8.620
+executables. Other builds retain the original application until their menu
+layout has been inspected; both the executable hash and instruction bytes must
+match before a local copy is patched.
+
 Spotify's connection port and token persist in the private integrated-apps
 directory, so cached HTML can reconnect after a relaunch. The injected JS and
 CSS URLs include a content revision, and the readiness handshake retries when
@@ -59,12 +71,21 @@ app, and the existing fullscreen lock use the compositor's normal behavior.
 An ignored X11 move message is no longer treated as a successful drag. Search,
 navigation, account controls and traffic lights keep their input. Build the
 plugin with `build.sh` using matching Hyprland headers.
+`build.sh --spotify-only` rebuilds just the drag integration. On launch, a stale
+or missing drag build is rebuilt automatically only when the installed headers
+match the running compositor commit; a mismatched build is never loaded.
 
 Spotify minimize calls MacShell's `minimize addr` endpoint with the verified
 window address. It does not rely on Quickshell's focused-toplevel lookup, which
 can omit an XWayland window. The bridge confirms the window reached
 `special:minimized` before returning success. Close and maximize keep their
 existing dispatch paths.
+The minimize bridge allows up to 12 seconds for a shell reload, screenshot and
+animation. An IPC timeout first checks the verified window's workspace, then
+retries the same address if needed. The web request allows 18 seconds so it
+does not expire while the backend is still recovering. This addresses the
+2026-11-10 failure where a seven-second QML reload exceeded the old three-second
+IPC timeout.
 
 The 2026-11-03 Spotify regression tests cover connection reuse, cache revision,
 reconnection, button targeting, toolbar gestures and interactive-area exclusion.

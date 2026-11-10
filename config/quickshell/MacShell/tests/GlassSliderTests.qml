@@ -68,6 +68,11 @@ Window {
                 widget.seekHold = false;
             }
             seekSpy.clear();
+            const closingLyrics = player.lyricsOn;
+            player.lyricsOn = false;
+            if (closingLyrics) wait(450);
+            player.lyrics = [];
+            player.lyricsSynced = false;
         }
         function test_scale_and_value_binding() {
             verify(slider.handle.width > slider.handle.height * 1.4);
@@ -127,6 +132,25 @@ Window {
                 mouseClick(control, control.width / 2, control.height / 2);
                 compare(seekSpy.count, 1, "Gallery previews must not seek the player");
             }
+        }
+        function test_desktop_lyrics_follow_seek_and_plain_scroll_with_blur() {
+            player.lyrics = Array.from({length:7},(_,index)=>({t:index*10,text:"Desktop lyric "+index}));
+            player.lyricsState = "ok";player.lyricsSynced = true;player.position = 15;
+            player.lyricsOn = true;wait(750);
+            const list=findChild(player,"desktopLyricsList");
+            const first=findChild(player,"desktopLyricLine1");
+            const next=findChild(player,"desktopLyricLine2");
+            compare(list.currentIndex,1);verify(first.cur);verify(first.bl<0.001);verify(next.bl>0.13);
+            const start=list.contentY;player.position=25;wait(50);
+            verify(list.contentY>start && list.contentY<list.currentItem.y-list.preferredHighlightBegin);
+            verify(first.bl>0 && first.bl<0.14);verify(next.bl>0 && next.bl<0.14);
+            tryVerify(()=>next.bl<0.001);
+            player.position=5;tryCompare(list,"currentIndex",0);
+            tryVerify(()=>!findChild(player,"desktopLyricsScrollMotion").running,1500);
+            fuzzyCompare(list.contentY,list.currentItem.y-list.preferredHighlightBegin,0.1);
+            player.lyricsSynced=false;
+            list.contentY=next.y-list.preferredHighlightBegin;wait(700);
+            compare(list.currentIndex,2);verify(next.cur);verify(next.bl<0.001);verify(first.bl>0.13);
         }
     }
 }

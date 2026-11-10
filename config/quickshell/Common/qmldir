@@ -1,17 +1,26 @@
 singleton CornerTheme 1.0 CornerTheme.qml
 singleton GlassMaterial 1.0 GlassMaterial.qml
+LiquidGlassSurface 1.0 LiquidGlassSurface.qml
 singleton ThemeColors 1.0 ThemeColors.qml
 ColorDot 1.0 ColorDot.qml
 singleton IconStyle 1.0 IconStyle.qml
 IconStyleEffect 1.0 IconStyleEffect.qml
+AppIcon 1.0 AppIcon.qml
 singleton LaunchpadGlassState 1.0 LaunchpadGlassState.qml
 LaunchpadBackground 1.0 LaunchpadBackground.qml
 ActivityLoader 1.0 ActivityLoader.qml
 ContinuousRectangle 1.0 ContinuousRectangle.qml
 ContinuousBorder 1.0 ContinuousBorder.qml
 MenuHighlight 1.0 MenuHighlight.qml
+ThemedMenu 1.0 ThemedMenu.qml
+ThemedMenuItem 1.0 ThemedMenuItem.qml
+ThemedMenuSeparator 1.0 ThemedMenuSeparator.qml
+FrostedMenuSurface 1.0 FrostedMenuSurface.qml
 
 singleton DesktopPreferences 1.0 DesktopPreferences.qml
 singleton AppMenu 1.0 AppMenu.qml
 
 GlassSlider 1.0 GlassSlider.qml
+SettingsSwitch 1.0 SettingsSwitch.qml
+
+LyricsService 1.0 LyricsService.qml

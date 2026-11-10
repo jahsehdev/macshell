@@ -72,7 +72,8 @@ Item {
     width: pillWidth + buttonGap + buttonSize
 
     function focusInput() {
-        input.forceActiveFocus();
+        if (LaunchpadState.shown && !input.activeFocus)
+            input.forceActiveFocus();
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -155,124 +156,154 @@ Item {
         }
 
         // ── text field ────────────────────────────────────────────────────────
-        TextInput {
-            selectionColor: Corners.ThemeColors.selectionFor("launchpad", Theme.darkMode)
-            selectedTextColor: Corners.ThemeColors.selectedTextFor("launchpad", Theme.darkMode)
-            id: input
-
+        // TextInput in the installed Qt eagerly reads clipboard text when a
+        // Wayland offer changes, blocking the UI if its owner does not reply.
+        // Plain TextEdit checks MIME formats and reads text only on paste.
+        Flickable {
+            id: inputViewport
             anchors.left: magnifier.right
             anchors.leftMargin: root.iconTextGap
             anchors.right: parent.right
             anchors.rightMargin: root.padRight
             anchors.verticalCenter: parent.verticalCenter
             height: root.height
-
-            text: LaunchpadState.query
-            color: Theme.searchText
-
-
-            font.family: Theme.fontFamily
-            font.pixelSize: root.fontPx
-            verticalAlignment: TextInput.AlignVCenter
+            contentWidth: Math.max(width, input.contentWidth)
+            contentHeight: height
+            interactive: false
             clip: true
-            selectByMouse: true
-            cursorVisible: LaunchpadState.shown
-            activeFocusOnPress: true
-            inputMethodHints: Qt.ImhNoPredictiveText
 
-            onTextChanged: {
-                if (text !== LaunchpadState.query)
-                    LaunchpadState.setQuery(text);
+            function ensureCursorVisible() {
+                const cursor = input.cursorRectangle;
+                if (cursor.x < contentX)
+                    contentX = cursor.x;
+                else if (cursor.x + cursor.width > contentX + width)
+                    contentX = cursor.x + cursor.width - width;
+                contentX = Math.max(0, Math.min(contentX, Math.max(0, contentWidth - width)));
             }
+            onWidthChanged: ensureCursorVisible()
 
-            Connections {
-                target: LaunchpadState
-                function onQueryChanged() {
-                    if (input.text !== LaunchpadState.query)
-                        input.text = LaunchpadState.query;
-                }
-            }
+            TextEdit {
+                selectionColor: Corners.ThemeColors.selectionFor("launchpad", Theme.darkMode)
+                selectedTextColor: Corners.ThemeColors.selectedTextFor("launchpad", Theme.darkMode)
+                id: input
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: input.text.length === 0
-                text: "Search Applications"
-                color: Theme.searchPlaceholder
+                width: Math.max(inputViewport.width, contentWidth)
+                height: root.height
+                textFormat: TextEdit.PlainText
+                wrapMode: TextEdit.NoWrap
+
+                text: LaunchpadState.query
+                color: Theme.searchText
+
+
                 font.family: Theme.fontFamily
-                font.pixelSize: input.font.pixelSize
-                elide: Text.ElideRight
-                width: parent.width
-            }
+                font.pixelSize: root.fontPx
+                verticalAlignment: TextEdit.AlignVCenter
+                clip: true
+                selectByMouse: true
+                cursorVisible: LaunchpadState.shown
+                activeFocusOnPress: true
+                inputMethodHints: Qt.ImhNoPredictiveText
 
-            Keys.onPressed: function (event) {
-                if (event.key === Qt.Key_Escape) {
-                    if (LaunchpadState.query !== "") {
-                        LaunchpadState.setQuery("");
-                    } else if (LaunchpadState.folderOpen) {
-                        LaunchpadState.closeFolder();
-                    } else {
-                        LaunchpadState.close();
+                onTextChanged: {
+                    // Keep pasted multiline text on one searchable line.
+                    const singleLine = text.replace(/[\r\n\u2028\u2029]+/g, " ");
+                    if (text !== singleLine) text = singleLine;
+                    if (singleLine !== LaunchpadState.query)
+                        LaunchpadState.setQuery(singleLine);
+                    Qt.callLater(inputViewport.ensureCursorVisible);
+                }
+                onCursorRectangleChanged: inputViewport.ensureCursorVisible()
+
+                Connections {
+                    target: LaunchpadState
+                    function onQueryChanged() {
+                        if (input.text !== LaunchpadState.query)
+                            input.text = LaunchpadState.query;
                     }
-                    event.accepted = true;
-                    return;
                 }
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    LaunchpadState.launch(LaunchpadState.currentItem, true);
-                    event.accepted = true;
-                    return;
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: input.text.length === 0
+                    text: "Search Applications"
+                    color: Theme.searchPlaceholder
+                    font.family: Theme.fontFamily
+                    font.pixelSize: input.font.pixelSize
+                    elide: Text.ElideRight
+                    width: inputViewport.width
                 }
-                if (event.key === Qt.Key_Up) {
-                    LaunchpadState.moveSelection(0, -1);
-                    event.accepted = true;
-                    return;
-                }
-                if (event.key === Qt.Key_Down) {
-                    LaunchpadState.moveSelection(0, 1);
-                    event.accepted = true;
-                    return;
-                }
-                if (event.key === Qt.Key_Left) {
-                    if (LaunchpadState.query === "" && !(event.modifiers & Qt.ControlModifier)) {
+
+                Keys.onPressed: function (event) {
+                    if (event.key === Qt.Key_Escape) {
+                        if (LaunchpadState.query !== "") {
+                            LaunchpadState.setQuery("");
+                        } else if (LaunchpadState.folderOpen) {
+                            LaunchpadState.closeFolder();
+                        } else {
+                            LaunchpadState.close();
+                        }
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        LaunchpadState.launch(LaunchpadState.currentItem, true);
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_Up) {
+                        LaunchpadState.moveSelection(0, -1);
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_Down) {
+                        LaunchpadState.moveSelection(0, 1);
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_Left) {
+                        if (LaunchpadState.query === "" && !(event.modifiers & Qt.ControlModifier)) {
+                            LaunchpadState.moveSelection(-1, 0);
+                            event.accepted = true;
+                        } else if (event.modifiers & Qt.ControlModifier) {
+                            LaunchpadState.setPage(LaunchpadState.page - 1);
+                            event.accepted = true;
+                        }
+                        return;
+                    }
+                    if (event.key === Qt.Key_Right) {
+                        if (LaunchpadState.query === "" && !(event.modifiers & Qt.ControlModifier)) {
+                            LaunchpadState.moveSelection(1, 0);
+                            event.accepted = true;
+                        } else if (event.modifiers & Qt.ControlModifier) {
+                            LaunchpadState.setPage(LaunchpadState.page + 1);
+                            event.accepted = true;
+                        }
+                        return;
+                    }
+                    if (event.key === Qt.Key_Tab) {
+                        LaunchpadState.moveSelection((event.modifiers & Qt.ShiftModifier) ? -1 : 1, 0);
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_Backtab) {
                         LaunchpadState.moveSelection(-1, 0);
                         event.accepted = true;
-                    } else if (event.modifiers & Qt.ControlModifier) {
-                        LaunchpadState.setPage(LaunchpadState.page - 1);
+                        return;
+                    }
+                    if (event.key === Qt.Key_Home) {
+                        LaunchpadState.selected = 0;
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_End) {
+                        LaunchpadState.selected = Math.max(0, LaunchpadState.viewItems.length - 1);
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_Backspace && LaunchpadState.query === "") {
                         event.accepted = true;
                     }
-                    return;
-                }
-                if (event.key === Qt.Key_Right) {
-                    if (LaunchpadState.query === "" && !(event.modifiers & Qt.ControlModifier)) {
-                        LaunchpadState.moveSelection(1, 0);
-                        event.accepted = true;
-                    } else if (event.modifiers & Qt.ControlModifier) {
-                        LaunchpadState.setPage(LaunchpadState.page + 1);
-                        event.accepted = true;
-                    }
-                    return;
-                }
-                if (event.key === Qt.Key_Tab) {
-                    LaunchpadState.moveSelection((event.modifiers & Qt.ShiftModifier) ? -1 : 1, 0);
-                    event.accepted = true;
-                    return;
-                }
-                if (event.key === Qt.Key_Backtab) {
-                    LaunchpadState.moveSelection(-1, 0);
-                    event.accepted = true;
-                    return;
-                }
-                if (event.key === Qt.Key_Home) {
-                    LaunchpadState.selected = 0;
-                    event.accepted = true;
-                    return;
-                }
-                if (event.key === Qt.Key_End) {
-                    LaunchpadState.selected = Math.max(0, LaunchpadState.viewItems.length - 1);
-                    event.accepted = true;
-                    return;
-                }
-                if (event.key === Qt.Key_Backspace && LaunchpadState.query === "") {
-                    event.accepted = true;
                 }
             }
         }

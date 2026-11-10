@@ -9,9 +9,11 @@ FocusScope {
     required property var desktop
     required property var widgets
     property Item overlay: null
+    property url menuWallpaper: ""
+    property color menuBorderTint: "#8A9AB5"
     property string widgetTarget: ""
     property string renameTarget: ""
-    readonly property bool dark: widgets.darkGlass
+    readonly property bool dark: widgets.systemDark
     readonly property string fam: widgets.fontFamily
     property real pressX: 0
     property real pressY: 0
@@ -201,6 +203,9 @@ FocusScope {
         objectName: "folderContextMenu"
         parent: surface.overlay || surface
         dark: surface.dark
+        wallpaperSource: surface.menuWallpaper
+        screenSize: Qt.size(surface.width, surface.height)
+        borderTint: surface.menuBorderTint
         fontFamily: surface.fam
         onChosen: action => {
             surface.closeMenu();
@@ -237,6 +242,9 @@ FocusScope {
         y: surface.customizePlacement.y
         sourceComponent: Folders.FolderCustomizer {
             folderPath: surface.customizePath
+            wallpaperSource: surface.menuWallpaper
+            screenSize: Qt.size(surface.width, surface.height)
+            samplePosition: Qt.point(customizer.x, customizer.y)
             dark: surface.dark
             fontFamily: surface.fam
             height: surface.customizeHeight

@@ -37,14 +37,14 @@ export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-Hyprland}"
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland}"
 if [ -f "$CONF/macshell/env" ]; then set -a; . "$CONF/macshell/env"; set +a; fi
 
-# Use the same icon theme as the rest of the desktop (MacTahoe-dark here)
+# Use the same icon theme as the rest of the desktop (macOS-27 by default)
 # instead of Qt's fallback hicolor theme. Without this, apps whose desktop
 # entry names an icon that only exists in MacTahoe show a generic placeholder.
 if [ -z "${QS_ICON_THEME:-}" ]; then
     t=$(sed -n 's/^gtk-icon-theme-name *= *//p' "$CONF/gtk-3.0/settings.ini" 2>/dev/null | head -n1)
     [ -n "$t" ] && export QS_ICON_THEME="$t"
 fi
-[ -n "${QS_ICON_THEME:-}" ] || export QS_ICON_THEME=MacTahoe-dark
+[ -n "${QS_ICON_THEME:-}" ] || export QS_ICON_THEME=macOS-27
 
 # restart on crash, but stop when quickshell exits on purpose
 fast=0

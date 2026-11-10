@@ -26,13 +26,14 @@ Item {
             border.width: 1
             visible: icon.selected
         }
-        Image {
+        Corners.AppIcon {
             id: image
+            scale: icon.file.image || icon.file.directory ? 1 : Corners.IconStyle.scaleFor(source)
             x: 20; y: 6; width: 64; height: 64
             source: icon.file.customIcon || (icon.file.directory && Corners.IconStyle.folderSource("folder") !== "" ? Corners.IconStyle.folderSource("folder")
-                : icon.file.image ? icon.file.url : (Quickshell.iconPath(icon.file.icon, true)
+                : icon.file.image ? icon.file.url : (Corners.IconStyle.appSource(icon.file.icon) || Quickshell.iconPath(icon.file.icon, true)
                 || Quickshell.iconPath(icon.file.fallback, true) || Quickshell.iconPath("text-x-generic")))
-            layer.enabled: !icon.file.image && !icon.file.directory && Corners.IconStyle.effectMode !== 0
+            layer.enabled: !icon.file.image && !icon.file.directory && Corners.IconStyle.effectFor(source) !== 0
             layer.effect: Corners.IconStyleEffect {}
             sourceSize: Qt.size(128, 128)
             fillMode: Image.PreserveAspectFit

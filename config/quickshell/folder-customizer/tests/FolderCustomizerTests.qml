@@ -26,6 +26,10 @@ Window {
         name: "Recipes"
         colorValue: "#ffd43b"
         ready: true
+        wallpaperSource: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="540" height="780"><defs><linearGradient id="g" x2="0" y2="1"><stop stop-color="#9bdce8"/><stop offset=".5" stop-color="#207fc5"/><stop offset="1" stop-color="#0044a6"/></linearGradient></defs><path fill="url(#g)" d="M0 0h540v780H0z"/></svg>')
+        screenSize: Qt.size(540, 780)
+        samplePosition: Qt.point(x, y)
         iconUrl: Quickshell.env("MACSHELL_PREVIEW_ICON")
     }
     FileView {
@@ -83,6 +87,18 @@ Window {
             verify(hex.acceptableInput);
             hex.text = "#12";
             verify(!hex.acceptableInput);
+        }
+        function test_menu_popups_use_the_same_frosted_profile() {
+            mouseClick(findChild(panel, "emojiButton"));
+            const emoji = findChild(panel, "emojiPickerMaterial");
+            verify(emoji !== null);
+            compare(emoji.blurRadius, 32);
+            verify(String(emoji.shaderUrl).endsWith("LiquidGlass-frosted-menu.frag.qsb"));
+            keyClick(Qt.Key_Escape);
+            mouseClick(findChild(panel, "customColorButton"));
+            const color = findChild(panel, "customColorPickerMaterial");
+            compare(color.blurRadius, emoji.blurRadius);
+            compare(color.shaderUrl, emoji.shaderUrl);
         }
         function test_05_clear_and_dismiss() {
             panel.applySymbol("cutlery");

@@ -11,10 +11,11 @@ Controls.Slider {
     property color handleColor: dark ? "#c9ced4" : "#f1f2f4"
     property color surfaceColor: dark ? "#303234" : "#d8d8d8"
     property real uiScale: 1
-    property real materialOpacity: DesktopPreferences.glassOpacity(0.42)
-    property real glassBlur: DesktopPreferences.glassBlur(5)
-    property real liquidStrength: DesktopPreferences.glassLiquid(1)
-    property real glassRim: DesktopPreferences.glassRim(0.45)
+    property real materialOpacity: DesktopPreferences.glassOpacity(GlassMaterial.baseOpacity)
+    property real glassBlur: DesktopPreferences.glassBlur(GlassMaterial.baseBlur)
+    property real liquidStrength: DesktopPreferences.glassLiquid(GlassMaterial.baseLiquid)
+    property real glassRim: DesktopPreferences.glassRim(GlassMaterial.baseRim)
+    readonly property var material: GlassMaterial.profile(GlassMaterial.intensity)
     property bool tickMarks: false
     readonly property bool software: GraphicsInfo.api === GraphicsInfo.Software
     readonly property real pressProgress: thumb.pressProgress
@@ -116,17 +117,16 @@ Controls.Slider {
             // distortion. The material tint still follows system preferences.
             ShaderEffect {
                 anchors.fill: parent
-                fragmentShader: Qt.resolvedUrl("slider-glass-v2.frag.qsb")
+                fragmentShader: Qt.resolvedUrl("LiquidGlass-slider.frag.qsb")
                 property variant src: trackSource
                 property vector2d itemSize: Qt.vector2d(width, height)
                 property vector2d srcSize: Qt.vector2d(slider.background.width, slider.background.height)
                 property vector2d srcOffset: Qt.vector2d(thumb.x - slider.background.x, thumb.y - slider.background.y)
                 property vector4d baseColor: Qt.vector4d(slider.surfaceColor.r, slider.surfaceColor.g, slider.surfaceColor.b, 1)
-                property real materialOpacity: slider.materialOpacity
-                property real strength: slider.liquidStrength
-                property real rim: slider.glassRim
                 property real dark: slider.dark ? 1 : 0
                 property real spread: thumb.scale
+                property vector4d optics: Qt.vector4d(slider.material.thickness, slider.material.dispersion, slider.material.magnify, slider.material.saturation)
+                property vector4d finish: Qt.vector4d(slider.material.tint, slider.glassRim, DesktopPreferences.glassGrain(slider.material.grain), slider.material.blurPx)
             }
         }
     }

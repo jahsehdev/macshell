@@ -20,6 +20,15 @@ Scope {
     readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
     readonly property string nativeSignature: [mode, dark, String(folderColor)].join("|")
     property var nativeState: ({})
+    readonly property real artworkRatio: 0.875
+
+    function scaleFor(source) {
+        const path = Preset.sourcePath(source);
+        const name = path.replace(/^.*\//, "").replace(/\.(png|svg|xpm)$/, "");
+        const metrics = nativeState.iconGeometry || {};
+        const ratio = metrics[path] || metrics[name];
+        return ratio > 0 ? Math.max(0.5, Math.min(3, artworkRatio / ratio)) : 1;
+    }
 
     function widgetStyle(type) { return Preset.widgetStyle(settings, type, systemDark); }
     function setValue(key, value) {
@@ -31,8 +40,19 @@ Scope {
     function reset() { settings = Preset.normalize({}); preference.setText(JSON.stringify(settings, null, 2)); }
     function folderSource(name) {
         // The generated icon theme retains the folder's own emblem artwork.
+        const app = appSource(name);
+        if (app) return app;
         return nativeState.icons && nativeState.icons[name || "folder"]
             ? "file://" + nativeState.icons[name || "folder"] : "";
+    }
+    function appSource(name) {
+        const key = Preset.sourcePath(name).replace(/^.*\//, "").replace(/\.(png|svg|xpm)$/, "");
+        return nativeState.appIcons && nativeState.appIcons[key]
+            ? "file://" + nativeState.appIcons[key] : "";
+    }
+    function effectFor(source) {
+        const path = Preset.sourcePath(source);
+        return mode !== "tinted" && (nativeState.originalAppIcons || []).indexOf(path) >= 0 ? 0 : effectMode;
     }
     onNativeSignatureChanged: if (owner && loaded) nativeDelay.restart()
     onOwnerChanged: if (owner && loaded) nativeDelay.restart()

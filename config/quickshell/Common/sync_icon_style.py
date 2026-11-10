@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a folder-only icon theme; preserve the inherited application artwork."""
+"""Generate folder appearance and curated application variants over the base theme."""
 import argparse
 import colorsys
 import configparser
@@ -9,6 +9,33 @@ import os
 from pathlib import Path
 import re
 import subprocess
+
+from icon_geometry import geometry
+
+
+APP_ICONS = (
+    (("firefox", "org.mozilla.firefox", "firefox-esr"), {
+        "default": "Firefox-light.png", "dark": "Firefox.png",
+        "clear-light": "Firefox-clear-light.png", "clear-dark": "Firefox-clear-dark.png",
+        "fallback": "Firefox.png"}),
+    (("spotify", "spotify-client", "com.spotify.Client"), {
+        "default": "Spotify-light.png", "dark": "Spotify-dark.png", "fallback": "Spotify.png"}),
+    (("antigravity", "antigravity-ide", "com.google.Antigravity"), {
+        "default": "Antigravity.png", "fallback": "Antigravity.png"}),
+)
+
+
+def application_icons(style, dark):
+    assets = Path(__file__).with_name("app-icons")
+    variant = "clear-" + ("dark" if dark else "light") if style == "clear" else style
+    if style == "dark" and not dark:
+        variant = "default"
+    result = []
+    for aliases, variants in APP_ICONS:
+        path = assets / variants.get(variant, variants["fallback"])
+        if path.is_file():
+            result.append((aliases, path, variant in variants))
+    return result
 
 
 def atomic(path, text):
@@ -81,15 +108,19 @@ def apply(home, config, data, color, style, dark, notify=True):
         previous = json.loads(state_path.read_text())
     except (OSError, ValueError):
         previous = {}
-    current = ini_get(config / "gtk-3.0/settings.ini", "Settings", "gtk-icon-theme-name", "MacTahoe-dark")
-    base = previous.get("baseTheme", "MacTahoe-dark") if current.startswith("MacShellFolders-") else current
+    current = ini_get(config / "gtk-3.0/settings.ini", "Settings", "gtk-icon-theme-name", "macOS-27")
+    base = previous.get("baseTheme", "macOS-27") if current.startswith("MacShellFolders-") else current
     if not re.fullmatch(r"[\w. -]+", base) or base.startswith("MacShellFolders-"):
-        base = "MacTahoe-dark"
+        base = "macOS-27"
     source = next((p / base / "places/scalable" for p in (data / "icons", home / ".icons", Path("/usr/share/icons"))
                    if (p / base / "places/scalable/folder.svg").is_file()), None)
     if source is None:
         raise FileNotFoundError("The current icon theme has no scalable folder artwork: " + base)
-    digest = hashlib.sha256((base + color.lower() + style + str(dark) + "v1").encode()).hexdigest()[:12]
+    applications = application_icons(style, dark)
+    signature = hashlib.sha256((base + color.lower() + style + str(dark) + "v2").encode())
+    for aliases, path, exact in applications:
+        signature.update(path.read_bytes())
+    digest = signature.hexdigest()[:12]
     theme = "MacShellFolders-" + digest
     destination = data / "icons" / theme
     paths = {}
@@ -105,11 +136,24 @@ def apply(home, config, data, color, style, dark, notify=True):
     inode = destination / "scalable/places/inode-directory.svg"
     atomic(inode, Path(paths["folder"]).read_text())
     paths["inode-directory"] = str(inode)
+    app_paths, original_apps = {}, []
+    for aliases, path, exact in applications:
+        for alias in aliases:
+            out = destination / "scalable/apps" / (alias + ".png")
+            out.parent.mkdir(parents=True, exist_ok=True)
+            content = path.read_bytes()
+            if not out.exists() or out.read_bytes() != content:
+                temp = out.with_suffix(".tmp")
+                temp.write_bytes(content)
+                temp.replace(out)
+            app_paths[alias] = str(out)
+            if exact:
+                original_apps.append(str(out))
     atomic(destination / "index.theme", f"""[Icon Theme]
 Name={theme}
-Comment=MacShell folder appearance; inherited application icons remain original
+Comment=MacShell folder appearance and curated application icons
 Inherits={base},hicolor
-Directories=scalable/places
+Directories=scalable/places{',scalable/apps' if app_paths else ''}
 
 [scalable/places]
 Size=64
@@ -117,13 +161,20 @@ Type=Scalable
 MinSize=16
 MaxSize=512
 Context=Places
+\n[scalable/apps]
+Size=1024
+Type=Scalable
+MinSize=16
+MaxSize=1024
+Context=Applications
 """)
     for version in ("gtk-3.0", "gtk-4.0"):
         ini_set(config / version / "settings.ini", "Settings", "gtk-icon-theme-name", theme)
     ini_set(config / "qt6ct/qt6ct.conf", "Appearance", "icon_theme", theme)
     ini_set(config / "kdeglobals", "Icons", "Theme", theme)
     state = {"baseTheme": base, "theme": theme, "folderColor": color.lower(), "style": style,
-             "dark": dark, "icons": paths}
+             "dark": dark, "icons": paths, "appIcons": app_paths, "originalAppIcons": original_apps}
+    state["iconGeometry"] = geometry(home, config, data, base, app_paths)
     atomic(state_path, json.dumps(state, indent=2))
     if notify:
         for command in (["gtk-update-icon-cache", "-f", "-t", str(destination)],

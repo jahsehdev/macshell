@@ -133,7 +133,7 @@ Item {
                 loop: (host.player && host.player.loopSupported)
                       ? (host.player.loopState === MprisLoopState.Track ? 1 : (host.player.loopState === MprisLoopState.Playlist ? 2 : 0)) : 0
                 canLoop: host.player !== null && host.player.loopSupported
-                position: (host.player && host.player.positionSupported) ? host.player.position : 0
+                position: (host.player && host.player.positionSupported) ? (host.lyricsWanted ? host.lyricsPosition : host.player.position) : 0
                 length: (host.player && host.player.lengthSupported) ? host.player.length : 0
                 canSeek: host.player !== null && host.player.canSeek && host.player.positionSupported && host.player.lengthSupported
                 lyrics: host.lyricsLines

@@ -36,6 +36,7 @@ Window {
     QtObject {
         id: widgets
         property bool darkGlass: false
+        property bool systemDark: false
         property string fontFamily: "sans-serif"
         property string pickError: ""
         property bool editing: false
@@ -91,11 +92,42 @@ Window {
             verify(!menu.entries.some(function(row) { return row.palette === true; }));
             desktop.selected = ["Recipes"];
         }
+        function test_03_theme_follows_appearance_independently_of_widget_style() {
+            surface.openFileMenu(720, 80);
+            const menu = findChild(surface, "folderContextMenu");
+            widgets.darkGlass = false;
+            widgets.systemDark = true;
+            compare(menu.dark, true);
+            compare(findChild(menu, "desktopMenuMaterial").dark, true);
+            widgets.darkGlass = true;
+            widgets.systemDark = false;
+            compare(menu.dark, false);
+            compare(findChild(menu, "desktopMenuMaterial").dark, false);
+            const dir = Quickshell.env("MACSHELL_PREVIEW_DIR");
+            if (dir) {
+                for (const dark of [true, false]) {
+                    widgets.systemDark = dark;
+                    for (const action of ["open", "folder", "rename", "trash", "customize"])
+                        tryCompare(findChild(menu, "desktopMenuIcon-" + action), "status", Image.Ready);
+                    let done = false;
+                    window.contentItem.grabToImage(function(result) {
+                        result.saveToFile(dir + "/folder-menu-" + (dark ? "dark" : "light") + ".png"); done = true;
+                    });
+                    tryVerify(function() { return done; });
+                }
+            }
+            widgets.darkGlass = false;
+            surface.closeMenu();
+        }
         function test_04_real_customizer_loads_and_stays_inside_screen() {
             surface.customizeFolder();
             const loader = findChild(surface, "folderCustomizerLoader");
             tryVerify(function() { return loader.item && loader.item.ready; }, 5000);
             compare(loader.item.name, "Recipes");
+            widgets.systemDark = true;
+            compare(loader.item.dark, true);
+            widgets.systemDark = false;
+            compare(loader.item.dark, false);
             compare(loader.item.symbols.length, 71);
             const font = findChild(loader.item, "folderEmojiTypeface");
             verify(font !== null);

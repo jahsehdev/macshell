@@ -18,7 +18,6 @@ Item {
         anchors.fill: parent
         backdrop: root.backdrop
         screenPosition: root.backdropPosition
-        blurAmount: Theme.folderBackgroundBlur * 0.16
         active: root.backdrop !== null && LaunchpadState.windowVisible
                 && GraphicsInfo.api !== GraphicsInfo.Software
                 && LaunchpadState.viewItems.some(it => it.kind === "folder")

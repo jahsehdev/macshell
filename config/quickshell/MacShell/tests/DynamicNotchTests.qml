@@ -107,7 +107,7 @@ Window {
         property bool reduceTransparency: false
         property bool effDark: true
         property bool liquidActive:false
-        property url glassShaderUrl:Qt.resolvedUrl("../liquidglass.frag.qsb")
+        property url glassShaderUrl:Qt.resolvedUrl("../Common/LiquidGlass.frag.qsb")
         property color menuBorderColor:"#9BC9E5"
         property bool notchIdleEyes: true
         property string fontFamily: "sans-serif"
@@ -562,6 +562,18 @@ Window {
             mouseClick(findChild(notch, "notchMusicPlayPause"));
             compare(media.isPlaying, !playing);
         }
+        function test_plain_lyrics_retain_lock_style_blur_when_scrolled() {
+            fakeBar.player=media;notch.pinned=true;fakeWidgets.lyricsSynced=false;
+            fakeWidgets.lyricsLines=Array.from({length:7},(_,index)=>({t:-1,text:"Plain lyric "+index}));
+            const view=findChild(notch,"notchMusic");view.lyricsOpen=true;wait(700);
+            const list=findChild(notch,"notchLyricsList");
+            const line=findChild(notch,"notchLyricLine2");
+            list.contentY=line.y-list.preferredHighlightBegin;wait(700);
+            compare(list.currentIndex,2);verify(line.active);verify(line.blurAmount<0.001);
+            verify(findChild(notch,"notchLyricLine3").blurAmount>0.13);
+            const index=list.currentIndex;media.position=150;wait(100);
+            compare(list.currentIndex,index,"Plain lyrics follow scrolling rather than invented timing");
+        }
         function test_timer_and_record_controls() {
             fakeClock.timerActive = true; notch.pinned = true;
             mouseClick(button("Pause")); compare(fakeClock.timer.state, "paused");
@@ -846,17 +858,18 @@ Window {
             fakeBar.player=media;notch.pinned=true;
             const optical=createTemporaryObject(glassOpticsFixture,window,{host:notch,width:640,height:160});
             verify(optical!==null);const lens=findChild(optical,"notchGlassLens");const blur=findChild(optical,"notchGlassBlur");
-            verify(lens.clearSrc!==null);compare(lens.src,lens.clearSrc);compare(optical.materialBlurRadius,notch.glassBlurRadius);compare(lens.rim,0);compare(lens.wingSize,24);compare(lens.radius,36);
-            compare(lens.tintOpacity,notch.glassOpacity);compare(lens.liquidStrength,notch.glassLiquid);compare(blur.blur,optical.blurAmount);
+            verify(lens.clearSrc!==null);compare(lens.src,lens.clearSrc);compare(optical.materialBlurRadius,notch.glassBlurRadius);compare(lens.finish.y,notch.glassRim);compare(lens.wingSize,24);compare(lens.radius,36);
+            compare(lens.finish.x,Common.GlassMaterial.profile(Common.GlassMaterial.intensity).tint);compare(lens.optics.x,Common.GlassMaterial.profile(Common.GlassMaterial.intensity).thickness);compare(blur.blur,optical.blurAmount);
             fakeBar.notchMode="floating";notch.pinned=true;compare(lens.wingSize,0);compare(lens.radius,36);
             fakeBar.notchMode="attached";notch.pinned=true;window.width=320;wait(30);
             verify(lens.wingSize>0 && lens.wingSize<24);verify(lens.radius>0 && lens.radius<36);
             notch.close();compare(lens.radius,12);
         }
         function test_glass_follows_shared_appearance_material_live() {
-            const previousHub=fakeBar.hub,previousIntensity=Common.GlassMaterial.intensity;
+            const previousHub=fakeBar.hub,previousIntensity=Common.GlassMaterial.intensity,previousTuning=Common.GlassMaterial.tuning;
             try {
                 fakeBar.hub=({clock:fakeClock,widgets:fakeWidgets,dock:fakeGlassSettings});
+                Common.GlassMaterial.tuning={glassOpacity:0.42,glassBlur:5,glassLiquid:1,glassRim:0.45,glassGrain:0.03};
                 const optical=createTemporaryObject(glassOpticsFixture,window,{host:notch,width:640,height:160});
                 verify(optical!==null);
                 const blur=findChild(optical,"notchGlassBlur");
@@ -871,9 +884,9 @@ Window {
                 Common.GlassMaterial.intensity=0;
                 compare(notch.glassOpacity,0.42);compare(notch.glassBlurRadius,5);compare(notch.glassLiquid,1);
                 compare(optical.materialBlurRadius,5);
-                fakeGlassSettings.blur=0;compare(optical.materialBlurRadius,0);verify(!blur.blurEnabled);
-                fakeGlassSettings.blur=5;compare(optical.materialBlurRadius,5);verify(blur.blurEnabled);
-                fakeGlassSettings.opacity=0.7;fakeGlassSettings.blur=18;fakeGlassSettings.liquid=1.8;fakeGlassSettings.rim=0.75;fakeGlassSettings.grain=0.06;
+                Common.GlassMaterial.tuning=Object.assign({},Common.GlassMaterial.tuning,{glassBlur:0});compare(optical.materialBlurRadius,0);verify(!blur.blurEnabled);
+                Common.GlassMaterial.tuning=Object.assign({},Common.GlassMaterial.tuning,{glassBlur:5});compare(optical.materialBlurRadius,5);verify(blur.blurEnabled);
+                Common.GlassMaterial.tuning={glassOpacity:0.7,glassBlur:18,glassLiquid:1.8,glassRim:0.75,glassGrain:0.06};
                 compare(notch.glassOpacity,0.7);compare(notch.glassBlurRadius,18);compare(notch.glassLiquid,1.8);compare(notch.glassRim,0.75);compare(notch.glassGrain,0.06);
                 fakeBar.notchStyle="glass";fakeBar.player=media;notch.pinned=true;verify(notch.glassNeeded);
                 fakeBar.reduceTransparency=true;verify(!notch.glassNeeded);compare(notch.glassBlurRadius,0);
@@ -882,7 +895,7 @@ Window {
                 compare(notch.glassBlurRadius,80);compare(notch.glassOpacity,0.92);
             } finally {
                 Common.GlassMaterial.intensity=previousIntensity;fakeBar.hub=previousHub;
-                fakeGlassSettings.opacity=0.42;fakeGlassSettings.blur=5;fakeGlassSettings.liquid=1;fakeGlassSettings.rim=0.45;fakeGlassSettings.grain=0.03;
+                fakeGlassSettings.opacity=0.42;Common.GlassMaterial.tuning=Object.assign({},Common.GlassMaterial.tuning,{glassBlur:5});fakeGlassSettings.liquid=1;fakeGlassSettings.rim=0.45;fakeGlassSettings.grain=0.03;
             }
         }
         function test_glass_does_not_wait_for_status_to_uncover_the_effect() {
@@ -894,8 +907,20 @@ Window {
             tryVerify(() => loader.item !== null);
             verify(!loader.item.ready);
             verify(notch.glassRendered, "A pending packaged shader must be allowed to draw");
+            const wash = findChild(notch, "notchGlassBlackWash");
+            verify(wash.visible, "An active glass lens must retain the black-to-glass wash");
+            const stops = wash.gradient.stops;
+            compare(stops.length, 4);
+            compare(stops[0].color, Qt.rgba(5 / 255, 5 / 255, 5 / 255, 1));
+            compare(stops[1].position, 0.32); compare(stops[1].color.a, 1);
+            fuzzyCompare(stops[2].color.a, 0.72, 0.01);
+            fuzzyCompare(stops[3].color.a, 0.5, 0.01);
+            notch.shapeProgress = 0;
+            compare(stops[2].color.a, 1); compare(stops[3].color.a, 1);
+            notch.shapeProgress = Qt.binding(() => notch.expanded ? 1 : 0);
             loader.item.failed = true;
             verify(!notch.glassRendered, "A real shader failure restores the solid fallback");
+            verify(!wash.visible, "The solid fallback must not receive a second wash");
             loader.active = false; loader.sourceComponent = original;
             loader.active = Qt.binding(() => notch.glassNeeded && notch.GraphicsInfo.api !== GraphicsInfo.Software);
         }
@@ -1083,6 +1108,14 @@ Window {
             compare(notch.activity,"weather");compare(notch.width,560);compare(notch.height,256);
             compare(findChild(notch,"notchWeatherTemperature").text,"18°");
             const hours=findChild(notch,"notchWeatherHours");compare(hours.children.length,7);
+            const temperature=findChild(notch,"notchWeatherTemperature"),condition=findChild(notch,"notchWeatherConditionLabel"),range=findChild(notch,"notchWeatherRange");
+            verify(temperature.font.pixelSize>=condition.font.pixelSize*3,"Current temperature leads the hierarchy");
+            verify(condition.font.pixelSize>range.font.pixelSize,"Daily range stays secondary");
+            compare(temperature.x,20);compare(findChild(notch,"notchWeatherLocation").x+8,temperature.x);
+            const now=findChild(hours,"notchWeatherHour0"),next=findChild(hours,"notchWeatherHour1");
+            verify(findChild(now,"notchWeatherHourTime").font.weight>findChild(next,"notchWeatherHourTime").font.weight,"Now is distinguished without adding a card");
+            verify(findChild(now,"notchWeatherHourTemperature").font.pixelSize>findChild(now,"notchWeatherHourTime").font.pixelSize);
+            verify(temperature.y+temperature.height<hours.y,"Current conditions and hourly forecast remain separate");
             const card=findChild(notch,"notchWeatherCard");const sunny=String(card.color);
             fakeWidgets.wxInfo=({t:"Light Rain",k:"rain"});verify(String(card.color)!==sunny);
             fakeWidgets.wxReady=false;fakeWidgets.wxError="network failed";wait(20);
@@ -1094,6 +1127,25 @@ Window {
                 verify(notch.width<=width-24);const current=findChild(notch,"notchWeatherCard");const a=current.mapToItem(notch,0,0),b=current.mapToItem(notch,current.width,current.height);
                 verify(a.x>=0 && a.y>=0 && b.x<=notch.width+1 && b.y<=notch.height+1);
             }
+        }
+        function test_weather_scene_tracks_live_conditions_and_motion_preferences() {
+            fakeBar.notchService=tools;notch.pinned=true;notch.selectPage("weather");wait(30);
+            const scene=findChild(notch,"notchWeatherScene"),timer=findChild(scene,"notchWeatherRainTimer");
+            verify(scene!==null);verify(!scene.darkForecast);verify(!timer.running);
+            const sunny=String(scene.skyTop);
+            fakeWidgets.wxInfo=({t:"Cloudy",k:"cloud"});verify(scene.overcast);verify(scene.darkForecast);verify(!scene.raining);verify(String(scene.skyTop)!==sunny);
+            fakeWidgets.wxInfo=({t:"Rain",k:"rain"});verify(scene.raining);verify(!scene.storm);verify(!timer.running,"Reduce Motion keeps rain static");
+            fakeBar.reduceMotion=false;verify(timer.running);wait(100);verify(scene.elapsed>0);
+            fakeWidgets.wxInfo=({t:"Thunderstorms",k:"storm"});verify(scene.storm);verify(timer.running);
+            scene.nextStrike=0;tryVerify(()=>scene.strikeAge>=0,500);compare(scene.strikeSeed,1);
+            fakeBar.reduceMotion=true;verify(!timer.running);compare(scene.strikeAge,-1);compare(scene.elapsed,0);
+            fakeBar.reduceMotion=false;verify(timer.running);
+            fakeWidgets.wxError="network failed";verify(!timer.running,"Cached forecasts must not imply live rainfall");
+            fakeWidgets.wxError="";verify(timer.running);
+            notch.close();tryVerify(()=>{const current=findChild(notch,"notchWeatherRainTimer");return current===null || !current.running;},1000,"Collapsed notch releases the weather animation");
+            notch.pinned=true;tryVerify(()=>{const current=findChild(notch,"notchWeatherRainTimer");return current!==null && current.running;},1000);
+            fakeBar.reduceMotion=true;
+            notch.selectPage("music");wait(350);verify(findChild(notch,"notchWeatherRainTimer")===null,"Other pages unload the weather scene");
         }
         function test_weather_location_drafts_cancel_and_apply() {
             window.height=640;fakeBar.notchService=tools;notch.pinned=true;notch.selectPage("weather");wait(30);
@@ -1214,36 +1266,37 @@ Window {
                     const control=findChild(notch,entry.control);verify(control!==null,entry.control);mouseClick(control);wait(25);
                     const menu=notch.settingsPopup;verify(menu!==null && menu.visible,entry.page);
                     compare(menu.background.objectName,"notchFrostedMenuSurface");
-                    Common.GlassMaterial.intensity=0;compare(menu.backdropBlurRadius,42);
-                    Common.GlassMaterial.intensity=1;compare(menu.backdropBlurRadius,80);
+                    Common.GlassMaterial.intensity=0;compare(menu.backdropBlurRadius,32);
+                    Common.GlassMaterial.intensity=1;compare(menu.backdropBlurRadius,32);
                     fakeBar.reduceTransparency=true;verify(menu.opaque);fakeBar.reduceTransparency=false;verify(!menu.opaque);
                     fakeBar.effDark=false;verify(!menu.dark);fakeBar.effDark=true;verify(menu.dark);
                     menu.close();wait(15);
                 }
             } finally {Common.GlassMaterial.intensity=previousIntensity;fakeBar.reduceTransparency=false;fakeBar.effDark=true;notch.close();}
         }
-        function test_dropdown_reuses_file_edit_menu_glass_material() {
+        function test_dropdown_reuses_menu_bar_frost_not_liquid_glass() {
             window.height=760;fakeBar.notchService=tools;notch.pinned=true;notch.selectPage("stats");wait(35);
             mouseClick(findChild(notch,"notchStatsPrimaryChooser"));wait(25);
             const menu=notch.settingsPopup,surface=menu.background,renderer=findChild(surface,"notchMenuFrostLayer");
-            const previousHub=fakeBar.hub;
+            const previousHub=fakeBar.hub,previousTuning=Common.GlassMaterial.tuning,previousLiquid=fakeBar.liquidActive;
             try {
                 fakeBar.hub=({clock:fakeClock,widgets:fakeWidgets,dock:fakeGlassSettings});
-                // Load the copied menu component's fallback on the software
-                // backend to verify shared parameters without a GPU shader.
-                renderer.active=true;tryVerify(()=>renderer.item!==null,1000);
-                const glass=renderer.item,border=findChild(surface,"notchMenuBarBorder");
-                compare(glass.objectName,"notchMenuBarGlass");compare(glass.shaderUrl,menu.materialShader);verify(String(glass.shaderUrl).endsWith("notch-menu-tail-v1.frag.qsb"));
-                compare(glass.tailHeight,9);compare(glass.pointerX,menu.pointerX);compare(glass.tailAmount,menu.tailAmount);
-                menu.offsetX=45;compare(glass.tailAmount,0);compare(glass.pointerX,menu.pointerX);menu.offsetX=0;compare(glass.tailAmount,1);
-                compare(glass.blur,42);compare(glass.thickness,22);compare(glass.strength,0.55*notch.glassLiquid);
-                compare(glass.rimTint,1);compare(glass.ringW,1.4);compare(glass.rim,notch.glassRim);compare(glass.grain,notch.glassGrain);
-                compare(glass.tint,notch.glassOpacity);compare(glass.cornerR,menu.cornerRadius);compare(border.tint,fakeBar.menuBorderColor);
-                compare(glass.backdrop,findChild(surface,"notchMenuBackdrop").item);compare(glass.bx,surface.captureMargin);compare(glass.by,surface.captureMargin);
-                fakeGlassSettings.opacity=0.67;fakeGlassSettings.liquid=1.6;compare(glass.tint,0.67);compare(glass.strength,0.55*1.6);
-                fakeBar.effDark=false;verify(!glass.dark && !border.dark);fakeBar.effDark=true;verify(glass.dark && border.dark);
-                glass.shaderError();verify(menu.glassFailed);verify(!glass.liquid);
-            } finally {renderer.active=false;fakeBar.hub=previousHub;fakeGlassSettings.opacity=0.42;fakeGlassSettings.liquid=1;fakeBar.effDark=true;menu.close();notch.close();}
+                // Instantiate the shared frost on software too; it must not
+                // require Liquid Glass to be enabled to select this material.
+                fakeBar.liquidActive=false;renderer.active=true;tryVerify(()=>renderer.item!==null,1000);
+                const frost=findChild(renderer.item,"notchMenuFrostMaterial"),border=findChild(surface,"notchMenuBarBorder");
+                verify(frost!==null);verify(String(frost.shaderUrl).endsWith("LiquidGlass-frosted-menu.frag.qsb"));
+                compare(frost.blurRadius,32);compare(frost.blurRadius,menu.backdropBlurRadius);
+                compare(frost.radius,0);verify(!frost.outline,"The portal contour owns the tail and border");
+                compare(menu.tailHeight,9);menu.offsetX=45;compare(menu.tailAmount,0);menu.offsetX=0;compare(menu.tailAmount,1);
+                compare(border.tint,fakeBar.menuBorderColor);
+                compare(frost.backdrop,findChild(surface,"notchMenuBackdrop").item);
+                compare(frost.samplePosition.x,surface.captureMargin);compare(frost.samplePosition.y,surface.captureMargin);
+                Common.GlassMaterial.tuning={glassOpacity:0.67,glassLiquid:1.6,glassBlur:0};compare(frost.blurRadius,32);
+                fakeBar.liquidActive=true;compare(frost.blurRadius,32);
+                fakeBar.effDark=false;verify(!frost.dark && !border.dark);fakeBar.effDark=true;verify(frost.dark && border.dark);
+                fakeBar.reduceTransparency=true;verify(frost.opaque);fakeBar.reduceTransparency=false;verify(!frost.opaque);
+            } finally {fakeBar.liquidActive=previousLiquid;Common.GlassMaterial.tuning=previousTuning;renderer.active=false;fakeBar.hub=previousHub;fakeGlassSettings.opacity=0.42;fakeGlassSettings.liquid=1;fakeBar.effDark=true;menu.close();notch.close();}
         }
         function test_dropdown_blur_composites_visible_notch_and_desktop() {
             window.height=760;fakeBar.notchService=tools;

@@ -24,7 +24,7 @@ PanelWindow {
         id: gallery
         anchors.fill: parent
         radius: 26
-        readonly property bool dark: galleryWindow.host.darkGlass
+        readonly property bool dark: galleryWindow.host.systemDark
         readonly property string fam: galleryWindow.host.fontFamily
         readonly property color fg: dark ? "#F2F2F5" : "#242428"
         readonly property color muted: dark ? "#A8A8B2" : "#696972"

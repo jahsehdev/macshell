@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Effects
 import "NotchShape.js" as Shape
 import "NotchGeometry.js" as Geometry
+import "Common" as Common
 
 Item {
     id: glass
@@ -13,6 +14,7 @@ Item {
     readonly property real cropHeight: height + margin * 2
     // Use the same effective blur as System Settings, including clear values.
     readonly property real materialBlurRadius: host.glassBlurRadius
+    readonly property var material: Common.GlassMaterial.profile(Common.GlassMaterial.intensity)
     readonly property real downsample: materialBlurRadius >= 8 ? 0.5 : 1
     readonly property real blurAmount: Math.min(1, materialBlurRadius * 1.4 * downsample / 64)
     readonly property real wing: host.mode === "attached" ? Math.min(Geometry.wing(host.mode, host.shapeMix, host.wideShape) * (1 + (host.cornerScale - 1) * host.shapeMix), width / 2) : 0
@@ -68,7 +70,7 @@ Item {
         id: lens
         objectName: "notchGlassLens"
         anchors.fill: parent
-        fragmentShader: Qt.resolvedUrl("notch-glass-depth-v5.frag.qsb")
+        fragmentShader: Qt.resolvedUrl("Common/LiquidGlass-notch.frag.qsb")
         onStatusChanged: if (status === ShaderEffect.Error) { glass.failed = true; console.warn("[dynamic-notch-glass]", log); }
         property variant src: glass.materialBlurRadius > 0 ? blurred : captured
         property variant clearSrc: glass.materialBlurRadius > 0 ? blurred : captured
@@ -77,12 +79,9 @@ Item {
         property vector2d cropSize: Qt.vector2d(glass.cropWidth, glass.cropHeight)
         property real captureMargin: glass.margin
         property real strength: glass.host.shapeMix
-        property real tintOpacity: glass.host.glassOpacity
-        property real liquidStrength: glass.host.glassLiquid
-        // Preserve refractive depth without painted light or shadow outlines.
-        property real rim: 0
-        property real grain: glass.host.glassGrain
         property real wingSize: glass.wing
         property real radius: glass.lensRadius
+        property vector4d optics: Qt.vector4d(glass.material.thickness, glass.material.dispersion, glass.material.magnify, glass.material.saturation)
+        property vector4d finish: Qt.vector4d(glass.material.tint, Common.DesktopPreferences.glassRim(glass.material.rim), Common.DesktopPreferences.glassGrain(glass.material.grain), glass.material.blurPx)
     }
 }

@@ -7,7 +7,7 @@
   "spacing": 5,
   "margin": 3,
   "cornerRadius": 32,
-  "cornerSquircle": 0.71,
+  "cornerSquircle": 0.57,
   "darkMode": false,
   "appearanceMode": "light",
   "glassOpacity": 0,

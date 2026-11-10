@@ -124,6 +124,26 @@ class StageTests(unittest.TestCase):
         recovered = Controller(self.backend,self.path)
         recovered.shutdown()
         self.assertEqual(self.workspace('bb'),STAGE)  # never apply old geometry to a new process
+
+    def test_never_keeps_unfocused_apps_on_desktop(self):
+        self.c.preferences.update(stageManager=False, wallpaperClick='never')
+        self.c.tick()
+        # Clicking wallpaper or moving focus into a shell panel must not park apps.
+        for focus in (4, 10):
+            self.backend.clients[0]['focusHistoryID'] = focus
+            self.c.command(dict(action='desktop', monitor=0))
+            self.c.tick()
+            self.assertEqual(self.workspace('aa'), '1')
+            self.assertEqual(self.workspace('bb'), '1')
+            self.assertEqual(self.c.revealed, [])
+
+    def test_never_preserves_explicit_show_desktop(self):
+        self.c.preferences.update(stageManager=False, wallpaperClick='never')
+        self.c.tick()
+        self.c.command(dict(action='desktop', monitor=0, force=True)); self.c.tick()
+        self.assertEqual(self.workspace('aa'), DESKTOP)
+        self.c.command(dict(action='desktop', monitor=0, force=True)); self.c.tick()
+        self.assertEqual(self.workspace('aa'), '1')
     def test_shutdown_restores_owned_workspaces(self):
         self.c.tick(); self.c.command(dict(action='desktop',monitor=0)); self.c.tick()
         self.c.shutdown()

@@ -97,31 +97,20 @@ Item {
         color: glass.dock.dockDark ? Qt.rgba(0.1,0.1,0.11,glass.dock.effGlassOpacity) : Qt.rgba(1,1,1,Common.DesktopPreferences.glassTint(glass.dock.effGlassOpacity, 0.55))
         border.color: glass.dock.dockDark ? "#40000000" : "#20000000"
     }
-    ShaderEffect {
+    Common.LiquidGlassSurface {
         anchors.fill: parent; visible: glass.dock.liquidActive
         fragmentShader: glass.dock.glassShaderUrl
-        property variant src: blurred
-        property vector2d itemSize: Qt.vector2d(width, height)
-        property vector2d glassSize: itemSize
-        property vector2d srcSize: Qt.vector2d(texture.sourceRect.width, texture.sourceRect.height)
-        property vector2d srcOffset: Qt.vector2d(60,60)
-        property real pad: 0
-        property real radius: glass.dock.cornerRadius
-        property real squircle: glass.dock.cornerSquircle
-        property real bezel: Math.min(width * 0.36,26)
-        property real thickness: 30 * glass.dock.effGlassLiquid
-        property real dispersion: 0.06 * glass.dock.effGlassLiquid
-        property real magnify: 0.08 * glass.dock.effGlassLiquid
-        property real rim: glass.dock.effGlassRim
-        property real grain: glass.dock.effGlassGrain
-        property real blurPx: 1.5
-        property real tintMix: Common.DesktopPreferences.glassTint(glass.dock.effGlassOpacity, 0.55)
-        property real saturation: 1.25
-        property real dark: glass.dock.dockDark ? 1 : 0
-        property real debug: 0
-        property real shadowAmt: 0
-        property real flatInner: 0
-        property real rimTint: 0
-        property real ringW: 0
+        src: blurred
+        itemSize: Qt.vector2d(width, height)
+        glassSize: itemSize
+        srcSize: Qt.vector2d(texture.sourceRect.width, texture.sourceRect.height)
+        srcOffset: Qt.vector2d(60,60)
+        pad: 0
+        radius: glass.dock.cornerRadius
+        squircle: glass.dock.cornerSquircle
+        bezel: Math.min(width * 0.36,26)
+        dark: glass.dock.dockDark ? 1 : 0
+        debug: 0
+        shadowAmt: 0
     }
 }

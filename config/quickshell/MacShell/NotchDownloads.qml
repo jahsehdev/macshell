@@ -3,7 +3,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// A single watcher for all displays. It reports metadata, never invented totals.
+// One watcher for all displays: browser transfers and download markers only.
+// File copies/extraction do not start activity; browser completion is authoritative.
 Scope {
     id: downloads
     property bool enabled: true

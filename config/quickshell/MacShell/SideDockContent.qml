@@ -66,7 +66,7 @@ Item {
                             Behavior on height { NumberAnimation { duration: 100 } }
                             Behavior on opacity { NumberAnimation { duration: 180 } }
                             Rectangle { visible: cell.sep; width: panel.base * 0.85; height: 1; anchors.centerIn: parent; color: root.dock.dockDark ? "#45FFFFFF" : "#35000000" }
-                            Image {
+                            Common.AppIcon {
                                 id: icon
                                 width: panel.base * cell.mag; height: width
                                 anchors.verticalCenter: parent.verticalCenter
@@ -74,7 +74,7 @@ Item {
                                 visible: !cell.sep && !cell.liveThumbReady && !cell.snapshotReady
                                 source: !cell.sep ? root.dock.cellIconSrc(cell.modelData) : ""
                                 sourceSize: Qt.size(128,128); fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
-                                layer.enabled: Common.IconStyle.effectMode !== 0
+                                layer.enabled: Common.IconStyle.effectFor(source) !== 0
                                 layer.effect: Common.IconStyleEffect {}
                                 property real lift: 0
                                 transform: Translate { x: panel.left ? icon.lift : -icon.lift }
@@ -145,14 +145,20 @@ Item {
                     }
                 }
             }
-            Menu {
+            Common.ThemedMenu {
                 id: appMenu
+                dark: root.dock.darkMode
+                wallpaperSource: root.dock.fileUrl(root.dock.wallpaperFor(panel.modelData.name))
+                screenSize: Qt.size(panel.modelData.width, panel.modelData.height)
+                screenOrigin: Qt.point(panel.modelData.x, panel.modelData.y)
+                borderTint: root.hub && root.hub.bar ? root.hub.bar.menuBorderColor : "#8A9AB5"
+                font.family: root.dock.fontFamily
                 width: 235
                 onOpened: panel.menuOpen = true
                 onClosed: { panel.menuOpen = false; hide.restart(); }
                 Repeater {
                     model: panel.menuEntries
-                    MenuItem {
+                    Common.ThemedMenuItem {
                         required property var modelData
                         text: modelData.kind === "sep" ? "──────────" : modelData.label
                         enabled: modelData.kind !== "sep" && !modelData.disabled
@@ -163,14 +169,20 @@ Item {
                     }
                 }
             }
-            Menu {
+            Common.ThemedMenu {
                 id: confirmation
+                dark: root.dock.darkMode
+                wallpaperSource: appMenu.wallpaperSource
+                screenSize: appMenu.screenSize
+                screenOrigin: appMenu.screenOrigin
+                borderTint: appMenu.borderTint
+                font.family: root.dock.fontFamily
                 property var action: null
                 x: appMenu.x; y: appMenu.y
                 onOpened: panel.menuOpen = true
                 onClosed: panel.menuOpen = false
-                MenuItem { text: "Empty Trash"; onTriggered: if (confirmation.action) confirmation.action() }
-                MenuItem { text: "Cancel" }
+                Common.ThemedMenuItem { text: "Empty Trash"; onTriggered: if (confirmation.action) confirmation.action() }
+                Common.ThemedMenuItem { text: "Cancel" }
             }
             Rectangle {
                 visible: root.dock.showLabels && !!panel.hoveredKey && !panel.menuOpen && !panel.tucked

@@ -48,13 +48,13 @@ Scope {
     readonly property string configDir: Quickshell.env("HOME") + "/.config/macwidgets"
 
     // Liquid Glass follows Appearance's material preset, translucency and strength.
-    readonly property real glassOpacity: dock ? dock.effGlassOpacity : Corners.DesktopPreferences.glassOpacity(0.42)
-    readonly property real glassBlur: dock ? dock.effGlassBlur : Corners.DesktopPreferences.glassBlur(5)
-    readonly property real glassLiquid: dock ? dock.effGlassLiquid : Corners.DesktopPreferences.glassLiquid(1.0)
-    readonly property real glassRim: dock ? dock.effGlassRim : Corners.DesktopPreferences.glassRim(0.45)
-    readonly property real glassGrain: dock ? dock.effGlassGrain : Corners.DesktopPreferences.glassGrain(0.03)
-    // Follow the resolved system appearance, including Auto. Spotlight's
-    // independent panel theme must not override the desktop widgets.
+    readonly property real glassOpacity: dock ? dock.effGlassOpacity : Corners.DesktopPreferences.glassOpacity(Corners.GlassMaterial.baseOpacity)
+    readonly property real glassBlur: dock ? dock.effGlassBlur : Corners.DesktopPreferences.glassBlur(Corners.GlassMaterial.baseBlur)
+    readonly property real glassLiquid: dock ? dock.effGlassLiquid : Corners.DesktopPreferences.glassLiquid(Corners.GlassMaterial.baseLiquid)
+    readonly property real glassRim: dock ? dock.effGlassRim : Corners.DesktopPreferences.glassRim(Corners.GlassMaterial.baseRim)
+    readonly property real glassGrain: dock ? dock.effGlassGrain : Corners.DesktopPreferences.glassGrain(Corners.GlassMaterial.baseGrain)
+    // Menus follow Appearance; icon/widget presets can choose a different look.
+    readonly property bool systemDark: dock ? dock.darkMode : Corners.IconStyle.systemDark
     readonly property bool darkGlass: Corners.IconStyle.dark
     Connections { target: Corners.IconStyle; function onModeChanged() { root.recount(); } }
     readonly property color borderTint: {
@@ -379,9 +379,10 @@ Scope {
     }
     // MPRIS does not announce the playback position; ask for it once a second while something plays and a Player widget exists
     Timer {
-        interval: root.lyricsWanted ? 250 : 1000        // quicker while lyrics are open, so lines change on time
+        interval: (root.lyricsWanted || root.notchLyricsWanted) ? 250 : 1000        // quicker while lyrics are open, so lines change on time
         repeat: true
-        running: root.player !== null && root.player.isPlaying && root.count("player") > 0
+        running: root.player !== null && root.player.isPlaying && root.player.positionSupported
+                 && (root.count("player") > 0 || root.lyricsWanted || root.notchLyricsWanted)
         onTriggered: { try { root.player.positionChanged(); } catch (err) { } }
     }
     // screen rectangles of the Player widgets: they stay clickable while the rest of the layer is click-through
@@ -397,89 +398,26 @@ Scope {
     }
     function pr(i, k) { var r = playerRects[i]; return r ? r[k] : 0; }
 
-    // ───────────── lyrics (LRCLIB, fetched only while a Player widget has its lyrics open) ─────────────
+    // ───────────── lyrics (shared with lockscreen, requested by desktop or notch) ─────────────
     property bool lyricsWanted: false
     property bool notchLyricsWanted: false
-    property var lyricsLines: []               // [{ t: seconds (-1 = not synced), text }]
-    property bool lyricsSynced: false
-    property string lyricsState: "idle"        // idle | loading | ok | none
-    property string lyricsReqKey: ""
-    property string lrcTitle: ""
-    property string lrcArtist: ""
-    property string lrcAlbum: ""
-    property string lrcDur: ""
-    readonly property string trackKey: player ? (player.trackTitle + "|" + player.trackArtist + "|" + player.trackAlbum + "|"
-                                                  + Math.round(player.lengthSupported ? player.length : 0)) : ""
-    onTrackKeyChanged: {
-        lyricsLines = []; lyricsSynced = false; lyricsState = "idle";
-        if (lyricsWanted || notchLyricsWanted) lyricsSoon.restart();
+    readonly property var lyricsLines: lyricService.lines
+    readonly property bool lyricsSynced: lyricService.status === "synced"
+    readonly property real lyricsPosition: lyricService.position
+    readonly property string lyricsState: {
+        if (lyricService.status === "synced" || lyricService.status === "plain") return "ok";
+        if (lyricService.status === "offline") return "error";
+        if (lyricService.status === "instrumental") return "none";
+        return lyricService.status;
     }
-    onLyricsWantedChanged: if (lyricsWanted && lyricsState === "idle") lyricsSoon.restart()
-    onNotchLyricsWantedChanged: if (notchLyricsWanted && lyricsState === "idle") lyricsSoon.restart()
-    Timer { id: lyricsSoon; interval: 500; onTriggered: root.fetchLyrics() }
-
-    function fetchLyrics() {
-        if ((!lyricsWanted && !notchLyricsWanted) || !player || player.trackTitle === "") return;
-        if (lrcProc.running) return;                      // finished handler re-checks the key
-        lyricsReqKey = trackKey;
-        lrcTitle = player.trackTitle; lrcArtist = player.trackArtist; lrcAlbum = player.trackAlbum;
-        lrcDur = String(Math.round(player.lengthSupported ? player.length : 0));
-        lyricsState = "loading";
-        lrcProc.running = true;
-    }
-    function parseLrc(txt) {
-        var out = [], lines = String(txt).split(/\r?\n/);
-        for (var i = 0; i < lines.length; i++) {
-            var line = lines[i], re = /\[(\d+):(\d+(?:\.\d+)?)\]/g, times = [], m;
-            while ((m = re.exec(line)) !== null) times.push(parseInt(m[1]) * 60 + parseFloat(m[2]));
-            if (times.length === 0) continue;
-            var text = line.replace(/\[[^\]]*\]/g, "").trim();
-            for (var j = 0; j < times.length; j++) out.push({ t: times[j], text: text });
-        }
-        out.sort(function (a, b) { return a.t - b.t; });
-        return out;
-    }
-    function applyLyrics(raw) {
-        var o = null;
-        try { o = JSON.parse(raw); } catch (err) { }
-        if (Array.isArray(o)) {                           // search fallback: prefer a result with synced lyrics
-            var pick = null;
-            for (var i = 0; i < o.length; i++) {
-                if (o[i].syncedLyrics) { pick = o[i]; break; }
-                if (!pick && o[i].plainLyrics) pick = o[i];
-            }
-            o = pick;
-        }
-        if (!o || o.instrumental) { lyricsLines = []; lyricsSynced = false; lyricsState = "none"; return; }
-        if (o.syncedLyrics) {
-            var l = parseLrc(o.syncedLyrics);
-            if (l.length > 0) { lyricsLines = l; lyricsSynced = true; lyricsState = "ok"; return; }
-        }
-        if (o.plainLyrics) {
-            var ps = String(o.plainLyrics).split(/\r?\n/), pl = [];
-            for (var k = 0; k < ps.length; k++) if (ps[k].trim() !== "") pl.push({ t: -1, text: ps[k].trim() });
-            if (pl.length > 0) { lyricsLines = pl; lyricsSynced = false; lyricsState = "ok"; return; }
-        }
-        lyricsLines = []; lyricsSynced = false; lyricsState = "none";
-    }
-    Process {
-        id: lrcProc
-        command: ["sh", "-c",
-            "UA='macshell-widgets (quickshell)'; "
-            + "curl -fsS --max-time 8 -A \"$UA\" -G https://lrclib.net/api/get --data-urlencode \"track_name=$1\" --data-urlencode \"artist_name=$2\" "
-            + "--data-urlencode \"album_name=$3\" -d \"duration=$4\" 2>/dev/null "
-            + "|| curl -fsS --max-time 8 -A \"$UA\" -G https://lrclib.net/api/search --data-urlencode \"q=$2 $1\"",
-            "sh", root.lrcTitle, root.lrcArtist, root.lrcAlbum, root.lrcDur]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (root.lyricsReqKey !== root.trackKey) {            // the song changed while we were asking
-                    root.lyricsState = "idle";
-                    Qt.callLater(root.fetchLyrics);
-                    return;
-                }
-                root.applyLyrics(text);
-            }
-        }
+    function fetchLyrics() { lyricService.fetch(); }
+    onLyricsWantedChanged: if (lyricsWanted && (lyricsState === "error" || lyricsState === "none")) Qt.callLater(fetchLyrics)
+    onNotchLyricsWantedChanged: if (notchLyricsWanted && (lyricsState === "error" || lyricsState === "none")) Qt.callLater(fetchLyrics)
+    Corners.LyricsService {
+        id: lyricService
+        objectName: "sharedLyricsService"
+        player: root.player
+        active: root.lyricsWanted || root.notchLyricsWanted
     }
 
     // ───────────── weather data (Open-Meteo) ─────────────
@@ -654,8 +592,8 @@ Scope {
     // Use the Dock material and its fine inset reflections, without the generic
     // widget shader's broad white rim, inner glow or outer halo.
     property string glassState: "idle"                     // idle → building → ready | failed
-    readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("liquidglass.frag").toString().replace("file://", ""))
-    readonly property string glassShaderOut: configDir + "/liquidglass-dock-edge-v1.frag.qsb"
+    readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("Common/LiquidGlass.frag").toString().replace("file://", ""))
+    readonly property string glassShaderOut: configDir + "/liquidglass-shared-v1.frag.qsb"
     onAnyLiquidChanged: if (anyLiquid) startGlass()
     onReadyChanged: if (ready && anyLiquid) startGlass()
     function startGlass() {
@@ -738,6 +676,8 @@ Scope {
                     desktop: desktopFiles
                     widgets: root
                     overlay: desktopOverlay
+                    menuWallpaper: root.fileUrl(root.wallpaperFor(win.modelData.name))
+                    menuBorderTint: root.hub && root.hub.bar ? root.hub.bar.menuBorderColor : "#8A9AB5"
                 }
 
                 Corners.ContinuousRectangle {   // slight dim while editing

@@ -5,6 +5,7 @@ import contextlib
 import json
 from pathlib import Path
 import tempfile
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -28,6 +29,8 @@ class CursorReloadTests(unittest.TestCase):
         self.calls = []
         self.loaded = []
         self.failure = None
+        self.rebuild = patch.object(reload, 'rebuild_for_session', side_effect=RuntimeError('Headers do not match')).start()
+        self.addCleanup(patch.stopall)
 
     def hypr(self, *args, expect_ok=False):
         self.calls.append(args)
@@ -53,12 +56,13 @@ class CursorReloadTests(unittest.TestCase):
     def test_mismatched_commit_changes_nothing(self):
         (self.directory / 'shake-to-find.so.commit').write_text('b' * 40)
         self.assertEqual(self.run_helper(), 1)
-        self.assertEqual(self.calls, [('version',)])
+        self.assertEqual(self.calls, [('version',), ('-j', 'plugin', 'list')])
+        self.rebuild.assert_called_once_with(self.directory, COMMIT)
 
     def test_missing_binary_changes_nothing(self):
         (self.directory / 'shake-to-find.so').unlink()
         self.assertEqual(self.run_helper(), 1)
-        self.assertEqual(self.calls, [('version',)])
+        self.assertEqual(self.calls, [('version',), ('-j', 'plugin', 'list')])
 
     def test_unreachable_compositor_changes_nothing(self):
         self.failure = 'version'
@@ -102,6 +106,54 @@ class CursorReloadTests(unittest.TestCase):
         self.failure = 'reload'
         self.assertEqual(self.run_helper(), 1)
         self.assertEqual(self.calls[-1], ('reload',))
+
+    def test_upgrade_rebuilds_before_loading(self):
+        (self.directory / 'shake-to-find.so.commit').write_text('b' * 40)
+        def rebuild(directory, commit):
+            self.assertFalse(any(c[0] == 'plugin' for c in self.calls))
+            (directory / 'shake-to-find.so.commit').write_text(commit)
+        self.rebuild.side_effect = rebuild
+        self.assertEqual(self.run_helper(), 0)
+        self.rebuild.assert_called_once_with(self.directory, COMMIT)
+        self.assertEqual(self.calls[-2][0:2], ('plugin', 'load'))
+
+    def test_failed_build_does_not_unload_plugin(self):
+        (self.directory / 'shake-to-find.so.commit').write_text('b' * 40)
+        self.loaded = [{'name': 'macshell-shake-to-find', 'version': '1.1'}]
+        self.rebuild.side_effect = subprocess.CalledProcessError(1, ['sh', 'build.sh'])
+        self.assertEqual(self.run_helper(), 1)
+        self.assertFalse(any(c[0] == 'plugin' for c in self.calls))
+
+    def test_incorrect_build_stamp_is_not_loaded(self):
+        (self.directory / 'shake-to-find.so.commit').write_text('b' * 40)
+        self.rebuild.side_effect = None
+        self.assertEqual(self.run_helper(), 1)
+        self.assertFalse(any(c[0] == 'plugin' for c in self.calls))
+
+    def test_conflict_does_not_start_a_build(self):
+        (self.directory / 'shake-to-find.so.commit').write_text('b' * 40)
+        self.loaded = [{'name': 'dynamic-cursors'}]
+        self.assertEqual(self.run_helper(), 1)
+        self.rebuild.assert_not_called()
+
+
+class BuildPreflightTests(unittest.TestCase):
+    def test_different_headers_do_not_run_build(self):
+        flags = subprocess.CompletedProcess([], 0, stdout='-I/usr/include/hyprland')
+        macros = subprocess.CompletedProcess([], 0, stdout='#define GIT_COMMIT_HASH "' + 'b' * 40 + '"\n')
+        with patch.object(reload.subprocess, 'run', side_effect=[flags, macros]) as run:
+            with self.assertRaisesRegex(RuntimeError, 'Header Hyprland berbeda'):
+                reload.rebuild_for_session(Path('/tmp/plugin'), COMMIT)
+            self.assertEqual(run.call_count, 2)
+
+    def test_matching_headers_run_build(self):
+        flags = subprocess.CompletedProcess([], 0, stdout='-I"/tmp/path with spaces"')
+        macros = subprocess.CompletedProcess([], 0, stdout='#define GIT_COMMIT_HASH "' + COMMIT + '"\n')
+        with patch.object(reload.subprocess, 'run', side_effect=[flags, macros, subprocess.CompletedProcess([], 0)]) as run, \
+                contextlib.redirect_stdout(io.StringIO()):
+            reload.rebuild_for_session(Path('/tmp/plugin'), COMMIT)
+            self.assertIn('-I/tmp/path with spaces', run.call_args_list[1].args[0])
+            self.assertEqual(run.call_args_list[-1].args[0], ['sh', '/tmp/plugin/build.sh'])
 
 
 if __name__ == '__main__':

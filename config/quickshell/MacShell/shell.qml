@@ -44,7 +44,7 @@ ShellRoot {
         property var glassRawClients: []
         // React immediately to minimize/restore; do not wait for the next IPC
         // geometry snapshot, and retain raw clients so restore can re-admit them.
-        readonly property var glassClients: GlassBackdrop.clientsForGlass(glassRawClients, macMinimize.records)
+        readonly property var glassClients: GlassBackdrop.clientsForGlass(glassRawClients, macMinimize.records, monData)
         property var wallpaperMap: ({})
 
         // the single settings window lives in MacDock.qml; everything else reaches it through here

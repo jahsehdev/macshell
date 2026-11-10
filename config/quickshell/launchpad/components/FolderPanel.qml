@@ -45,7 +45,7 @@ Item {
     property real backdropBlur: Theme.folderBackgroundBlur // 0..1
     property int backdropBlurMax: 64               // larger = wider blur
     property real backdropBlurMultiplier: 1.4      // extra strength
-    property real backdropTextureScale: backdropBlur > 0 ? 0.5 : 1.0
+    property real backdropTextureScale: (liquidGlass ? Corners.GlassMaterial.surfaceBlur >= 8 : backdropBlur > 0) ? 0.5 : 1.0
 
     // ── drag-out settings ─────────────────────────────────────────────────────
     // The PagedGrid behind the panel, used to find the drop slot.
@@ -409,14 +409,14 @@ Item {
             id: backdropFrost
             x: -backdropTex.insetX
             y: -backdropTex.insetY
-            width: backdropTex.sourceRect.width
-            height: backdropTex.sourceRect.height
+            width: backdropTex.sourceRect.width * (root.liquidGlass ? root.backdropTextureScale : 1)
+            height: backdropTex.sourceRect.height * (root.liquidGlass ? root.backdropTextureScale : 1)
             visible: false
             source: backdropTex
             autoPaddingEnabled: false
 
-            blurEnabled: root.backdropBlur > 0
-            blur: root.backdropBlur
+            blurEnabled: root.liquidGlass ? Corners.GlassMaterial.surfaceBlur > 0 : root.backdropBlur > 0
+            blur: root.liquidGlass ? Math.min(1, Corners.GlassMaterial.surfaceBlur * root.backdropTextureScale / root.backdropBlurMax) : root.backdropBlur
             blurMax: root.backdropBlurMax
             blurMultiplier: root.backdropBlurMultiplier
 
@@ -452,39 +452,28 @@ Item {
             smooth: true
         }
 
-        ShaderEffect {
+        Corners.LiquidGlassSurface {
             id: liquidSurface
             anchors.fill: parent
             visible: root.liquidGlass
-            // Shares Common/DarkGlass.glsl's shallow Dark material with the shell.
-            fragmentShader: Qt.resolvedUrl("../assets/folder-liquidglass.frag.qsb")
+            // Shares Common/LiquidGlass.frag optics with the shell.
+            fragmentShader: Corners.GlassMaterial.shaderUrl
             onStatusChanged: if (status === ShaderEffect.Error) {
                 root.shaderFailed = true;
                 console.warn("FolderPanel: Liquid Glass unavailable; using Normal Blur:", log);
             }
-            property variant src: frostedTexture
-            property vector2d itemSize: Qt.vector2d(width, height)
-            property vector2d glassSize: Qt.vector2d(width, height)
-            property vector2d srcSize: Qt.vector2d(backdropTex.sourceRect.width, backdropTex.sourceRect.height)
-            property vector2d srcOffset: Qt.vector2d(backdropTex.insetX, backdropTex.insetY)
-            property real pad: 0
-            property real radius: Theme.folderPanelRadius
-            property real bezel: Math.min(height * 0.36, 26)
-            property real thickness: 30 * 1.6
-            property real dispersion: 0.06 * 1.3
-            property real blurPx: root.backdropBlur > 0 ? 1.5 * root.backdropBlur : 0
-            property real tintMix: 0.12
-            property real saturation: 1.25
-            property real dark: Theme.darkMode ? 1 : 0
-            property real debug: 0
-            property real rim: 0.45
-            property real grain: 0.006
-            property real magnify: 0.05 * 1.6
-            property real shadowAmt: 0
-            property real rimTint: 0
-            property real ringW: -1.4
-            property real flatInner: 1
-            property real squircle: Math.max(0, Math.min(1, (Theme.squircleExponent - 2) / 2))
+            src: frostedTexture
+            itemSize: Qt.vector2d(width, height)
+            glassSize: Qt.vector2d(width, height)
+            srcSize: Qt.vector2d(backdropTex.sourceRect.width, backdropTex.sourceRect.height)
+            srcOffset: Qt.vector2d(backdropTex.insetX, backdropTex.insetY)
+            pad: 0
+            radius: Theme.folderPanelRadius
+            bezel: Math.min(height * 0.36, 26)
+            dark: Theme.darkMode ? 1 : 0
+            debug: 0
+            shadowAmt: 0
+            squircle: Math.max(0, Math.min(1, (Theme.squircleExponent - 2) / 2))
         }
 
         // glass body (a bit more opaque when no backdrop is available, to imitate frost)

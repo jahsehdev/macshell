@@ -7,13 +7,10 @@ Item {
     id: gg
     property var src: null              // ShaderEffectSource with mipmaps: the blurred scene
     property Item frame: null           // coordinate space the backdrop texture covers (the whole screen)
-    property url shaderUrl: Qt.resolvedUrl("liquidglass.frag.qsb")
+    readonly property bool reduced: Corners.DesktopPreferences.reduceTransparency
+    property url shaderUrl: Corners.GlassMaterial.shaderUrl
     property real cornerR: 22
     property real cornerSmoothing: Corners.CornerTheme.smoothing
-    property real thickness: 24
-    property real strength: 1.0
-    property real tint: 0.32
-    property real rim: 0.5
     property real shadowAmt: 0
     property bool dark: true
     readonly property real pad: 10
@@ -30,42 +27,33 @@ Item {
     // flat fallback if the shader can't load
     Corners.ContinuousRectangle {
         cornerSmoothing: gg.cornerSmoothing
-        visible: gg.failed || !gg.src
+        visible: gg.failed || !gg.src || gg.reduced
         anchors.fill: parent
         radius: gg.cornerR
-        color: Qt.rgba(0.12, 0.12, 0.14, 0.45)
+        color: Qt.rgba(0.12, 0.12, 0.14, gg.reduced ? 0.96 : 0.45)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.18)
     }
 
-    ShaderEffect {
+    Corners.LiquidGlassSurface {
         id: fx
-        visible: gg.src !== null && gg.frame !== null
+        visible: gg.src !== null && gg.frame !== null && !gg.reduced
         x: -gg.pad; y: -gg.pad
         width: gg.width + 2 * gg.pad
         height: gg.height + 2 * gg.pad
         fragmentShader: gg.shaderUrl
         onStatusChanged: if (status === ShaderEffect.Error) console.log("[maclock] glass shader:", log)
-        property variant src: gg.src
-        property vector2d itemSize: Qt.vector2d(width, height)
-        property vector2d glassSize: Qt.vector2d(gg.width, gg.height)
-        property vector2d srcSize: Qt.vector2d(gg.frame ? gg.frame.width : 1, gg.frame ? gg.frame.height : 1)
-        property vector2d srcOffset: Qt.vector2d(gg.fp.x - gg.pad, gg.fp.y - gg.pad)
-        property real pad: gg.pad
-        property real radius: Corners.CornerTheme.panelRadius(gg.width,gg.height,gg.cornerR,gg.cornerSmoothing)
-        property real bezel: Math.min(gg.height * 0.36, 26)
-        property real thickness: gg.thickness * gg.strength * 1.6
-        property real dispersion: 0.06 * gg.strength * 1.3
-        property real magnify: 0.05 * gg.strength * 1.6
-        property real rim: gg.rim
-        property real grain: 0.006
-        property real blurPx: 1.5
-        property real tintMix: gg.tint * 0.55
-        property real saturation: 1.25
-        property real dark: gg.dark ? 1 : 0
-        property real debug: 0
-        property real shadowAmt: gg.shadowAmt
-    
-        property real squircle: gg.cornerSmoothing
+        src: gg.src
+        itemSize: Qt.vector2d(width, height)
+        glassSize: Qt.vector2d(gg.width, gg.height)
+        srcSize: Qt.vector2d(gg.frame ? gg.frame.width : 1, gg.frame ? gg.frame.height : 1)
+        srcOffset: Qt.vector2d(gg.fp.x - gg.pad, gg.fp.y - gg.pad)
+        pad: gg.pad
+        radius: Corners.CornerTheme.panelRadius(gg.width,gg.height,gg.cornerR,gg.cornerSmoothing)
+        bezel: Math.min(gg.height * 0.36, 26)
+        dark: gg.dark ? 1 : 0
+        debug: 0
+        shadowAmt: gg.shadowAmt
+        squircle: gg.cornerSmoothing
     }
 }

@@ -30,3 +30,8 @@ to replace loaded integrations if the binary and running compositor commits diff
 Version 1.2 also activates an inactive clicked app. MacShell runs the reload
 helper with `--ensure` at startup/reload, preserving current plugins and
 replacing outdated versions after validating compositor/build commits.
+
+Focus raises only the selected app. The Hyprland config no longer lowers every
+other floating app when a fullscreen window gains focus, and no delayed
+fullscreen callback raises a different app after a click. Focus repair does not
+minimize clients or change their fullscreen state.

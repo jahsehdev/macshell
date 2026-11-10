@@ -45,7 +45,7 @@ Item {
             readonly property real p: 10     // shader padding (drop shadow)
             // a Gaussian blur of 8 px or more doesn't need full resolution: blurring at half size is visually identical
             // and costs a quarter of the GPU work, every frame
-            readonly property real materialBlur: GlassCommon.GlassMaterial.blurRadius(g.blur)
+            readonly property real materialBlur: GlassCommon.DesktopPreferences.reduceTransparency ? 0 : GlassCommon.GlassMaterial.surfaceBlur
             readonly property real ds: materialBlur >= 8 ? 0.5 : 1.0
             readonly property real bn: materialBlur * 1.4 * ds / 64.0
             ShaderEffectSource {
@@ -94,7 +94,7 @@ Item {
                 live: true
                 visible: false
             }
-            ShaderEffect {
+            GlassCommon.LiquidGlassSurface {
                 id: fx
                 x: -lg.p; y: -lg.p
                 width: g.width + 2 * lg.p
@@ -104,32 +104,22 @@ Item {
                     console.log("[macbar-glass] shader status:", status, "(0 = compiled, 1 = uncompiled, 2 = error)", log);
                     if (status === ShaderEffect.Error) g.shaderError();
                 }
-                property variant src: lg.bn > 1.0 ? bblur2 : bblur
+                src: lg.bn > 1.0 ? bblur2 : bblur
                 property real padPx: lg.p
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d glassSize: Qt.vector2d(g.width, g.height)
-                property vector2d srcSize: Qt.vector2d(bsrc.sourceRect.width, bsrc.sourceRect.height)
-                property vector2d srcOffset: Qt.vector2d(lg.m, lg.m)
-                property real pad: lg.p
-                property real radius: g.cornerR
-                property real bezel: Math.min(g.height * 0.36, 26)
-                property real thickness: g.thickness * g.strength * 1.6      // bar popovers: boosted to match the stronger dock glass
-                property real dispersion: 0.06 * g.strength * 1.3
-                property real magnify: 0.05 * g.strength * 1.6
-                property real rim: g.rim
-                property real grain: g.grain * 0.2
-                property real blurPx: 1.5
-                property real tintMix: g.tint * 0.55
-                property real saturation: 1.25
-                property real dark: g.dark ? 1 : 0
-                property real debug: g.debug ? 1 : 0
-                property real shadowAmt: 1
+                itemSize: Qt.vector2d(width, height)
+                glassSize: Qt.vector2d(g.width, g.height)
+                srcSize: Qt.vector2d(bsrc.sourceRect.width, bsrc.sourceRect.height)
+                srcOffset: Qt.vector2d(lg.m, lg.m)
+                pad: lg.p
+                radius: g.cornerR
+                bezel: Math.min(g.height * 0.36, 26)
+                // bar popovers: boosted to match the stronger dock glass
+                dark: g.dark ? 1 : 0
+                debug: g.debug ? 1 : 0
+                shadowAmt: 1
                 property real tailHeight:g.tailHeight
                 property real pointerX:g.pointerX
                 property real tailAmount:g.tailAmount
-                property real flatInner: 0
-                property real rimTint: g.rimTint
-                property real ringW: g.ringW
             }
         }
     }

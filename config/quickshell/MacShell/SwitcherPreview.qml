@@ -43,13 +43,13 @@ Item {
         border.width: card.selected ? 2 : 1
         border.color: card.selected ? "#2689FF" : (card.dark ? "#28FFFFFF" : "#20000000")
     }
-    Image {
+    Common.AppIcon {
         id: appIcon
         x: 14; y: 12; width: 19; height: 19
         source: card.iconSource
         sourceSize: Qt.size(40,40)
         fillMode: Image.PreserveAspectFit; smooth: true
-        layer.enabled: Common.IconStyle.effectMode !== 0
+        layer.enabled: Common.IconStyle.effectFor(source) !== 0
         layer.effect: Common.IconStyleEffect {}
     }
     Text {
@@ -90,12 +90,12 @@ Item {
             source: card.minimizedRecord && card.minimizedRecord.shot ? "file://" + card.minimizedRecord.shot : ""
             fillMode: Image.PreserveAspectFit; asynchronous: true; cache: false
         }
-        Image {
+        Common.AppIcon {
             anchors.centerIn: parent; width: 48; height: 48
             visible: !card.frameReady && !card.snapshotReady
             source: card.iconSource; sourceSize: Qt.size(96,96)
             fillMode: Image.PreserveAspectFit
-            layer.enabled: Common.IconStyle.effectMode !== 0
+            layer.enabled: Common.IconStyle.effectFor(source) !== 0
             layer.effect: Common.IconStyleEffect {}
         }
     }

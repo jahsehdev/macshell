@@ -72,3 +72,34 @@ test("other special workspaces remain available for monitor visibility filtering
     const app = { ...client("0x123", "Console"), workspace: { id: -98, name: "special:magic" } };
     assert.deepEqual(Array.from(glass.clientsForGlass([app])), [app]);
 });
+
+const monitor = (id, active, special = 0) => ({ id,
+    activeWorkspace: { id: active }, specialWorkspace: { id: special } });
+const onWorkspace = (id, name = String(id), mon = 0) => ({
+    ...client("0x123", "Console", mon), workspace: { id, name }
+});
+
+test("Hide, Show Desktop and inactive stages cannot export retained app frames", () => {
+    for (const name of ["special:hidden", "special:macshell-desktop", "special:macshell-stage"]) {
+        const app = onWorkspace(-98, name);
+        // Even a stale monitor snapshot must not re-admit a storage workspace.
+        assert.deepEqual(Array.from(glass.clientsForGlass([app], {}, [monitor(0, 1, -98)])), []);
+    }
+});
+
+test("workspace changes invalidate glass admission without changing client geometry", () => {
+    const app = onWorkspace(1);
+    assert.deepEqual(Array.from(glass.clientsForGlass([app], {}, [monitor(0, 1)])), [app]);
+    assert.deepEqual(Array.from(glass.clientsForGlass([app], {}, [monitor(0, 2)])), []);
+    assert.deepEqual(Array.from(glass.clientsForGlass([app], {}, [monitor(0, 1)])), [app]);
+    assert.deepEqual(Array.from(glass.clientsForGlass([app], {}, [])), []);
+    assert.equal(app.workspace.id, 1);
+});
+
+test("each monitor admits its own visible regular and special workspaces", () => {
+    const first = onWorkspace(1), second = onWorkspace(2, "2", 1);
+    const special = { ...onWorkspace(-98, "special:magic", 1), address: "0x456" };
+    const monitors = [monitor(0, 1), monitor(1, 2, -98)];
+    assert.deepEqual(Array.from(glass.clientsForGlass([first, second, special], {}, monitors)), [first, second, special]);
+    assert.deepEqual(Array.from(glass.clientsForGlass([special], {}, [monitor(1, 2)])), []);
+});

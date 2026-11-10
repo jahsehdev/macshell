@@ -4,12 +4,16 @@ import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
+import "Common" as Common
 import "EmojiData.js" as Emojis
 
 FocusScope {
     id: panel
     required property string folderPath
     property bool dark: false
+    property url wallpaperSource: ""
+    property size screenSize: Qt.size(1920, 1080)
+    property point samplePosition: Qt.point(0, 0)
     property string fontFamily: "SF Pro Text"
     property string emojiFontFamily: Qt.fontFamilies().indexOf("Apple Color Emoji") >= 0 ? "Apple Color Emoji" : "Noto Color Emoji"
     property url emojiFontUrl: ""
@@ -164,6 +168,9 @@ FocusScope {
         bodyWidth: panel.width
         height: panel.height
         dark: panel.dark
+        wallpaperSource: panel.wallpaperSource
+        screenSize: panel.screenSize
+        samplePosition: Qt.point(panel.samplePosition.x + x, panel.samplePosition.y + y)
         pointerY: panel.pointerY
         tailOnLeft: panel.tailOnLeft
     }
@@ -383,9 +390,12 @@ FocusScope {
         width: 330; height: Math.min(427, panel.height - 20)
         padding: 10
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Rectangle {
-            radius: 15; color: panel.dark ? "#f03a3a40" : "#f5f3f3f5"
-            border.width: 1; border.color: panel.dark ? "#70ffffff" : "#40000000"
+        background: Common.FrostedMenuSurface {
+            objectName: "emojiPickerMaterial"
+            radius: 15; dark: panel.dark
+            wallpaperSource: panel.wallpaperSource
+            screenSize: panel.screenSize
+            samplePosition: Qt.point(panel.samplePosition.x + emojiPicker.x, panel.samplePosition.y + emojiPicker.y)
             layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
             layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.5; shadowColor: "#55000000"; shadowVerticalOffset: 5 }
         }
@@ -462,7 +472,13 @@ FocusScope {
         objectName: "customColorPicker"
         x: 35; y: 202; width: 290; height: 168; padding: 14
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Rectangle { radius: 14; color: panel.dark ? "#38383e" : "#f7f7f9"; border.color: "#60909096" }
+        background: Common.FrostedMenuSurface {
+            objectName: "customColorPickerMaterial"
+            radius: 14; dark: panel.dark
+            wallpaperSource: panel.wallpaperSource
+            screenSize: panel.screenSize
+            samplePosition: Qt.point(panel.samplePosition.x + colorPicker.x, panel.samplePosition.y + colorPicker.y)
+        }
         contentItem: Column {
             spacing: 12
             Text { text: "Custom folder color"; color: panel.foreground; font.pixelSize: 14; font.weight: Font.DemiBold }

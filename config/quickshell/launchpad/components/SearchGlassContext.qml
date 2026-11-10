@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import Quickshell.Wayland
+import "../Common" as Common
 
 // One frozen backdrop shared by the search capsule and Settings disc.
 // Capture before revealing the controls, so they never refract their own pixels.
@@ -10,7 +11,8 @@ Item {
     property Item backdrop: null
     property point screenPosition: Qt.point(0, 0)
     property bool active: false
-    property real blurAmount: 0.16
+    readonly property real downsample: Common.GlassMaterial.surfaceBlur >= 8 ? 0.5 : 1
+    readonly property real blurAmount: Common.DesktopPreferences.reduceTransparency ? 0 : Math.min(1, Common.GlassMaterial.surfaceBlur * downsample * 1.4 / 64)
     property bool captureTimedOut: false
     readonly property bool ready: material.item !== null && material.item.ready && !captureTimedOut
     readonly property var texture: material.item ? material.item.texture : null
@@ -48,14 +50,14 @@ Item {
                 id: crop
                 visible: false
                 sourceItem: root.backdrop ? root.backdrop : snapshot
-                readonly property real margin: 40
+                readonly property real margin: 128
                 readonly property real cropX: Math.max(0, root.screenPosition.x - margin)
                 readonly property real cropY: Math.max(0, root.screenPosition.y - margin)
                 sourceRect: Qt.rect(cropX, cropY,
                     Math.max(1, Math.min(sourceItem.width, root.screenPosition.x + root.width + margin) - cropX),
                     Math.max(1, Math.min(sourceItem.height, root.screenPosition.y + root.height + margin) - cropY))
-                textureSize: Qt.size(Math.max(1, Math.round(sourceRect.width * 0.5)),
-                                     Math.max(1, Math.round(sourceRect.height * 0.5)))
+                textureSize: Qt.size(Math.max(1, Math.round(sourceRect.width * root.downsample)),
+                                     Math.max(1, Math.round(sourceRect.height * root.downsample)))
                 live: true
                 smooth: true
             }
@@ -63,10 +65,10 @@ Item {
                 id: frost
                 visible: false
                 source: crop
-                width: crop.sourceRect.width * 0.5
-                height: crop.sourceRect.height * 0.5
+                width: crop.sourceRect.width * root.downsample
+                height: crop.sourceRect.height * root.downsample
                 blurEnabled: true
-                blurMax: 32
+                blurMax: 64
                 blur: root.blurAmount
                 autoPaddingEnabled: false
             }

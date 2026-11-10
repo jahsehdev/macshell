@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reload window focus, minimize and fullscreen integrations without restarting apps."""
+"""Reload window focus, minimize, fullscreen and default-window integrations without restarting apps."""
 import argparse
 import json
 import os
@@ -20,13 +20,19 @@ def hypr(*args, expect_ok=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group()
+    selection.add_argument('--focus-only', action='store_true')
     selection.add_argument('--minimize-only', action='store_true')
     selection.add_argument('--fullscreen-only', action='store_true')
+    selection.add_argument('--policy-only', action='store_true')
     parser.add_argument('--ensure', action='store_true', help='Load missing or outdated integrations only')
+    parser.add_argument('--normalize', action='store_true', help='Apply default geometry to existing normal app windows')
     args = parser.parse_args()
-    names = (['native-minimize'] if args.minimize_only else ['fullscreen-lock'] if args.fullscreen_only else
-             ['click-focus', 'native-minimize', 'fullscreen-lock'])
+    if args.normalize and (args.focus_only or args.minimize_only or args.fullscreen_only):
+        parser.error('--normalize requires the window policy integration')
+    names = (['click-focus'] if args.focus_only else ['native-minimize'] if args.minimize_only else ['fullscreen-lock'] if args.fullscreen_only else
+             ['window-policy'] if args.policy_only else ['click-focus', 'native-minimize', 'fullscreen-lock', 'window-policy'])
     data_home = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
+    failure_prefix = 'Integrasi belum dimuat: '
     try:
         version = hypr('version')
         match = re.search(r'\b[0-9a-f]{40}\b', version)
@@ -46,7 +52,7 @@ def main():
                                    'Gunakan header yang sesuai sesi atau sesi Hyprland versi terpasang. '
                                    'Belum ada plugin yang diubah.')
             libraries.append((name, library))
-        versions = {'click-focus': '1.2', 'native-minimize': '1.5', 'fullscreen-lock': '1.6'}
+        versions = {'click-focus': '1.2', 'native-minimize': '1.5', 'fullscreen-lock': '1.6', 'window-policy': '1.3'}
         loaded = {p['name']: str(p.get('version', '')) for p in json.loads(hypr('-j', 'plugin', 'list'))}
         for name, library in libraries:
             plugin = 'macshell-' + name
@@ -55,12 +61,17 @@ def main():
             if plugin in loaded:
                 hypr('plugin', 'unload', str(library), expect_ok=True)
             hypr('plugin', 'load', str(library), expect_ok=True)
-        print('Penguncian resize fullscreen dimuat ulang.' if args.fullscreen_only else
+        if args.normalize:
+            failure_prefix = 'Integrasi sudah dimuat, tetapi normalisasi gagal: '
+            hypr('eval', 'hl.plugin.macshell_window_policy.normalize()', expect_ok=True)
+        print('Integrasi fokus klik dimuat ulang.' if args.focus_only else
+              'Penguncian resize fullscreen dimuat ulang.' if args.fullscreen_only else
               'Integrasi minimize dimuat ulang.' if args.minimize_only else
-              'Integrasi fokus, minimize dan fullscreen dimuat ulang. Aplikasi tetap terbuka.')
+              'Ukuran awal dan traffic lights dimuat ulang.' if args.policy_only else
+              'Integrasi fokus, minimize, fullscreen dan window dimuat ulang. Aplikasi tetap terbuka.')
         return 0
     except (RuntimeError, OSError, ValueError, KeyError, TypeError) as error:
-        print('Integrasi belum dimuat: ' + str(error), file=sys.stderr)
+        print(failure_prefix + str(error), file=sys.stderr)
         return 1
 
 

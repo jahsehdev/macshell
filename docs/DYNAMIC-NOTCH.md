@@ -179,12 +179,23 @@ remain available through settings. See the current [setup](ui-previews/pomodoro-
 [paused](ui-previews/pomodoro-simple/paused.png) and
 [narrow setup](ui-previews/pomodoro-simple/narrow-setup.png) fixture renders.
 
+Weather's `NotchWeatherScene.qml` paints a sky with softly shaded, irregular
+cloud banks rather than a straight white horizon. Current conditions select
+clear, overcast, rain or storm palettes; night has its own darker sky. Hourly
+labels switch contrast with the atmosphere. Rain uses a separate 30 fps layer
+of falling droplets. Thunderstorms add progressively branching lightning and
+local cloud illumination, spaced 8–13 seconds apart without full-panel flashes.
+Animations stop on collapse, page changes, stale/error data and Reduce Motion;
+the static sky still communicates the reported weather. Conditions come from
+the existing location's Open-Meteo data, not a locally invented weather cycle.
+
 All notch dropdowns use `NotchSettingsPopup.qml`, a
 window-overlay portal, positioned 4 pixels below its Settings button with a
 rounded top tail. It can overlap the notch and extend beyond its clipping bounds.
 The anchor tracks the button and its ancestor layouts after page creation.
-The page stays visible while editing. The surface reuses the File/Edit dropdown
-glass renderer, its 42-pixel clear backdrop blur and shared material settings. It follows
+The page stays visible while editing. The surface reuses `Common/FrostedMenuSurface.qml`
+and the menu bar's flat frosted shader, with a fixed 32-pixel backdrop blur and no
+refraction or dependency on Appearance's Liquid Glass sliders. It follows
 the menu bar's light/dark appearance. It reuses the shared backdrop and releases
 capture demand after closing. Software rendering and Reduced Transparency use
 an opaque fallback. `NotchSettingsField.qml` supplies labeled numeric inputs.
@@ -199,7 +210,7 @@ The panel slightly overshoots its final size before settling. Drag the title or
 subtitle to move it within the screen bounds; inputs and buttons retain their
 normal interaction. Motion drives two additional spring responses, bending the
 outline and stretching the panel while it is dragged, then relaxing after
-release. The shared glass surface follows the elastic transform; the opaque
+release. The shared frosted surface follows the elastic transform; the opaque
 fallback retains the custom outline. The pointer retracts when detached from its
 button. The dropped position lasts until closing; reopening restores the
 button anchor. Reduced Motion immediately restores normal geometry, while
@@ -595,9 +606,10 @@ A single `NotchDownloads` service watches the XDG Downloads directory for all
 applications. Additional destinations can be set in
 `~/.config/macshell/notch-downloads.json` with
 `{"directories":["/absolute/other/download/folder"]}`. Existing files form a
-baseline and do not replay as new downloads. Local copies and file edits in
-these destinations can also appear: filesystem metadata cannot identify the
-application or prove a network transfer.
+baseline and do not replay as new downloads. Folder tracking starts only for
+download markers (`.part`, `.crdownload`, `.download`, or an aria2 sidecar).
+Ordinary file creation, copies, edits, extraction temporary files (`.tmp`) and
+files inside extracted folders do not start download activity.
 
 The compact view shows a blue download ring and the available status. Hover or
 click opens a 520 × 120 file card. Known browser totals show a real percentage,
@@ -609,11 +621,17 @@ There is no extension installation or browser-profile modification.
 
 Unknown totals stay unknown. Folder tracking displays file size and activity,
 not a fabricated percentage, transfer rate or ETA. A partial file renamed to its
-final filename reports completion; a direct destination write that becomes
-stable is labelled **File saved**, since stable size cannot prove completion.
-Partial files that stop changing show **Waiting for changes**. Directory scans
-are bounded, two levels deep, ignore symlinks/hidden files and aria2 sidecars,
-and poll every 750 ms. Downloads saved elsewhere require configuring that path.
+final filename reports completion, including replacement with a new inode.
+An unchanged destination from an earlier download is not proof of completion.
+Browser completion is authoritative even for empty files or when the final
+path is temporarily unavailable; open/reveal actions check availability when
+clicked. Browser identities replace fallback partial identities, and the newest
+attempt wins when multiple attempts share a destination. Partial files that
+stop changing show **Waiting for changes**. Directory scans are bounded,
+inspect only the configured directories, ignore symlinks/hidden files and aria2
+metadata, and poll every 750 ms. Folder tracking elsewhere requires configuring
+that directory. Applications that write directly without a download marker
+need supported browser metadata to be detected.
 
 Multiple downloads are tracked together with an active count; dismissing one
 reveals the next. Recording controls, alarms and device/hardware feedback keep

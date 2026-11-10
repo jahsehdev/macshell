@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS folders (
 MIGRATIONS = (
     ("pinned", "ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"),
     ("deleted_at", "ALTER TABLE notes ADD COLUMN deleted_at REAL"),
+    ("locked", "ALTER TABLE notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0"),
 )
 
 
@@ -174,7 +175,7 @@ def clean_strokes(raw):
 
 def note_row(conn, note_id):
     row = conn.execute(
-        "SELECT id, title, body, folder, created, updated, pinned, deleted_at FROM notes WHERE id = ?",
+        "SELECT id, title, body, folder, created, updated, pinned, deleted_at, locked FROM notes WHERE id = ?",
         (note_id,)).fetchone()
     return row
 
@@ -207,12 +208,13 @@ def title_of(title, body):
 
 
 def summary(conn, row):
-    note_id, title, body, folder, created, updated, pinned, deleted_at = row
+    note_id, title, body, folder, created, updated, pinned, deleted_at, locked = row
     has_drawing = conn.execute("SELECT 1 FROM strokes WHERE note_id = ? LIMIT 1",
                                (note_id,)).fetchone() is not None
     return {"id": note_id, "title": title_of(title, body), "snippet": snippet(body),
             "folder": folder, "created": created, "updated": updated,
             "pinned": bool(pinned), "deleted": deleted_at is not None,
+            "locked": bool(locked),
             "has_drawing": has_drawing,
             "words": len((body or "").split())}
 
@@ -220,15 +222,31 @@ def summary(conn, row):
 def cmd_list(args):
     conn = connect(args.db)
     in_trash = args.folder == TRASH
-    want = args.folder if args.folder and args.folder not in ("All", TRASH) else None
-    sql = ("SELECT id, title, body, folder, created, updated, pinned, deleted_at FROM notes "
+    folder_arg = args.folder or "All"
+    sql = ("SELECT id, title, body, folder, created, updated, pinned, deleted_at, locked FROM notes "
            "WHERE deleted_at IS " + ("NOT NULL" if in_trash else "NULL"))
     params = []
-    if want:
+    
+    if folder_arg == "@smart:pinned":
+        sql += " AND pinned = 1"
+    elif folder_arg == "@smart:locked":
+        sql += " AND locked = 1"
+    elif folder_arg == "@smart:checklists":
+        sql += " AND (body LIKE '%[ ]%' OR body LIKE '%[x]%')"
+    elif folder_arg == "@smart:drawings":
+        sql += " AND id IN (SELECT DISTINCT note_id FROM strokes)"
+    elif folder_arg == "@smart:math":
+        sql += " AND (body LIKE '%=%' OR title LIKE '%Math%')"
+    elif folder_arg not in ("All", TRASH):
         sql += " AND folder = ?"
-        params.append(want)
-    # Pinned first (newest first), then everything else by update time.
-    sql += " ORDER BY pinned DESC, updated DESC"
+        params.append(folder_arg)
+        
+    sort_field = getattr(args, "sort", "updated") or "updated"
+    if sort_field not in ("created", "title"):
+        sort_field = "updated"
+    sort_dir = "DESC" if (getattr(args, "order", "desc") or "desc").lower() == "desc" else "ASC"
+    
+    sql += f" ORDER BY pinned DESC, {sort_field} {sort_dir}"
     rows = conn.execute(sql, params).fetchall()
     query = (args.query or "").strip().lower()
     notes = []
@@ -238,7 +256,7 @@ def cmd_list(args):
         if query and query not in unicodedata.normalize("NFKD", haystack).lower():
             continue
         notes.append(s)
-    out({"notes": notes, "folder": args.folder or "All"})
+    out({"notes": notes, "folder": folder_arg, "sort": sort_field, "order": sort_dir})
 
 
 def cmd_folders(args):
@@ -254,7 +272,24 @@ def cmd_folders(args):
                for name in sorted(names, key=lambda n: n.lower())]
     total = conn.execute("SELECT COUNT(*) FROM notes WHERE deleted_at IS NULL").fetchone()[0]
     trashed = conn.execute("SELECT COUNT(*) FROM notes WHERE deleted_at IS NOT NULL").fetchone()[0]
-    out({"folders": folders, "all": total, "trash": trashed})
+    
+    # Counts for smart folders
+    smart_pinned = conn.execute("SELECT COUNT(*) FROM notes WHERE deleted_at IS NULL AND pinned = 1").fetchone()[0]
+    smart_locked = conn.execute("SELECT COUNT(*) FROM notes WHERE deleted_at IS NULL AND locked = 1").fetchone()[0]
+    smart_checklists = conn.execute("SELECT COUNT(*) FROM notes WHERE deleted_at IS NULL AND (body LIKE '%[ ]%' OR body LIKE '%[x]%')").fetchone()[0]
+    smart_drawings = conn.execute("SELECT COUNT(DISTINCT note_id) FROM strokes WHERE note_id IN (SELECT id FROM notes WHERE deleted_at IS NULL)").fetchone()[0]
+    smart_math = conn.execute("SELECT COUNT(*) FROM notes WHERE deleted_at IS NULL AND (body LIKE '%=%' OR title LIKE '%Math%')").fetchone()[0]
+    
+    out({
+        "folders": folders, "all": total, "trash": trashed,
+        "smart": {
+            "pinned": smart_pinned,
+            "locked": smart_locked,
+            "checklists": smart_checklists,
+            "drawings": smart_drawings,
+            "math": smart_math
+        }
+    })
 
 
 def cmd_get(args):
@@ -264,10 +299,10 @@ def cmd_get(args):
     row = note_row(conn, args.id)
     if row is None:
         fail("note not found")
-    note_id, title, body, folder, created, updated, pinned, deleted_at = row
+    note_id, title, body, folder, created, updated, pinned, deleted_at, locked = row
     out({"note": {"id": note_id, "title": title, "body": body, "folder": folder,
                   "created": created, "updated": updated, "pinned": bool(pinned),
-                  "deleted": deleted_at is not None,
+                  "deleted": deleted_at is not None, "locked": bool(locked),
                   "strokes": strokes_of(conn, note_id)}})
 
 
@@ -327,6 +362,71 @@ def cmd_pin(args):
     out({"ok": True, "id": args.id, "pinned": bool(args.on)})
 
 
+def cmd_lock(args):
+    if not valid_id(args.id):
+        fail("invalid note id")
+    conn = connect(args.db)
+    if note_row(conn, args.id) is None:
+        fail("note not found")
+    with conn:
+        conn.execute("UPDATE notes SET locked = ? WHERE id = ?", (1 if args.on else 0, args.id))
+    out({"ok": True, "id": args.id, "locked": bool(args.on)})
+
+
+def cmd_writing_tools(args):
+    text = (args.text or "").strip()
+    action = args.action
+    if not text:
+        out({"action": action, "result": ""})
+    
+    if action == "summarize":
+        lines = [l.strip() for l in text.split("\n") if l.strip() and not l.strip().startswith("#")]
+        if not lines:
+            lines = [text]
+        bullets = []
+        for l in lines[:4]:
+            s = l.lstrip("-*•1234567890. ")
+            if s:
+                bullets.append("• " + s)
+        result = "### Summary\n" + "\n".join(bullets)
+    elif action == "proofread":
+        paras = text.split("\n")
+        cleaned_paras = []
+        for p in paras:
+            if not p.strip():
+                cleaned_paras.append("")
+                continue
+            p = re.sub(r"\s+([,.:;?!])", r"\1", p)
+            p = re.sub(r"([,.:;?!])([A-Za-z])", r"\1 \2", p)
+            sentences = re.split(r"([.!?]\s+)", p)
+            fixed = "".join(s.capitalize() if i % 2 == 0 and s else s for i, s in enumerate(sentences))
+            cleaned_paras.append(fixed)
+        result = "\n".join(cleaned_paras)
+    elif action == "formal":
+        result = text
+        replacements = [
+            (r"\bcan't\b", "cannot"), (r"\bdon't\b", "do not"),
+            (r"\bwon't\b", "will not"), (r"\bgonna\b", "going to"),
+            (r"\bwanna\b", "want to"), (r"\bpls\b", "please"),
+            (r"\basap\b", "as soon as possible"), (r"\bthx\b", "thank you"),
+            (r"\bgak\b", "tidak"), (r"\bnggak\b", "tidak"),
+            (r"\budah\b", "sudah"), (r"\bbanget\b", "sangat"),
+            (r"\bbisa ga\b", "dapatkah"), (r"\bkalo\b", "jika"),
+        ]
+        for pat, rep in replacements:
+            result = re.sub(pat, rep, result, flags=re.I)
+    elif action == "concise":
+        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        condensed = []
+        for l in lines:
+            l_clean = re.sub(r"\b(basically|actually|in order to|as a matter of fact|needless to say)\b\s*", "", l, flags=re.I)
+            condensed.append(l_clean.strip())
+        result = "\n".join(condensed)
+    else:
+        result = text
+    out({"action": action, "result": result})
+
+
 def cmd_move(args):
     if not valid_id(args.id):
         fail("invalid note id")
@@ -349,7 +449,7 @@ def cmd_duplicate(args):
     row = note_row(conn, args.id)
     if row is None:
         fail("note not found")
-    note_id, title, body, folder, created, updated, pinned, _deleted = row
+    note_id, title, body, folder, created, updated, pinned, _deleted, _locked = row
     new_note_id = new_id()
     now = time.time()
     with conn:
@@ -571,6 +671,8 @@ def main():
     p = sub.add_parser("list")
     p.add_argument("--folder", default="All")
     p.add_argument("--query", default="")
+    p.add_argument("--sort", default="updated", choices=("updated", "created", "title"))
+    p.add_argument("--order", default="desc", choices=("desc", "asc"))
     p.set_defaults(func=cmd_list)
     p = sub.add_parser("folders")
     p.set_defaults(func=cmd_folders)
@@ -588,6 +690,14 @@ def main():
     p.add_argument("--id", required=True)
     p.add_argument("--on", type=int, default=1)
     p.set_defaults(func=cmd_pin)
+    p = sub.add_parser("lock")
+    p.add_argument("--id", required=True)
+    p.add_argument("--on", type=int, default=1)
+    p.set_defaults(func=cmd_lock)
+    p = sub.add_parser("writing-tools")
+    p.add_argument("--action", required=True, choices=("summarize", "proofread", "formal", "concise"))
+    p.add_argument("--text", default="")
+    p.set_defaults(func=cmd_writing_tools)
     p = sub.add_parser("move")
     p.add_argument("--id", required=True)
     p.add_argument("--folder", required=True)

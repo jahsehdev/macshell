@@ -53,7 +53,7 @@ ShellRoot {
         id: lockState
         property var now: new Date()
         property string wallpaper: ""
-        property string wallpaperVideo: ""      // animated wallpaper set in MacShell (~/.config/macshell/wallpaper-video)
+        property string wallpaperVideo: ""      // committed wallpaper from ~/.config/macshell/wallpaper.json
         property string userName: Quickshell.env("USER") || ""
         property string avatar: ""
         property int wifiLevel: -1          // -1 unknown/hidden, 0 off, 1..3 bars
@@ -160,23 +160,24 @@ ShellRoot {
         }
     }
 
-    // Resolve wallpaper paths independently of slower network/profile probes so the lock scene can decode them immediately.
+    // The same committed selection as Settings and desktop autostart.
     Process {
+        id: wallpaperLookup
         running: true
-        command: ["sh", "-c",
-            "p=$(jq -r '.wallpaperPath // empty' \"$HOME/.config/macbar/settings.json\" 2>/dev/null); "
-            + "[ -f \"$p\" ] || p=$(jq -r '.wallpaperPath // empty' \"$HOME/.config/macdock/settings.json\" 2>/dev/null); "
-            + "[ -f \"$p\" ] || p=$(awww query 2>/dev/null | sed -n 's/.*image: //p' | head -n1); "
-            + "printf '%s\\n' \"$p\"; "
-            + "v=$(cat \"$HOME/.config/macshell/wallpaper-video-play\" 2>/dev/null); [ -f \"$v\" ] || v=$(cat \"$HOME/.config/macshell/wallpaper-video\" 2>/dev/null); "
-            + "[ -f \"$HOME/.config/macshell/wallpaper-video\" ] && [ -f \"$v\" ] && printf '%s' \"$v\"; echo"]
+        command: [Quickshell.env("HOME") + "/.local/bin/macshell-wallpaper", "state"]
         stdout: StdioCollector {
             onStreamFinished: {
-                var l = text.split("\n");
-                lockState.wallpaper = (l[0] || "").trim();
-                lockState.wallpaperVideo = (l[1] || "").trim();
+                try {
+                    var media = JSON.parse(text);
+                    lockState.wallpaper = media.poster || media.path || "";
+                    lockState.wallpaperVideo = media.mode === "live" ? media.path : "";
+                } catch (error) { console.warn("[maclock] Could not read wallpaper state", error); }
             }
         }
+    }
+    Connections {
+        target: root
+        function onLockRequestedChanged() { if (root.lockRequested && !wallpaperLookup.running) wallpaperLookup.running = true; }
     }
 
     // ── one-shot lookups: real name, avatar, wifi, and other settings

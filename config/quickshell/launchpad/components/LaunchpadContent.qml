@@ -8,7 +8,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import ".."
 
-// Visual resources are created on open; persistent state remains in LaunchpadState.
+// The host briefly retains this scene between openings; state lives in LaunchpadState.
 Item {
     required property var win
     readonly property bool revealGrid: folderLoader.item !== null && folderLoader.item.dragOutside === true
@@ -461,6 +461,7 @@ Item {
         target: LaunchpadState
         function onShownChanged() {
             if (!LaunchpadState.shown) {
+                altTimer.stop();
                 win.optionsOpen = false;
                 win.wheelX = 0;
                 win.wheelY = 0;

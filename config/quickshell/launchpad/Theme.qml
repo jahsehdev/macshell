@@ -346,14 +346,14 @@ Scope {
     property real menuSeparatorHeight: 11
     property real menuFontSize: 13
     readonly property bool menuDark: darkMode
-    property real menuGlassOpacity: 0.42
-    property real menuGlassLiquid: 1
-    property real menuGlassRim: 0.45
-    property real menuGlassGrain: 0.015
+    readonly property real menuGlassOpacity: Corners.DesktopPreferences.glassOpacity(Corners.GlassMaterial.baseOpacity)
+    readonly property real menuGlassLiquid: Corners.DesktopPreferences.glassLiquid(Corners.GlassMaterial.baseLiquid)
+    readonly property real menuGlassRim: Corners.DesktopPreferences.glassRim(Corners.GlassMaterial.baseRim)
+    readonly property real menuGlassGrain: Corners.DesktopPreferences.glassGrain(Corners.GlassMaterial.baseGrain)
     // Glass samples wallpaper even at zero tint. Keep Light controls readable
     // on dark wallpaper while preserving the user's global opacity preference.
-    readonly property real searchTintMix: darkMode ? menuGlassOpacity * 0.55 : Math.max(0.64, menuGlassOpacity * 0.55)
-    readonly property real menuTintMix: menuDark ? menuGlassOpacity * 0.55 : Math.max(0.72, menuGlassOpacity * 0.55)
+    readonly property real searchTintMix: Corners.DesktopPreferences.reduceTransparency ? 0.94 : Corners.GlassMaterial.profile(Corners.GlassMaterial.intensity).tint
+    readonly property real menuTintMix: Corners.DesktopPreferences.reduceTransparency ? 0.94 : Corners.GlassMaterial.profile(Corners.GlassMaterial.intensity).tint
     property string menuPreferredFont: "SF Pro Text"
     readonly property string menuFontFamily: menuPreferredFont
     property color menuBackground: menuDark ? Qt.rgba(0.12, 0.12, 0.13, 0.96) : Qt.rgba(0.98, 0.98, 0.99, 0.97)
@@ -376,11 +376,6 @@ Scope {
                 if (theme.applyAppearance(appearance)) theme.appearanceLoaded = true;
                 if (typeof appearance.fontFamily === "string" && appearance.fontFamily.length)
                     theme.menuPreferredFont = appearance.fontFamily.indexOf("Inter") === 0 ? "SF Pro Text" : appearance.fontFamily;
-                for (const key of ["Opacity", "Liquid", "Rim", "Grain"]) {
-                    const value = appearance["glass" + key];
-                    if (typeof value === "number" && Number.isFinite(value))
-                        theme["menuGlass" + key] = Math.max(0, Math.min(key === "Liquid" ? 2 : 1, value));
-                }
             } catch (e) {
                 // Keep the last appearance during an incomplete settings write.
             }

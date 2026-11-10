@@ -1,3 +1,4 @@
+import "Common" as Common
 pragma ComponentBehavior: Bound
 import QtQuick
 
@@ -11,11 +12,15 @@ Item {
     property real pillWidth: 340
     property real pitch: 60
     property int buttonCount: 5
+    property int openingDelay: 1000
     property real progress: 1
     property bool failed: false
     readonly property bool available: ready && gx.liquid && !failed
-    readonly property real handoff: available ? smooth(0.86, 1, progress) : 1
+    readonly property bool waiting: available && progress === 0
+    readonly property real handoff: available && !waiting ? smooth(0.86, 1, progress) : 1
     readonly property bool morphing: available && progress < 1
+    // Center the lone pill, then slide it left as the buttons separate to its right.
+    readonly property real openingOffset: (width - pillWidth) / 2 * (1 - smooth(0, 0.86, progress))
     readonly property real padding: 10
     readonly property point framePosition: {
         var px = 0, py = 0, item = goo;
@@ -41,7 +46,7 @@ Item {
         var spread = 1 + 1.55 * back * back * back + 0.55 * back * back;
         var size = 0.62 + 0.38 * (1 - Math.pow(1 - t, 3));
         var stretch = 1 + 0.17 * Math.sin(Math.PI * t);
-        return Qt.vector4d(pillWidth - 12 + (48 + index * pitch) * spread,
+        return Qt.vector4d(pillWidth - 24 + (60 + index * pitch) * spread,
                            height / 2, 24 * size * stretch, 24 * size / stretch);
     }
 
@@ -59,53 +64,52 @@ Item {
     // Stopping on dismissal freezes the current silhouette during the existing
     // close fade; reopening always starts a fresh, complete separation.
     function pause() { opening.stop(); }
-    NumberAnimation {
+    SequentialAnimation {
         id: opening
-        target: goo; property: "progress"
-        from: 0; to: 1; duration: 760
-        easing.type: Easing.Linear
+        // Hold the merged silhouette, then keep the complete gooey separation.
+        PauseAnimation { duration: goo.openingDelay }
+        NumberAnimation {
+            target: goo; property: "progress"
+            from: 0; to: 1; duration: 760
+            easing.type: Easing.Linear
+        }
     }
 
     Loader {
+        objectName: "spotlightOpeningGlassLoader"
         x: -goo.padding; y: -goo.padding
         width: goo.width + 2 * goo.padding
         height: goo.height + 2 * goo.padding
-        active: goo.morphing && goo.visible
-        sourceComponent: ShaderEffect {
+        active: goo.morphing && !goo.waiting && goo.visible
+        sourceComponent: Common.LiquidGlassSurface {
+            objectName: "spotlightOpeningGlass"
             width: goo.width + 2 * goo.padding
             height: goo.height + 2 * goo.padding
-            opacity: 1 - goo.handoff
+            // Keep an opaque backing while the settled surfaces fade in above.
+            // Complementary alpha fades expose the backdrop at mid-handoff
+            // (0.5 over 0.5 covers only 0.75), producing a visible flash.
+            // The loader retires only once the settled surfaces are fully opaque.
+            opacity: 1
             fragmentShader: goo.shaderUrl
             onStatusChanged: if (status === ShaderEffect.Error) {
                 goo.failed = true;
                 goo.finish();
             }
-            property variant src: goo.gx.src
-            property vector2d itemSize: Qt.vector2d(width, height)
-            property vector2d glassSize: Qt.vector2d(goo.width, goo.height)
-            property vector2d srcSize: Qt.vector2d(goo.gx.srcRect.width, goo.gx.srcRect.height)
-            property vector2d srcOffset: Qt.vector2d(goo.framePosition.x - goo.padding - goo.gx.srcRect.x,
+            src: goo.gx.src
+            itemSize: Qt.vector2d(width, height)
+            glassSize: Qt.vector2d(goo.width, goo.height)
+            srcSize: Qt.vector2d(goo.gx.srcRect.width, goo.gx.srcRect.height)
+            srcOffset: Qt.vector2d(goo.framePosition.x - goo.padding - goo.gx.srcRect.x,
                                                    goo.framePosition.y - goo.padding - goo.gx.srcRect.y)
-            property real pad: goo.padding
-            property real radius: 24
-            property real bezel: goo.height * 0.36
-            property real thickness: 22 * goo.gx.strength * goo.gx.liquidMul * 1.6
-            property real dispersion: 0.06 * goo.gx.strength * goo.gx.liquidMul * 1.3
-            property real magnify: 0.05 * goo.gx.strength * goo.gx.liquidMul * 1.6
-            property real rim: goo.gx.rim
-            property real grain: goo.gx.grain * 0.2
-            property real blurPx: 1.5
-            property real tintMix: goo.gx.tint * 0.55
-            property real saturation: 1.25
-            property real dark: goo.gx.dark ? 1 : 0
-            property real debug: goo.gx.debug ? 1 : 0
-            property real shadowAmt: 0
-            property real flatInner: 0
-            property real rimTint: goo.gx.rimTint
-            property real ringW: goo.gx.ringW
-            property real squircle: 0 // Match the capsule search bar throughout the gooey opening.
+            pad: goo.padding
+            radius: 24
+            bezel: goo.height * 0.36
+            dark: goo.gx.dark ? 1 : 0
+            debug: goo.gx.debug ? 1 : 0
+            shadowAmt: 0
+            squircle: 0 // Match the capsule search bar throughout the gooey opening.
             property real pillWidth: goo.pillWidth
-            property real mergeRadius: 1 + 31 * (1 - goo.smooth(0.35, 0.88, goo.progress))
+            property real mergeRadius: 1 + 31 * goo.smooth(0, 0.15, goo.progress) * (1 - goo.smooth(0.35, 0.88, goo.progress))
             property vector4d button0: goo.buttonShape(0)
             property vector4d button1: goo.buttonShape(1)
             property vector4d button2: goo.buttonShape(2)

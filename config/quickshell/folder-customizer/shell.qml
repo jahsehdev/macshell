@@ -6,6 +6,7 @@ import Quickshell.Hyprland
 ShellRoot {
     id: app
     property bool dark: false
+    property url wallpaperSource: ""
     property string fontFamily: "SF Pro Text"
     FileView {
         path: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/macbar/settings.json"
@@ -17,6 +18,8 @@ ShellRoot {
                 const settings = JSON.parse(text());
                 app.dark = settings.appearanceMode === "dark" || (settings.appearanceMode !== "light" && settings.darkMode === true);
                 if (typeof settings.fontFamily === "string") app.fontFamily = settings.fontFamily;
+                if (typeof settings.wallpaperPath === "string" && settings.wallpaperPath)
+                    app.wallpaperSource = "file://" + settings.wallpaperPath;
             } catch (e) {}
         }
     }
@@ -33,6 +36,9 @@ ShellRoot {
             height: Math.min(620, window.height - 40)
             folderPath: Quickshell.env("MACSHELL_CUSTOMIZE_FOLDER")
             dark: app.dark
+            wallpaperSource: app.wallpaperSource
+            screenSize: Qt.size(Screen.width, Screen.height)
+            samplePosition: mapToGlobal(0, 0)
             fontFamily: app.fontFamily
             onDismissed: window.close()
         }

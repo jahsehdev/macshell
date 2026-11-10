@@ -13,6 +13,7 @@
 // This file only draws. MacWidgets.qml owns the MPRIS player and feeds the data properties; the buttons emit
 // togglePlaying() / nextTrack() / previousTrack().
 import "Common" as Corners
+import "Common/LyricsFocus.js" as LyricFocus
 import QtQuick
 import QtQuick.Effects
 
@@ -221,7 +222,7 @@ Item {
             id: gl
             readonly property real margin: 72
             readonly property real padPx: 10
-            readonly property real materialBlur: Corners.GlassMaterial.blurRadius(w.glassBlur)
+            readonly property real materialBlur: Corners.DesktopPreferences.reduceTransparency ? 0 : Corners.GlassMaterial.surfaceBlur
             readonly property real ds: materialBlur >= 8 ? 0.5 : 1.0
             readonly property real bn: Math.min(1.0, materialBlur * 1.4 * ds / 64.0)
 
@@ -276,7 +277,7 @@ Item {
                 live: true
                 visible: false
             }
-            ShaderEffect {
+            Corners.LiquidGlassSurface {
                 x: -gl.padPx
                 y: -gl.padPx
                 width: w.width + 2 * gl.padPx
@@ -284,29 +285,19 @@ Item {
                 fragmentShader: w.shaderUrl
                 onStatusChanged: if (status === ShaderEffect.Error) w.glassFailed()
 
-                property variant src: blurred
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d glassSize: Qt.vector2d(w.width, w.height)
-                property vector2d srcSize: Qt.vector2d(backdrop.width, backdrop.height)
-                property vector2d srcOffset: Qt.vector2d(gl.margin, gl.margin)
-                property real pad: gl.padPx
-                property real radius: Corners.CornerTheme.panelRadius(w.width,w.height,w.radiusPx,Corners.CornerTheme.smoothing)
-                property real bezel: Math.min(Math.min(w.width, w.height) * 0.36, 26)
-                property real thickness: 30 * w.glassLiquid
-                property real dispersion: 0.06 * w.glassLiquid
-                property real magnify: 0.08 * w.glassLiquid * Math.min(1, 90 / w.height)
-                property real rim: w.glassRim
-                property real grain: w.glassGrain * 0.15
-                property real blurPx: 1.0
-                property real tintMix: w.tint
-                property real saturation: 1.25
-                property real dark: w.dark ? 1 : 0
-                property real debug: 0
-                property real shadowAmt: 0           // no drop shadow
-                property real flatInner: 1           // no darker inner edge (needs the rebuilt liquidglass shader)
-                property real rimTint: 1
-                property real ringW: 0
-                property real squircle: Corners.CornerTheme.smoothing
+                src: blurred
+                itemSize: Qt.vector2d(width, height)
+                glassSize: Qt.vector2d(w.width, w.height)
+                srcSize: Qt.vector2d(backdrop.width, backdrop.height)
+                srcOffset: Qt.vector2d(gl.margin, gl.margin)
+                pad: gl.padPx
+                radius: Corners.CornerTheme.panelRadius(w.width,w.height,w.radiusPx,Corners.CornerTheme.smoothing)
+                bezel: Math.min(Math.min(w.width, w.height) * 0.36, 26)
+                dark: w.dark ? 1 : 0
+                debug: 0
+                shadowAmt: 0           // no drop shadow
+                // no darker inner edge (needs the rebuilt liquidglass shader)
+                squircle: Corners.CornerTheme.smoothing
             }
         }
     }
@@ -493,17 +484,51 @@ Item {
             }
             ListView {
                 id: lyrList
+                objectName: "desktopLyricsList"
                 anchors.fill: parent
                 clip: true
                 interactive: !w.lyricsSynced
                 boundsBehavior: Flickable.StopAtBounds
                 model: w.lyrics
-                currentIndex: Math.max(0, w.lyricIdx)
-                highlightRangeMode: w.lyricsSynced ? ListView.StrictlyEnforceRange : ListView.NoHighlightRange
+                function followPlayback(align) {
+                    if (!w.lyricsSynced) return;
+                    const previousY = contentY;
+                    scrollMotion.stop();
+                    currentIndex = Math.max(0, w.lyricIdx);
+                    forceLayout();
+                    if (!currentItem) return;
+                    const targetY = currentItem.y - preferredHighlightBegin;
+                    if (align || Corners.DesktopPreferences.reduceMotion || !visible) contentY = targetY;
+                    else {
+                        contentY = previousY;
+                        scrollMotion.from = previousY; scrollMotion.to = targetY; scrollMotion.restart();
+                    }
+                }
+                function alignPlayback() { forceLayout(); followPlayback(true); }
+                onModelChanged: Qt.callLater(alignPlayback)
+                onHeightChanged: Qt.callLater(alignPlayback)
+                onWidthChanged: Qt.callLater(alignPlayback)
+                onVisibleChanged: if (visible) Qt.callLater(alignPlayback)
+                onContentYChanged: if (!w.lyricsSynced) currentIndex = LyricFocus.indexAtFocus(lyrList)
+                Connections {
+                    target: w
+                    function onLyricIdxChanged() { lyrList.followPlayback(false); }
+                    function onLyricsSyncedChanged() { Qt.callLater(lyrList.alignPlayback); }
+                }
+                NumberAnimation {
+                    id: scrollMotion
+                    objectName: "desktopLyricsScrollMotion"
+                    target: lyrList; property: "contentY"
+                    duration: Corners.DesktopPreferences.reduceMotion ? 0 : 650
+                    easing.type: Easing.OutQuint
+                }
+                highlightRangeMode: ListView.NoHighlightRange
+                highlightFollowsCurrentItem: false
                 preferredHighlightBegin: height * 0.30
-                preferredHighlightEnd: height * 0.30
-                highlightMoveDuration: 650
-                highlightMoveVelocity: -1
+                preferredHighlightEnd: preferredHighlightBegin
+                header: Item { height: lyrList.preferredHighlightBegin }
+                footer: Item { height: lyrList.height - lyrList.preferredHighlightBegin }
+                cacheBuffer: height * 2
                 layer.enabled: true
                 layer.effect: MultiEffect { maskEnabled: true; maskSource: lyrMask }
 
@@ -511,10 +536,13 @@ Item {
                     id: ln
                     required property var modelData
                     required property int index
-                    readonly property real dist: w.lyricsSynced ? Math.abs(index - w.lyricIdx) : 0
-                    readonly property bool cur: w.lyricsSynced && index === w.lyricIdx
-                    property real bl: (!w.lyricsSynced || cur) ? 0 : Math.min(1, 0.22 + dist * 0.16)
-                    Behavior on bl { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
+                    objectName: "desktopLyricLine" + index
+                    readonly property int focusIndex: w.lyricsSynced ? w.lyricIdx : lyrList.currentIndex
+                    readonly property int relative: index - Math.max(0, focusIndex)
+                    readonly property real dist: Math.abs(relative)
+                    readonly property bool cur: relative === 0
+                    property real bl: LyricFocus.blur(relative)
+                    Behavior on bl { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 380; easing.type: Easing.OutQuint } }
                     width: ListView.view.width
                     height: txt.implicitHeight + 12 * w.k
                     Text {
@@ -527,14 +555,14 @@ Item {
                         font.family: w.fam
                         font.pixelSize: 25 * w.k
                         font.weight: Font.Bold
-                        opacity: !w.lyricsSynced ? 0.9 : (ln.cur ? 1 : Math.max(0.16, 0.46 - ln.dist * 0.08))
-                        scale: (!w.lyricsSynced || ln.cur) ? 1 : 0.86
+                        opacity: LyricFocus.opacity(ln.relative)
+                        scale: LyricFocus.scale(ln.relative)
                         transformOrigin: Item.Left
                         Behavior on opacity { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
                         Behavior on scale { NumberAnimation { duration: Corners.DesktopPreferences.reduceMotion ? 0 : 480; easing.type: Easing.OutCubic } }
                         layer.enabled: ln.bl > 0.01
                         layer.sourceRect: Qt.rect(-12, -8, width + 24, height + 16)
-                        layer.effect: MultiEffect { blurEnabled: true; blurMax: 24; blur: ln.bl }
+                        layer.effect: MultiEffect { blurEnabled: true; blurMax: 16; blur: ln.bl }
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -549,7 +577,9 @@ Item {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 visible: w.lyrics.length === 0
-                text: w.lyricsState === "none" ? "No lyrics found" : "Searching for lyrics\u2026"
+                text: w.lyricsState === "error" ? "Couldn’t load lyrics. Reopen to retry."
+                      : w.lyricsState === "none" ? "No lyrics found" : "Searching for lyrics\u2026"
+                wrapMode: Text.WordWrap
                 color: w.fg2
                 font.family: w.fam
                 font.pixelSize: 20 * w.k

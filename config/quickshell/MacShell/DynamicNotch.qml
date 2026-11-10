@@ -33,11 +33,11 @@ Item {
     readonly property bool glassRequested: !!bar && bar.notchStyle === "glass" && !bar.reduceTransparency
     // Share Appearance's material tuning while the lens follows the notch's own contour.
     readonly property var glassSettings: bar && bar.hub ? bar.hub.dock || null : null
-    readonly property real glassOpacity: glassSettings ? glassSettings.effGlassOpacity : Common.DesktopPreferences.glassOpacity(0.42)
-    readonly property real glassBlurRadius: bar && bar.reduceTransparency ? 0 : Common.GlassMaterial.blurRadius(glassSettings ? glassSettings.effGlassBlur : Common.DesktopPreferences.glassBlur(5))
-    readonly property real glassLiquid: glassSettings ? glassSettings.effGlassLiquid : Common.DesktopPreferences.glassLiquid(1)
-    readonly property real glassRim: glassSettings ? glassSettings.effGlassRim : Common.DesktopPreferences.glassRim(0.45)
-    readonly property real glassGrain: glassSettings ? glassSettings.effGlassGrain : Common.DesktopPreferences.glassGrain(0.03)
+    readonly property real glassOpacity: Common.DesktopPreferences.glassOpacity(Common.GlassMaterial.baseOpacity)
+    readonly property real glassBlurRadius: bar && bar.reduceTransparency ? 0 : Common.GlassMaterial.surfaceBlur
+    readonly property real glassLiquid: Common.DesktopPreferences.glassLiquid(Common.GlassMaterial.baseLiquid)
+    readonly property real glassRim: Common.DesktopPreferences.glassRim(Common.GlassMaterial.baseRim)
+    readonly property real glassGrain: Common.DesktopPreferences.glassGrain(Common.GlassMaterial.baseGrain)
     readonly property bool glassNeeded: available && glassRequested && shapeMix > 0.001
     property int tooltipCount: 0
     property var settingsPopup: null
@@ -312,13 +312,27 @@ Item {
         // the animated notch silhouette, including attached-mode wings.
         layer.enabled:GraphicsInfo.api!==GraphicsInfo.Software
         layer.effect:MultiEffect {maskEnabled:true;maskSource:contentMask;autoPaddingEnabled:false}
-    // Dropdowns retain their anchored tails with the File/Edit glass material.
+    // The lens supplies refraction; the wash below preserves the semi-glass notch.
     Loader {
         id: glassLayer
         objectName: "notchGlassLayer"
         anchors.fill: parent
         active: notch.glassNeeded && GraphicsInfo.api !== GraphicsInfo.Software
         sourceComponent: NotchGlass { host: notch }
+    }
+
+    Rectangle {
+        objectName: "notchGlassBlackWash"
+        anchors.fill: parent
+        visible: notch.glassRendered
+        // Keep the camera seam opaque, revealing glass only toward the bottom.
+        // The enclosing surface mask also clips the wash to attached shoulders.
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#050505" }
+            GradientStop { position: 0.32; color: "#050505" }
+            GradientStop { position: 0.72; color: Qt.rgba(5 / 255, 5 / 255, 5 / 255, 1 - 0.28 * notch.shapeMix) }
+            GradientStop { position: 1; color: Qt.rgba(5 / 255, 5 / 255, 5 / 255, 1 - 0.5 * notch.shapeMix) }
+        }
     }
 
     Canvas {

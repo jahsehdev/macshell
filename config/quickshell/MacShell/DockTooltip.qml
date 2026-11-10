@@ -24,8 +24,8 @@ Item {
     property real glassRim: 0.45
     property real glassGrain: 0.03
     // Same deep lens and fine rim as GlassMaterialPreview's pills.
-    // qsb --qt6 -D DOCK_TOOLTIP -D DOCK_THIN_BORDER -o docktooltip-shared-material-v4.frag.qsb liquidglass.frag
-    property url shaderUrl: Qt.resolvedUrl("docktooltip-shared-material-v4.frag.qsb")
+    // Built from Common/LiquidGlass.frag with the shared tooltip contour adapter.
+    property url shaderUrl: Qt.resolvedUrl("Common/LiquidGlass-tooltip.frag.qsb")
     property bool glassFailed: false
     property bool backdropReady: true
     readonly property bool useLiquid: liquid && !frosted && backdrop !== null && backdropReady && !glassFailed
@@ -45,20 +45,23 @@ Item {
         const bottom = Math.min(requestedCaptureRect.y + requestedCaptureRect.height, backdropBounds.y + backdropBounds.height);
         return Qt.rect(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
     }
-    readonly property real bodyHeight: 32
+    property real bodyHeight: 32
+    property real cornerRadius: bodyHeight / 2
+    property real cornerSmoothing: 0
     readonly property real tailHeight: 7
     readonly property real tailHalfWidth: 9
     readonly property real edgePadding: 16
-    readonly property real tailX: Math.max(bodyHeight / 2 + tailHalfWidth,
-        Math.min(width - bodyHeight / 2 - tailHalfWidth, pointerX))
+    readonly property real tailX: Math.max(cornerRadius + tailHalfWidth,
+        Math.min(width - cornerRadius - tailHalfWidth, pointerX))
     implicitWidth: Math.min(maxWidth, Math.max(60, label.implicitWidth + edgePadding * 2))
     implicitHeight: bodyHeight + tailHeight
     width: implicitWidth
     height: implicitHeight
 
     function outline(inset) {
-        // Full capsule ends stay circular regardless of the global corner style.
-        return Curve.tailPath(width,bodyHeight,bodyHeight/2,tailHeight,tailX,tailHalfWidth,0,inset);
+        // Labels default to capsule ends; menus reuse the same material with
+        // their existing panel radius and continuous corner shape.
+        return Curve.tailPath(width,bodyHeight,cornerRadius,tailHeight,tailX,tailHalfWidth,cornerSmoothing,inset);
     }
 
     // Frosted uses the menu bar's fixed Apps-panel material. The macdock
@@ -109,7 +112,7 @@ Item {
         sourceComponent: Item {
             id: glass
             readonly property real padding: 10
-            readonly property real materialBlur: Corners.GlassMaterial.blurRadius(tip.glassBlur)
+            readonly property real materialBlur: Corners.DesktopPreferences.reduceTransparency ? 0 : Corners.GlassMaterial.surfaceBlur
             readonly property real ds: materialBlur >= 8 ? 0.5 : 1
             readonly property real blurAmount: materialBlur * 1.4 * ds / 64
             ShaderEffectSource {
@@ -150,36 +153,24 @@ Item {
                 live: true
                 visible: false
             }
-            ShaderEffect {
+            Corners.LiquidGlassSurface {
                 x: -glass.padding; y: -glass.padding
                 width: tip.width + 2 * glass.padding
                 height: tip.height + 2 * glass.padding
                 fragmentShader: tip.shaderUrl
-                property variant src: glass.blurAmount > 1 ? extraBlurred : blurred
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d glassSize: Qt.vector2d(tip.width, tip.height)
-                property vector2d srcSize: Qt.vector2d(capture.sourceRect.width, capture.sourceRect.height)
-                property vector2d srcOffset: Qt.vector2d(tip.backdropOrigin.x - glass.padding - tip.captureRect.x,
+                src: glass.blurAmount > 1 ? extraBlurred : blurred
+                itemSize: Qt.vector2d(width, height)
+                glassSize: Qt.vector2d(tip.width, tip.height)
+                srcSize: Qt.vector2d(capture.sourceRect.width, capture.sourceRect.height)
+                srcOffset: Qt.vector2d(tip.backdropOrigin.x - glass.padding - tip.captureRect.x,
                                                         tip.backdropOrigin.y - glass.padding - tip.captureRect.y)
-                property real pad: glass.padding
-                property real radius: tip.bodyHeight / 2
-                property real bezel: tip.bodyHeight * 0.36
-                property real thickness: 30 * tip.glassLiquid
-                property real dispersion: 0.06 * tip.glassLiquid
-                property real blurPx: 1.5
-                property real tintMix: Math.max(0.06 + Corners.GlassMaterial.intensity * 0.88,
-                    Corners.DesktopPreferences.glassTint(tip.surfaceOpacity, 0.55))
-                property real saturation: 1.25
-                property real dark: tip.dark ? 1 : 0
-                property real debug: 0
-                property real rim: tip.glassRim
-                property real grain: tip.glassGrain
-                property real magnify: 0.08 * tip.glassLiquid
-                property real shadowAmt: 0   // liquid glass: no drop shadow
-                property real rimTint: 0
-                property real ringW: 0
-                property real flatInner: 0
-                property real squircle: 0
+                pad: glass.padding
+                radius: tip.bodyHeight / 2
+                bezel: tip.bodyHeight * 0.36
+                dark: tip.dark ? 1 : 0
+                debug: 0
+                shadowAmt: 0   // liquid glass: no drop shadow
+                squircle: 0
                 property real bodyHeight: tip.bodyHeight
                 property real tailHeight: tip.tailHeight
                 property real tailX: tip.tailX

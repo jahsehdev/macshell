@@ -4,10 +4,13 @@ from pathlib import Path
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+import sys
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("sync_icon_style", Path(__file__).parents[1] / "sync_icon_style.py")
 sync = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(sync)
+with patch.object(sys, "path", [str(Path(__file__).parents[1]), *sys.path]):
+    spec.loader.exec_module(sync)
 
 
 class NativeFolders(unittest.TestCase):

@@ -1,3 +1,4 @@
+import "Common" as Common
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
@@ -15,7 +16,7 @@ Item {
     // frosting (two 64 px blur passes). The default is a light frost so the
     // backdrop stays readable through the glass.
     property real frostAmount: 0.26
-    readonly property real frost: Math.max(0, Math.min(1, frostAmount))
+    readonly property real frost: Common.DesktopPreferences.reduceTransparency ? 0 : Math.min(1, Common.GlassMaterial.surfaceBlur * 1.4 / 64)
     property size captureSize: Qt.size(width + 256, height + 256)
     property bool failed: false
     readonly property bool available: !failed && GraphicsInfo.api !== GraphicsInfo.Software
@@ -61,37 +62,26 @@ Item {
             MultiEffect {
                 id: secondBlur
                 source: firstTexture; width: scene.width; height: scene.height
-                blurEnabled: true; blurMax: 64; blur: 0.75 * glass.frost
+                blurEnabled: true; blurMax: 64; blur: 0
                 autoPaddingEnabled: false; visible: false
             }
             ShaderEffectSource { id: blurred; sourceItem: secondBlur; visible: false }
-            ShaderEffect {
+            Common.LiquidGlassSurface {
                 x: -10; y: -10; width: glass.width + 20; height: glass.height + 20
-                fragmentShader: Qt.resolvedUrl("liquidglass.frag.qsb")
+                fragmentShader: Common.GlassMaterial.shaderUrl
                 onStatusChanged: if (status === ShaderEffect.Error) glass.failed = true
-                property variant src: glass.frost > 0 ? blurred : texture
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d glassSize: Qt.vector2d(glass.width, glass.height)
-                property vector2d srcSize: Qt.vector2d(scene.width, scene.height)
-                property vector2d srcOffset: Qt.vector2d(118, 118)
-                property real pad: 10
-                property real radius: glass.radius
-                property real bezel: 22
-                property real thickness: 22
-                property real dispersion: 0.04
-                property real magnify: 0.04
-                property real rim: glass.rimStrength
-                property real grain: 0.006 * glass.frost
-                property real blurPx: 1.5 * glass.frost
-                property real tintMix: glass.tintMix
-                property real saturation: 1 + 0.15 * glass.frost
-                property real dark: 1
-                property real debug: 0
-                property real shadowAmt: 0
-                property real flatInner: 1 - glass.frost
-                property real rimTint: 1
-                property real ringW: 1
-                property real squircle: 0
+                src: glass.frost > 0 ? blurred : texture
+                itemSize: Qt.vector2d(width, height)
+                glassSize: Qt.vector2d(glass.width, glass.height)
+                srcSize: Qt.vector2d(scene.width, scene.height)
+                srcOffset: Qt.vector2d(118, 118)
+                pad: 10
+                radius: glass.radius
+                bezel: 22
+                dark: 1
+                debug: 0
+                shadowAmt: 0
+                squircle: 0
             }
         }
     }

@@ -7,6 +7,15 @@ const icons = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname, "../IconStyle.js"), "utf8")
   .replace(/^\.pragma library\s*/, ""), icons);
 
+test("Dock icon fallback URLs retain the same artwork lookup key", () => {
+  assert.equal(icons.sourcePath("image://icon/org.gnome.Nautilus?fallback=application-x-executable"),
+    "image://icon/org.gnome.Nautilus");
+  assert.equal(icons.sourcePath("file:///tmp/App%20Icons/Console.png?cache=2#image"),
+    "/tmp/App Icons/Console.png");
+  assert.equal(icons.sourcePath("file:///tmp/100%.png"), "/tmp/100%.png");
+  assert.equal(icons.sourcePath("firefox"), "firefox");
+});
+
 test("Dark Auto follows appearance; Always remains dark", () => {
   for (const system of [false, true]) {
     assert.equal(icons.resolvedDark({style: "dark", darkAppearance: "auto"}, system), system);

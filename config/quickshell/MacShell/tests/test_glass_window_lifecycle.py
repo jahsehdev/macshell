@@ -15,6 +15,14 @@ class GlassWindowLifecycleTests(unittest.TestCase):
         binding = re.search(r'readonly property var glassClients: ([^\n]+)',
                             (SHELL / 'shell.qml').read_text())[1]
         binding = binding.replace('macMinimize.records', 'state.records')
+        source = (SHELL / 'UpstreamBar/MacBar.qml').read_text()
+        start = source.index('function sync() {', source.index('id: backdropComp'))
+        end = start + len('function sync() {')
+        depth = 1
+        while depth:
+            depth += (source[end] == '{') - (source[end] == '}')
+            end += 1
+        sync = source[start:end].replace('root.', 'state.').replace('win.modelData.name', '"test"')
         delegates = []
         for name, identifier in [('UpstreamBar/MacBar.qml', 'gw'), ('MacDock.qml', 'gw'),
                                  ('DockGlassSurface.qml', 'windowCapture'),
@@ -54,13 +62,36 @@ ShellRoot {
     QtObject {
         id: state
         property var records: ({})
-        property var glassRawClients: [{address: "0x123", pid: 42, title: "Console", mapped: true, hidden: false, monitor: 0}]
+        property var monData: [{id: 0, name: "test", x: 0, y: 0, activeWorkspace: {id: 1}, specialWorkspace: {id: 0}}]
+        property var glassRawClients: [{address: "0x123", pid: 42, title: "Console", mapped: true, hidden: false, monitor: 0,
+            workspace: {id: 1, name: "1"}, at: [0, 0], size: [40, 10], floating: false}]
         readonly property var glassClients: BINDING
     }
     LaunchpadBackdrop { id: backdrop; modelData: Quickshell.screens[0] }
     Window {
         id: host; width: 40; height: 10; color: "white"; visible: true
         Item { id: captures; anchors.fill: parent; DELEGATES }
+        Item {
+            id: bd; anchors.fill: parent; visible: false
+            ListModel { id: wm }
+            Repeater {
+                model: wm
+                delegate: Rectangle {
+                    required property bool gone
+                    width: 40; height: 10; color: "red"; visible: !gone
+                }
+            }
+            SYNC
+            Timer { id: sweep; interval: 600; onTriggered: {
+                for (let i = wm.count - 1; i >= 0; --i) if (wm.get(i).gone) wm.remove(i);
+            } }
+            Connections {
+                target: state
+                function onGlassClientsChanged() { bd.sync(); }
+                function onMonDataChanged() { bd.sync(); }
+            }
+            Component.onCompleted: sync()
+        }
         TestCase {
             name: "GlassWindowLifecycle"
             when: host.visible && backdrop.visible
@@ -84,6 +115,29 @@ ShellRoot {
                     compare(grabImage(host.contentItem).pixel(i * 10 + 5, 5), Qt.color("white"));
                 }
             }
+            function test_hiddenWorkspaceClearsRetainedPixelsAndRestoreReadmits() {
+                captures.visible = false; bd.visible = true; bd.sync();
+                wait(30);
+                compare(grabImage(host.contentItem).pixel(5, 5), Qt.color("red"));
+                const original = state.glassRawClients;
+                for (const name of ["special:hidden", "special:minimized", "special:macshell-desktop", "special:macshell-stage"]) {
+                    state.glassRawClients = [Object.assign({}, original[0], {workspace: {id: -98, name: name}})];
+                    compare(state.glassClients.length, 0);
+                    wait(10);
+                    compare(grabImage(host.contentItem).pixel(5, 5), Qt.color("white"));
+                    state.glassRawClients = original;
+                    wait(10);
+                    compare(grabImage(host.contentItem).pixel(5, 5), Qt.color("red"));
+                }
+                const monitors = state.monData;
+                state.monData = [Object.assign({}, monitors[0], {activeWorkspace: {id: 2}})];
+                wait(10);
+                compare(grabImage(host.contentItem).pixel(5, 5), Qt.color("white"));
+                state.monData = monitors;
+                wait(10);
+                compare(grabImage(host.contentItem).pixel(5, 5), Qt.color("red"));
+                bd.visible = false; captures.visible = true;
+            }
             function test_backdropKeepsScreenConstraintsOnReopen() {
                 const screen = Quickshell.screens[0];
                 for (let i = 0; i < 3; ++i) {
@@ -100,7 +154,7 @@ ShellRoot {
             }
         }
     }
-}'''.replace('BINDING', binding).replace('DELEGATES', '\n'.join(delegates))
+}'''.replace('BINDING', binding).replace('DELEGATES', '\n'.join(delegates)).replace('SYNC', sync)
             (root / 'shell.qml').write_text(qml)
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software',
                        XDG_RUNTIME_DIR=str(root / 'runtime'), XDG_CONFIG_HOME=str(root / 'config'),

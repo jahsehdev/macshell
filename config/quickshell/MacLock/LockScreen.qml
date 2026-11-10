@@ -1,12 +1,14 @@
 // What one monitor shows while locked. The primary monitor gets the full macOS layout (clock, Now Playing,
 // avatar + password); the others show the wallpaper and the clock only, but still forward typing.
 import "Common" as Corners
+import "Common/LyricsFocus.js" as LyricFocus
 import QtQuick
 import QtQuick.Effects
 import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
+import Quickshell.Services.Pipewire
 import Quickshell.Services.UPower
 
 Item {
@@ -15,9 +17,16 @@ Item {
     property bool isPrimary: true
     property bool shown: false          // entrance animation done / running
     readonly property real u: Math.max(0.6, height / 1200)   // layout unit, 1.0 on a 1200 px tall screen
-    // UI and clock fonts are installed in the user font directory.
-    readonly property string fam: "SF Pro Text"
-    readonly property string famDisplay: "SF Pro Display"
+    // Read the same watched Settings file as the dock; typography follows the
+    // user's choice even when it changes while the lockscreen is open.
+    readonly property string fam: {
+        var family = typeof mediaMaterial.fontFamily === "string" ? mediaMaterial.fontFamily.trim() : "";
+        if (family === "System" || family === "sans-serif") return Qt.application.font.family || "sans-serif";
+        return family || "SF Pro Text";
+    }
+    readonly property string famDisplay: fam
+    readonly property string fontStyleName: typeof mediaMaterial.fontStyleName === "string" ? mediaMaterial.fontStyleName.trim() : ""
+    readonly property bool fontItalic: /italic|oblique/i.test(fontStyleName)
     readonly property bool leaving: st.unlocking
 
     focus: true
@@ -42,7 +51,7 @@ Item {
         Image {
             id: wall
             anchors.fill: parent
-            source: ls.st.wallpaper !== "" ? "file://" + ls.st.wallpaper : ""
+            source: ls.st.wallpaper !== "" ? "file://" + encodeURI(ls.st.wallpaper).replace(/#/g, "%23").replace(/\?/g, "%3F") : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
@@ -59,19 +68,13 @@ Item {
             anchors.fill: wall
             scale: wall.scale
             active: ls.st.wallpaperVideo !== ""
-            sourceComponent: Item {
-                MediaPlayer {
-                    source: "file://" + ls.st.wallpaperVideo
-                    loops: MediaPlayer.Infinite
-                    videoOutput: vo
-                    Component.onCompleted: play()
-                }
-                VideoOutput { id: vo; anchors.fill: parent; fillMode: VideoOutput.PreserveAspectCrop }
+            sourceComponent: Corners.WallpaperVideo {
+                source: "file://" + encodeURI(ls.st.wallpaperVideo).replace(/#/g, "%23").replace(/\?/g, "%3F")
             }
         }
         // the wallpaper softens and dims while you're entering the password
         MultiEffect {
-            source: wallVideo.active ? wallVideo : wall
+            source: wallVideo.item && wallVideo.item.ready ? wallVideo : wall
             anchors.fill: wall
             scale: wall.scale
             blurEnabled: true
@@ -127,12 +130,13 @@ Item {
     // shared, pre-blurred copy of the scene that every glass slab (and the clock) refracts
     ShaderEffectSource {
         id: sceneTex
+        readonly property real downsample: Corners.GlassMaterial.surfaceBlur >= 8 ? 0.5 : 1
         sourceItem: scene
         // with a video wallpaper the scene changes every frame: the glass copy refreshes at 12 fps instead
         // (blur + every glass shader re-running 30-60x a second was the main GPU cost on the lock screen)
         live: !wallVideo.active
         visible: false
-        textureSize: Qt.size(Math.max(1, Math.round(ls.width / 2)), Math.max(1, Math.round(ls.height / 2)))
+        textureSize: Qt.size(Math.max(1, Math.round(ls.width * downsample)), Math.max(1, Math.round(ls.height * downsample)))
     }
     Timer {
         interval: 83; repeat: true
@@ -144,8 +148,8 @@ Item {
         source: sceneTex
         width: sceneTex.textureSize.width; height: sceneTex.textureSize.height
         blurEnabled: true
-        blurMax: 32
-        blur: 0.35
+        blurMax: 64
+        blur: Corners.DesktopPreferences.reduceTransparency ? 0 : Math.min(1, Corners.GlassMaterial.surfaceBlur * sceneTex.downsample * 1.4 / 64)
         autoPaddingEnabled: false
         visible: false
     }
@@ -194,7 +198,7 @@ Item {
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: parent.pct + "%"
-                color: "white"; font.family: ls.fam; font.pixelSize: 13 * ls.u; font.weight: Font.Medium
+                color: "white"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 13 * ls.u; font.weight: Font.Medium
             }
             // macOS battery: rounded outline, fill, little cap
             Item {
@@ -298,7 +302,7 @@ Item {
             Behavior on height { NumberAnimation { duration: 420; easing.type: Easing.OutQuint } }
             Behavior on opacity { NumberAnimation { duration: 320 } }
             clip: true
-            Glass { anchors.fill: parent; src: glassTex; frame: ls; cornerR: 22 * ls.u; thickness: 20; tint: 0.42; shadowAmt: 0 }
+            Glass { anchors.fill: parent; src: glassTex; frame: ls; cornerR: 22 * ls.u; shadowAmt: 0 }
             readonly property var tm: ls.clockSt ? ls.clockSt.timer : null
             readonly property real remain: !tm ? 0 : (tm.state === "running" ? Math.max(0, tm.endAt - ls.nowMs) : tm.left)
             readonly property real swMs: (ls.clockSt && ls.clockSt.sw) ? ls.clockSt.sw.acc + (ls.clockSt.sw.running ? ls.nowMs - ls.clockSt.sw.startAt : 0) : 0
@@ -324,13 +328,13 @@ Item {
                 Text {
                     text: ls.liveKind === "timer" && liveCard.tm ? (liveCard.tm.label || "Timer") + (liveCard.tm.state === "paused" ? " · Paused" : "")
                         : (ls.liveKind === "sw" ? "Stopwatch" : (ls.liveKind === "ring" && ls.clockSt.ringing ? (ls.clockSt.ringing.kind === "timer" ? "Timer" : "Alarm") : ""))
-                    color: "#FF9F0A"; font.family: ls.fam; font.pixelSize: 13 * ls.u; font.weight: Font.DemiBold
+                    color: "#FF9F0A"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 13 * ls.u; font.weight: Font.DemiBold
                 }
                 Text {
                     text: ls.liveKind === "timer" && liveCard.tm ? ls.fmtDur(liveCard.remain)
                         : (ls.liveKind === "sw" ? ls.fmtDur(liveCard.swMs).replace(/^(\d\d:\d\d)$/, "$1")
                         : (ls.liveKind === "ring" && ls.clockSt.ringing ? (ls.clockSt.ringing.kind === "timer" ? "Done" : ls.clockSt.ringing.time) : ""))
-                    color: "white"; font.family: ls.fam; font.pixelSize: 30 * ls.u; font.weight: Font.Medium
+                    color: "white"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 30 * ls.u; font.weight: Font.Medium
                     font.features: { "tnum": 1 }
                 }
             }
@@ -345,7 +349,7 @@ Item {
                         required property string modelData
                         width: (liveCard.width - 40 * ls.u) / (ls.clockSt.ringing.kind === "timer" ? 1 : 2); height: 30 * ls.u; radius: height / 2
                         color: modelData === "Stop" ? "#FF9F0A" : Qt.rgba(1, 1, 1, ringBtn.pressed ? 0.32 : 0.2)
-                        Text { anchors.centerIn: parent; text: parent.modelData; color: parent.modelData === "Stop" ? "black" : "white"; font.family: ls.fam; font.pixelSize: 13 * ls.u; font.weight: Font.DemiBold }
+                        Text { anchors.centerIn: parent; text: parent.modelData; color: parent.modelData === "Stop" ? "black" : "white"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 13 * ls.u; font.weight: Font.DemiBold }
                         MouseArea { id: ringBtn; anchors.fill: parent; onClicked: Quickshell.execDetached(["qs", "-c", "MacShell", "ipc", "call", "clock", parent.modelData === "Stop" ? "stop" : "snooze"]) }
                     }
                 }
@@ -357,6 +361,7 @@ Item {
             model: lnModel
             delegate: Item {
                 id: nc
+                objectName: "lockNotification"
                 required property int nid
                 required property string app
                 required property string icon
@@ -384,7 +389,7 @@ Item {
                     ScriptAction { script: { nc.gone = true; Quickshell.execDetached(["qs", "-c", "MacShell", "ipc", "call", "notifications", "dismiss", String(nc.nid)]); } }
                 }
 
-                Glass { anchors.fill: parent; src: glassTex; frame: ls; cornerR: 20 * ls.u; thickness: 20; tint: 0.40; shadowAmt: 0 }
+                Glass { anchors.fill: parent; src: glassTex; frame: ls; cornerR: 20 * ls.u; shadowAmt: 0 }
                 Corners.ContinuousRectangle { anchors.fill: parent; radius: 20 * ls.u; color: "white"; opacity: ncMa.pressed ? 0.12 : (ncMa.containsMouse ? 0.06 : 0); Behavior on opacity { NumberAnimation { duration: 140 } } }
                 Image {
                     x: 14 * ls.u; anchors.verticalCenter: parent.verticalCenter
@@ -397,12 +402,12 @@ Item {
                 Column {
                     x: 60 * ls.u; anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - x - 70 * ls.u
-                    Text { width: parent.width; elide: Text.ElideRight; text: nc.app; color: "white"; font.family: ls.fam; font.pixelSize: 14 * ls.u; font.weight: Font.DemiBold }
-                    Text { text: "Notification"; color: Qt.rgba(1, 1, 1, 0.72); font.family: ls.fam; font.pixelSize: 13 * ls.u }
+                    Text { width: parent.width; elide: Text.ElideRight; text: nc.app; color: "white"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 14 * ls.u; font.weight: Font.DemiBold }
+                    Text { text: "Notification"; color: Qt.rgba(1, 1, 1, 0.72); font.family: ls.fam; font.styleName: ls.fontStyleName; font.italic: ls.fontItalic; font.pixelSize: 13 * ls.u }
                 }
                 Text {
                     anchors.right: parent.right; anchors.rightMargin: 14 * ls.u; y: 13 * ls.u
-                    text: ls.notifAge(nc.time); color: Qt.rgba(1, 1, 1, 0.6); font.family: ls.fam; font.pixelSize: 12 * ls.u
+                    text: ls.notifAge(nc.time); color: Qt.rgba(1, 1, 1, 0.6); font.family: ls.fam; font.styleName: ls.fontStyleName; font.italic: ls.fontItalic; font.pixelSize: 12 * ls.u
                 }
                 // one MouseArea for tap AND swipe: it keeps the pointer for the whole drag (preventStealing), and the card
                 // is only cleared when the button is actually released — an interrupted drag springs back
@@ -451,7 +456,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
                 text: (ls.lockNotifs.length - 4) + " more notification" + (ls.lockNotifs.length - 4 === 1 ? "" : "s")
-                color: Qt.rgba(1, 1, 1, 0.75); font.family: ls.fam; font.pixelSize: 12 * ls.u; font.weight: Font.Medium
+                color: Qt.rgba(1, 1, 1, 0.75); font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 12 * ls.u; font.weight: Font.Medium
             }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ls.askPassword() }
         }
@@ -489,7 +494,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: Qt.formatDate(ls.st.now, ls.ckShortDate ? "ddd MMM d" : "dddd, MMMM d")
             color: Qt.rgba(1, 1, 1, 0.92)
-            font.family: ls.fam
+            font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic
             font.pixelSize: (ls.ckShortDate ? 23 : 25) * ls.u; font.weight: Font.DemiBold
             layer.enabled: true
             layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.6; shadowOpacity: 0.25; shadowVerticalOffset: 1 }
@@ -520,7 +525,7 @@ Item {
                 // (Qt's "h" only goes 12-hour together with AP, so the hour is computed here)
                 text: ls.st.use24h ? Qt.formatTime(ls.st.now, "H:mm") : ((ls.st.now.getHours() % 12) || 12) + Qt.formatTime(ls.st.now, ":mm")
                 color: "white"
-                font.family: ls.ckFamily; font.pixelSize: ls.clockPx
+                font.family: ls.ckFamily; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: ls.clockPx
                 font.weight: Math.max(100, Math.min(900, Math.round(ls.clockWght)))
                 font.letterSpacing: (ls.ckFont === "condensed" ? -2 : (ls.ckWeight < 330 ? 0 : -1.5)) * ls.u
                 renderType: Text.QtRendering
@@ -567,7 +572,7 @@ Item {
                 id: timeGlass
                 x: timeTxt.x - timeItem.mp; y: timeTxt.y - timeItem.mp
                 width: timeMaskFx.width; height: timeMaskFx.height
-                fragmentShader: Qt.resolvedUrl("glasstext.frag.qsb")
+                fragmentShader: Qt.resolvedUrl("Common/LiquidGlass-text.frag.qsb")
                 // where the glass really is on screen (follows the clock's animations)
                 readonly property point fp: { ls.clockPx; clock.y; clock.x; timeItem.x; timeTxt.x; timeTxt.width; return timeGlass.mapToItem(ls, 0, 0); }
                 property variant src: glassTex
@@ -578,8 +583,8 @@ Item {
                 property vector2d srcOffset: Qt.vector2d(fp.x, fp.y)
                 // Apple's two clock materials (Settings → Lock Screen → Clock): Solid = vibrancy, Glass = Liquid Glass
                 property real mode: ls.ckGlass ? 1 : 0
-                property real intensity: ls.ckGlass ? ls.ckIntensity : 0.55 + 0.4 * ls.ckIntensity
-                property real refract: (6 + 4 * (1 - ls.ckIntensity)) * ls.u
+                property real intensity: ls.ckGlass ? Corners.GlassMaterial.intensity : 0.55 + 0.4 * ls.ckIntensity
+                property real refract: Corners.DesktopPreferences.reduceTransparency ? 0 : Corners.GlassMaterial.profile(Corners.GlassMaterial.intensity).thickness
                 property real bevel: 4.5
                 property color tint: ls.ckTint
                 property vector2d lightDir: Qt.vector2d(ls.lightX, ls.lightY)
@@ -638,9 +643,32 @@ Item {
     readonly property Item coverNew: coverIdx === 0 ? coverA : coverB
     readonly property Item coverOld: coverIdx === 0 ? coverB : coverA
 
+    FileView {
+        id: dockMaterialFile
+        path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/macdock/settings.json"
+        watchChanges: true; printErrors: false
+        onFileChanged: reload()
+    }
+    readonly property var mediaMaterial: {
+        try { return dockMaterialFile.loaded ? JSON.parse(dockMaterialFile.text()) : ({}); } catch (err) { return ({}); }
+    }
     // ═════════════ NOW PLAYING ═════════════
+    property var availablePlayers: Mpris.players.values
+    property var audioOutput: Pipewire.defaultAudioSink
+    PwObjectTracker { objects: Pipewire.defaultAudioSink ? [Pipewire.defaultAudioSink] : [] }
+    function setMediaVolume(value) {
+        if (!audioOutput || !audioOutput.audio) return;
+        audioOutput.audio.muted = false;
+        audioOutput.audio.volume = Math.max(0, Math.min(1, value));
+        st.poke();
+    }
+    function toggleMediaMute() {
+        if (!audioOutput || !audioOutput.audio) return;
+        audioOutput.audio.muted = !audioOutput.audio.muted;
+        st.poke();
+    }
     readonly property var player: {
-        var ps = Mpris.players.values, best = null;
+        var ps = ls.availablePlayers, best = null;
         for (var i = 0; i < ps.length; i++) {
             if (ps[i].isPlaying) return ps[i];
             if (!best && ps[i].trackTitle) best = ps[i];
@@ -658,7 +686,7 @@ Item {
     property real sideT: sideMode ? 1 : 0
     Behavior on sideT { NumberAnimation { id: sideAnim; duration: 650; easing.type: Easing.OutQuint } }
     readonly property real sideGap: 32 * u
-    readonly property real sideLyrW: Math.min(560 * u, width - 372 * u - sideGap - 96 * u)
+    readonly property real sideLyrW: Math.min(560 * u, width - media.width - sideGap - 96 * u)
     // 0 → 1 springs; the cover, the bubble, the lyrics and the clock all follow them, so they move as one
     property real artT: artMode ? 1 : 0
     Behavior on artT { NumberAnimation { id: artAnim; duration: 650; easing.type: Easing.OutQuint } }
@@ -668,14 +696,14 @@ Item {
     function clamp01(v) { return Math.max(0, Math.min(1, v)); }
     // how much the clock gives way (follows the cover / lyrics ease-out)
     readonly property real squash: Math.max(artT, lyrT)
-    // SF Pro clock presets retain their size, weight and artwork transitions.
+    // Clock presets retain their size, weight and artwork transitions.
     // Static OTF faces select weights through font.weight rather than variable axes.
     // ── clock style (Settings → Lock Screen → Clock) ──
-    //   font: SF Pro Display (legacy clock presets) | SF Pro Text (inter)
+    //   font: the UI family selected in Settings
     //   material: frosted (milky glass) | liquid (clear glass with a bright rim)
     readonly property var ckCfg: (ls.st.clockCfg && !ls.st.clockCfg.__ignore) ? ls.st.clockCfg : ({})
     readonly property string ckFont: ["condensed", "rounded", "serif", "inter"].indexOf(ckCfg.f) >= 0 ? ckCfg.f : "condensed"
-    // Preserve saved preset IDs while using SF for every clock style.
+    // Preserve saved clock preset IDs while following the chosen UI font.
     readonly property string ckFamily: ckFont === "inter" ? fam : famDisplay
     readonly property int ckWeight: (typeof ckCfg.w === "number" && ckCfg.w >= 100 && ckCfg.w <= 1000) ? ckCfg.w : 680
     readonly property bool ckTall: ckFont === "condensed" && ckCfg.t !== false
@@ -713,7 +741,7 @@ Item {
     // vertical room above the bubble: the cover, the lyrics, or (side by side) the taller of the two
     // lyrics go UNDER the bubble when it sits in the top spot (the bubble stays put), above it in the bottom spot
     readonly property bool lyricsBelow: ls.st.mediaSlot !== "bottom"
-    readonly property real panelRoom: Math.max(Math.max(0, artT) * (media.width + 24 * ls.u), lyricsBelow ? 0 : Math.max(0, lyrT) * (1 - sideT) * (lyricsH + 24 * ls.u))
+    readonly property real panelRoom: Math.max(Math.max(0, artT) * (media.bigArt + 24 * ls.u), lyricsBelow ? 0 : Math.max(0, lyrT) * (1 - sideT) * (lyricsH + 24 * ls.u))
     readonly property int springMs: 650
     // how far the dragged bubble is pressed past its top / bottom spot (px), 0 when not dragging
     readonly property real pressTop: media.dragging ? Math.max(0, media.slotTop - (media.base + media.dragOff)) : 0
@@ -722,11 +750,15 @@ Item {
 
     Item {
         id: media
+        objectName: "lockMediaCard"
         visible: ls.isPrimary && opacity > 0.002
         readonly property bool expanded: ls.artMode
-        readonly property real bigArt: width
-        width: 372 * ls.u
-        height: (150 * ls.u) + ((138 * ls.u) - (150 * ls.u)) * ls.artT
+        // Keep side-by-side artwork clear of the clock, including on short displays.
+        readonly property real sideArt: Math.max(0, Math.min(width * 0.68, slotBottom - (0.075 * ls.height + clock.height + 56 * ls.u)))
+        readonly property real bigArt: width + (sideArt - width) * ls.sideT
+        width: Math.min(460 * ls.u, ls.width - 40 * ls.u)
+        height: (262 * ls.u) + ((216 * ls.u) - (262 * ls.u)) * ls.artT
+        readonly property real textX: width * 0.44 + (18 * ls.u - width * 0.44) * ls.artT
         x: (ls.width - width) / 2 - ls.sideT * (ls.sideLyrW + ls.sideGap) / 2
         readonly property bool on: ls.shown && !ls.leaving && ls.hasMedia
         onOnChanged: if (!on) ls.st.npMode = ""
@@ -798,8 +830,35 @@ Item {
 
         Glass {
             anchors.fill: parent
+            objectName: "lockMediaGlass"
             src: glassTex; frame: ls
-            cornerR: 28 * ls.u; thickness: 26; tint: 0.48; shadowAmt: 0
+            cornerR: 32; shadowAmt: 0
+        }
+        MediaCover {
+            id: mediaCover
+            objectName: "lockMediaCover"
+            anchors.fill: parent
+            source: ls.coverUrl
+            radius: 32
+            opacity: 1 - ls.clamp01(ls.artT)
+            visible: opacity > 0.001
+        }
+        Item {
+            objectName: "lockCoverToggle"
+            width: media.width * 0.42; height: media.height
+            visible: !media.expanded
+            TapHandler {
+                onTapped: {
+                    ls.st.npMode = ls.lyricsMode ? "artlyrics" : "art";
+                    ls.st.poke();
+                }
+            }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+            Glyph {
+                anchors.centerIn: parent; width: 54 * ls.u; height: width
+                visible: !mediaCover.ready
+                kind: "note"; color: Qt.rgba(1, 1, 1, 0.6)
+            }
         }
         HoverHandler { id: mediaHover }
         Corners.ContinuousRectangle {
@@ -817,10 +876,10 @@ Item {
             // the cover leaves the glass bubble: it is drawn on the screen itself, above the bubble
             parent: ls
             z: media.z + 1
-            visible: media.visible
-            opacity: media.opacity
+            visible: media.visible && ls.artT > 0.001
+            opacity: media.opacity * ls.clamp01(ls.artT)
             readonly property real r: (11 * ls.u) + ((28 * ls.u) - (11 * ls.u)) * ls.artT
-            x: (media.x + 16 * ls.u) + ((media.x) - (media.x + 16 * ls.u)) * ls.artT
+            x: (media.x + 16 * ls.u) + ((media.x + (media.width - media.bigArt) / 2) - (media.x + 16 * ls.u)) * ls.artT
             y: (media.y + 16 * ls.u) + ((media.y - media.bigArt - 24 * ls.u) - (media.y + 16 * ls.u)) * ls.artT
             width: (58 * ls.u) + ((media.bigArt) - (58 * ls.u)) * ls.artT
             height: width
@@ -865,30 +924,47 @@ Item {
 
         Column {
             id: txtCol
-            x: (87 * ls.u) + ((18 * ls.u) - (87 * ls.u)) * ls.artT
-            y: (16 * ls.u + (58 * ls.u - height) / 2) + ((16 * ls.u) - (16 * ls.u + (58 * ls.u - height) / 2)) * ls.artT
+            x: media.textX
+            y: (22 - 6 * ls.artT) * ls.u
             width: media.width - x - 18 * ls.u
             spacing: 2 * ls.u
             MorphText {
-                width: parent.width; elide: Text.ElideRight
+                objectName: "lockMediaTitle"
+                width: parent.width - 52 * ls.u * (1 - ls.artT); elide: Text.ElideRight
                 text: media.pl ? (media.pl.trackTitle || "") : ""
                 horizontalAlignment: media.expanded ? Text.AlignHCenter : Text.AlignLeft
-                color: "white"; font.family: ls.fam; font.pixelSize: 15 * ls.u; font.weight: Font.DemiBold; animateWidth: false
+                color: "white"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: (28 - 6 * ls.artT) * ls.u; font.weight: Font.Bold; animateWidth: false
             }
             MorphText {
-                width: parent.width; elide: Text.ElideRight
+                width: parent.width - 52 * ls.u * (1 - ls.artT); elide: Text.ElideRight
                 text: media.pl ? (media.pl.trackArtist || media.pl.identity || "") : ""
                 horizontalAlignment: media.expanded ? Text.AlignHCenter : Text.AlignLeft
-                color: Qt.rgba(1, 1, 1, 0.66); font.family: ls.fam; font.pixelSize: 13 * ls.u; animateWidth: false
+                objectName: "lockMediaArtist"
+                color: Qt.rgba(1, 1, 1, 0.76); font.family: ls.fam; font.styleName: ls.fontStyleName; font.italic: ls.fontItalic; font.pixelSize: 20 * ls.u; animateWidth: false
             }
+        }
+
+        MorphText {
+            objectName: "lockMediaInlineLyric"
+            x: media.textX; y: 96 * ls.u
+            width: media.width - x - 18 * ls.u
+            opacity: 1 - ls.clamp01(ls.artT)
+            visible: opacity > 0.001
+            text: ls.lyrLines.length ? ls.lyrLines[Math.max(0, ls.lyrCur)].text
+                  : ls.lyrStatus === "loading" ? "Finding lyrics…" : media.pl ? (media.pl.trackAlbum || "") : ""
+            color: Qt.rgba(1, 1, 1, 0.78)
+            font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 17 * ls.u; font.weight: Font.Medium
+            elide: Text.ElideRight; animateWidth: false
+            stretch: false
         }
 
         // scrubber
         Item {
             id: scrub
-            x: 18 * ls.u; width: parent.width - 36 * ls.u
-            y: (88 * ls.u) + ((txtCol.y + txtCol.height + 10 * ls.u) - (88 * ls.u)) * ls.artT
-            height: 16 * ls.u
+            objectName: "lockMediaTimeline"
+            x: media.textX; width: parent.width - x - 18 * ls.u
+            y: (128 * ls.u) + ((txtCol.y + txtCol.height + 14 * ls.u) - (128 * ls.u)) * ls.artT
+            height: 32 * ls.u
             readonly property real len: media.pl && media.pl.lengthSupported ? media.pl.length : 0
             property real pos: 0
             readonly property real frac: len > 0 ? Math.max(0, Math.min(1, pos / len)) : 0
@@ -906,21 +982,21 @@ Item {
             }
             Text {
                 id: tL
-                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left; y: 15 * ls.u
                 text: scrub.fmt(scrub.pos)
-                color: Qt.rgba(1, 1, 1, 0.6); font.family: ls.fam; font.pixelSize: 11 * ls.u; font.features: { "tnum": 1 }
+                color: Qt.rgba(1, 1, 1, 0.76); font.family: ls.fam; font.styleName: ls.fontStyleName; font.italic: ls.fontItalic; font.pixelSize: 13 * ls.u; font.features: { "tnum": 1 }
             }
             Text {
                 id: tR
-                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                text: scrub.len > 0 ? "-" + scrub.fmt(scrub.len - scrub.pos) : "--:--"
-                color: Qt.rgba(1, 1, 1, 0.6); font.family: ls.fam; font.pixelSize: 11 * ls.u; font.features: { "tnum": 1 }
+                anchors.right: parent.right; y: 15 * ls.u
+                text: scrub.len > 0 ? scrub.fmt(scrub.len) : "--:--"
+                color: Qt.rgba(1, 1, 1, 0.76); font.family: ls.fam; font.styleName: ls.fontStyleName; font.italic: ls.fontItalic; font.pixelSize: 13 * ls.u; font.features: { "tnum": 1 }
             }
             Item {
                 id: bar
-                anchors.left: tL.right; anchors.right: tR.left
-                anchors.leftMargin: 10 * ls.u; anchors.rightMargin: 10 * ls.u
-                anchors.verticalCenter: parent.verticalCenter
+                objectName: "lockMediaSeekBar"
+                anchors.left: parent.left; anchors.right: parent.right
+                y: 2 * ls.u
                 height: (barMa.containsMouse || barMa.pressed ? 8 : 5) * ls.u
                 Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutQuint } }
                 Corners.ContinuousRectangle { cornerSmoothing: 0; anchors.fill: parent; radius: height / 2; color: Qt.rgba(1, 1, 1, 0.22) }
@@ -932,6 +1008,7 @@ Item {
                 }
                 MouseArea {
                     id: barMa
+                    objectName: "lockMediaSeekTarget"
                     anchors.fill: parent; anchors.margins: -8
                     hoverEnabled: true
                     enabled: media.pl !== null && media.pl.canSeek && scrub.len > 0
@@ -949,22 +1026,24 @@ Item {
         // lyrics button (Apple's quote bubble), right of the controls
         Item {
             id: lyrBtn
+            objectName: "lockLyricsButton"
             x: media.width - 16 * ls.u - width
-            y: scrub.y + scrub.height + 6 * ls.u
-            width: 32 * ls.u; height: 34 * ls.u
+            y: 18 * ls.u + (transport.y - 18 * ls.u) * ls.artT
+            width: 48 * ls.u; height: 48 * ls.u
             readonly property bool active: ls.st.npMode === "lyrics" || ls.st.npMode === "artlyrics"
             opacity: ls.lyrStatus === "none" || ls.lyrStatus === "instrumental" ? 0.4 : 1
             Corners.ContinuousRectangle { cornerSmoothing: 0;
                 anchors.centerIn: parent
-                width: 30 * ls.u; height: width; radius: 9 * ls.u
+                width: 34 * ls.u; height: width; radius: 9 * ls.u
                 color: lyrBtn.active ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, lyrMa.containsMouse ? 0.14 : 0)
                 scale: lyrMa.pressed ? 0.88 : 1
                 Behavior on color { ColorAnimation { duration: 220 } }
                 Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutQuint } }
                 Canvas {
                     id: quoteIcon
+                    objectName: "lockLyricsGlyph"
                     anchors.centerIn: parent
-                    width: 18 * ls.u; height: width
+                    width: 24 * ls.u; height: width
                     property color ink: lyrBtn.active ? "#1c1c1e" : "white"
                     onInkChanged: requestPaint()
                     onWidthChanged: requestPaint()
@@ -992,31 +1071,59 @@ Item {
                     // lyrics button: with the cover enlarged the cover slides left and the lyrics appear beside it
                     var m = ls.st.npMode;
                     ls.st.npMode = m === "" ? "lyrics" : m === "lyrics" ? "" : m === "art" ? "artlyrics" : "art";
-                    if (ls.lyricsMode && (ls.lyrStatus === "idle" || ls.lyrStatus === "none")) ls.fetchLyrics();
+                    if (ls.lyricsMode && (ls.lyrStatus === "idle" || ls.lyrStatus === "none" || ls.lyrStatus === "offline")) ls.fetchLyrics();
                     ls.st.poke();
                 }
             }
         }
 
+        PlaybackIndicator {
+            id: musicGraphic
+            objectName: "lockMusicGraphic"
+            x: lyrBtn.x + (lyrBtn.width - width) / 2
+            y: lyrBtn.y + lyrBtn.height + 3 * ls.u
+            uiScale: ls.u
+            playing: media.on && !!media.pl && media.pl.isPlaying
+            opacity: 1 - ls.clamp01(ls.artT)
+            visible: media.visible && opacity > 0.001
+        }
+
+        MediaVolumeSlider {
+            id: volumeSlider
+            objectName: "lockMediaVolume"
+            x: media.textX
+            y: scrub.y + scrub.height + 6 * ls.u
+            width: media.width - x - 18 * ls.u
+            uiScale: ls.u
+            enabled: !!ls.audioOutput && !!ls.audioOutput.audio
+            muted: enabled && ls.audioOutput.audio.muted
+            value: enabled && !ls.audioOutput.audio.muted ? Math.max(0, Math.min(1, ls.audioOutput.audio.volume)) : 0
+            onMoved: ls.setMediaVolume(value)
+            onMuteRequested: ls.toggleMediaMute()
+        }
+
         // transport controls
         Row {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: scrub.y + scrub.height + 6 * ls.u
-            spacing: 26 * ls.u
+            id: transport
+            objectName: "lockMediaTransport"
+            x: (media.textX + media.width - 18 * ls.u - width) / 2
+            y: volumeSlider.y + volumeSlider.height + 6 * ls.u
+            spacing: 4 * ls.u
             Repeater {
                 model: ["prev", "play", "next"]
                 delegate: Item {
                     id: tb
+                    objectName: "lockMedia_" + modelData
                     required property string modelData
                     readonly property bool big: modelData === "play"
-                    width: (big ? 38 : 32) * ls.u; height: 34 * ls.u
+                    width: 48 * ls.u; height: 48 * ls.u
                     readonly property bool can: media.pl !== null && (modelData === "prev" ? media.pl.canGoPrevious
                                                 : modelData === "next" ? media.pl.canGoNext : media.pl.canTogglePlaying)
                     opacity: can ? 1 : 0.35
                     // glass halo on hover
                     Corners.ContinuousRectangle { cornerSmoothing: 0;
                         anchors.centerIn: parent
-                        width: 40 * ls.u; height: width; radius: width / 2
+                        width: 48 * ls.u; height: width; radius: width / 2
                         color: Qt.rgba(1, 1, 1, tma.pressed ? 0.20 : 0.12)
                         opacity: tma.containsMouse ? 1 : 0
                         scale: tma.containsMouse ? 1 : 0.6
@@ -1025,7 +1132,8 @@ Item {
                     }
                     MorphGlyph {
                         anchors.centerIn: parent
-                        width: (tb.big ? 26 : 22) * ls.u; height: width
+                        objectName: "lockMediaGlyph_" + tb.modelData
+                        width: 40 * ls.u; height: width
                         kind: tb.modelData === "play" ? (media.pl && media.pl.isPlaying ? "pause" : "play") : tb.modelData
                         color: "white"
                         scale: tma.pressed ? 0.84 : 1
@@ -1033,7 +1141,7 @@ Item {
                     }
                     MouseArea {
                         id: tma
-                        anchors.fill: parent; anchors.margins: -4
+                        anchors.fill: parent
                         hoverEnabled: true
                         enabled: tb.can
                         cursorShape: Qt.PointingHandCursor
@@ -1056,88 +1164,20 @@ Item {
     property real estPos: 0
     Timer {
         interval: 50; repeat: true
-        running: ls.lyricsMode || ls.lyrT > 0.01
+        running: media.visible
         onTriggered: ls.estPos = ls.posBase + (ls.posPlaying ? (Date.now() - ls.posAt) / 1000 : 0)
     }
 
-    // lyrics for the current track: LRCLIB (free, synced LRC), cached in ~/.cache/maclock/lyrics
-    property var lyrLines: []              // [{ t: seconds (-1 = unsynced), text }]
-    property string lyrStatus: "idle"      // idle | loading | synced | plain | none
-    readonly property string trackKey: media.pl ? (media.pl.trackArtist || "") + "\u0001" + (media.pl.trackTitle || "") : ""
-    onTrackKeyChanged: lyrFetchDelay.restart()
-    Timer { id: lyrFetchDelay; interval: 400; onTriggered: { ls.lyrTries = 0; ls.fetchLyrics(); } }
-    property int lyrTries: 0
-    Timer { id: lyrRetry; interval: 12000; onTriggered: ls.fetchLyrics() }
-    function fetchLyrics() {
-        if (!ls.isPrimary || !media.pl || !(media.pl.trackTitle || "")) { lyrLines = []; lyrStatus = "idle"; return; }
-        lyrLines = []; lyrStatus = "loading";
-        var len = media.pl.lengthSupported ? Math.round(media.pl.length) : 0;
-        lyrProc.running = false;
-        lyrProc.command = ["sh", "-c", ls.lyrScript, "sh", media.pl.trackArtist || "", media.pl.trackTitle || "", media.pl.trackAlbum || "", len > 0 ? String(len) : ""];
-        lyrProc.running = true;
-    }
-    readonly property string lyrScript: [
-        'a="$1"; t="$2"; al="$3"; d="${4:-0}"; c="$HOME/.cache/maclock/lyrics"; mkdir -p "$c"',
-        'k=$(printf "%s|%s" "$a" "$t" | md5sum | cut -c1-16); f="$c/$k.json"',
-        '[ -s "$f" ] && { cat "$f"; exit 0; }',
-        'tmp=$(mktemp); answered=0; r=""',
-        // titles like "Song (feat. X)" / "Song - Remastered 2011": also try the bare title
-        'bare=$(printf "%s" "$t" | sed -E "s/ *[(\\[][^)\\]]*[)\\]]//g; s/ +- +(.*[Rr]emaster.*|[Ll]ive.*|[Rr]adio [Ee]dit.*)$//")',
-        // ── 1. NetEase Cloud Music: fast, not rate-limited. Same title + same length (±4 s) or it doesn't count.
-        'ne() { code=$(curl -s --max-time 6 -A "Mozilla/5.0" -o "$tmp" -w "%{http_code}" -G "https://music.163.com/api/search/get" --data-urlencode "s=$1" -d type=1 -d limit=10); [ "$code" = 200 ] || return 1; answered=1',
-        '  id=$(jq -r --arg t "$bare" --argjson d "$d" \'def n: ascii_downcase | gsub("[^\\\\p{L}\\\\p{N}]"; ""); ($t | n) as $q | [.result.songs[]? | select((.name | n) as $nm | ($nm == $q) or ($nm | startswith($q)) or ($q | startswith($nm))) | select($d == 0 or (((.duration / 1000) - $d) | fabs) <= 4)][0].id // empty\' "$tmp")',
-        '  [ -n "$id" ] || return 1',
-        '  curl -s --max-time 6 -A "Mozilla/5.0" -o "$tmp" "https://music.163.com/api/song/lyric?id=$id&lv=1" || return 1',
-        '  l=$(jq -r ".lrc.lyric // empty" "$tmp"); case "$l" in *"[0"*|*"[1"*) ;; *) return 1;; esac',
-        '  r=$(jq -nc --arg l "$l" "{syncedLyrics: \\$l}"); }',
-        'ne "$a $bare" || ne "$bare"',
-        // ── 2. LRCLIB (rate-limited per second: wait and retry briefly), length-checked too
-        'ua="MacLock/1.0 (https://github.com/0-ss/Macshell)"; api=https://lrclib.net/api',
-        'req() { n=0; while [ $n -lt 2 ]; do code=$(curl -s --max-time 8 -A "$ua" -o "$tmp" -w "%{http_code}" -G "$@"); case "$code" in 200) answered=1; return 0;; 404) answered=1; return 1;; 429) n=$((n+1)); sleep 1.5;; *) return 1;; esac; done; return 1; }',
-        'pick=\'[.[] | select(.syncedLyrics != null or .plainLyrics != null) | select($d == 0 or (((.duration // 0) - $d) | fabs) <= 4)] | ([.[] | select(.syncedLyrics != null)][0] // .[0]) // empty\'',
-        'lsearch() { req "$api/search" "$@" && r=$(jq -c --argjson d "$d" "$pick" "$tmp"); }',
-        '[ -z "$r" ] && lsearch --data-urlencode "track_name=$t" --data-urlencode "artist_name=$a"',
-        '[ -z "$r" ] && [ "$bare" != "$t" ] && lsearch --data-urlencode "track_name=$bare" --data-urlencode "artist_name=$a"',
-        '[ -z "$r" ] && lsearch --data-urlencode "q=$a $bare"',
-        'rm -f "$tmp"',
-        'if [ -n "$r" ]; then printf "%s" "$r" | jq -c "{synced: .syncedLyrics, plain: .plainLyrics, instrumental: .instrumental}" | tee "$f"',
-        // a source really answered and nobody has it: remember; otherwise (offline / still limited) let the UI retry
-        'elif [ "$answered" = 1 ]; then echo "{}" | tee "$f"',
-        'else echo "{\\"retry\\":true}"; fi'
-    ].join("\n")
-    Process {
-        id: lyrProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var o = {};
-                try { o = JSON.parse(text || "{}"); } catch (e) { o = {}; }
-                var out = [], i, m;
-                if (o.synced) {
-                    var ls2 = o.synced.split("\n");
-                    for (i = 0; i < ls2.length; i++) {
-                        var line = ls2[i], tags = [], re = /\[(\d+):(\d+(?:\.\d+)?)\]/g;
-                        while ((m = re.exec(line)) !== null) tags.push(parseInt(m[1]) * 60 + parseFloat(m[2]));
-                        var txt = line.replace(/\[[^\]]*\]/g, "").trim();
-                        if (/^(制作人|作词|作曲|编曲|混音|母带|制作|和声|吉他|贝斯|鼓|录音|监制|出品|发行|OP|SP|Producer|Lyricist|Composer|Lyrics|Composed|Written)\s*[:：]/i.test(txt)) continue;
-                        for (var j = 0; j < tags.length; j++) out.push({ t: tags[j], text: txt });
-                    }
-                    out.sort(function (a, b) { return a.t - b.t; });
-                    ls.lyrLines = out; ls.lyrStatus = out.length > 0 ? "synced" : "none";
-                } else if (o.plain) {
-                    var pl = o.plain.split("\n");
-                    for (i = 0; i < pl.length; i++) out.push({ t: -1, text: pl[i].trim() });
-                    ls.lyrLines = out; ls.lyrStatus = "plain";
-                } else if (o.retry) {
-                    // rate-limited / offline: try again shortly (a few times)
-                    if (ls.lyrTries < 4) { ls.lyrTries++; ls.lyrStatus = "loading"; lyrRetry.restart(); }
-                    else { ls.lyrLines = []; ls.lyrStatus = "offline"; }
-                } else if (o.instrumental) {
-                    ls.lyrLines = []; ls.lyrStatus = "instrumental";
-                } else {
-                    ls.lyrLines = []; ls.lyrStatus = "none";
-                }
-            }
-        }
+    // One request per primary lockscreen. The v2 cache contains successful lyrics
+    // only, so old cached {} misses cannot permanently hide available lyrics.
+    property alias lyrLines: lyrics.lines
+    property alias lyrStatus: lyrics.status
+    function fetchLyrics() { lyrics.fetch(); }
+    Lyrics {
+        id: lyrics
+        objectName: "lockLyricsService"
+        player: media.pl
+        active: ls.isPrimary && ls.shown && !ls.leaving && ls.hasMedia
     }
 
     // current line (a hair early, like Apple Music)
@@ -1150,19 +1190,20 @@ Item {
 
     Item {
         id: lyr
+        objectName: "lockLyricsPane"
         visible: ls.lyrT > 0.01 && media.visible
         // lines past the feathered edges are cut off for real: not drawn and not clickable (they used to sit invisibly
         // over the media controls and swallow clicks)
         clip: true
         z: media.z + 1
         readonly property real wTop: Math.min(ls.width - 80 * ls.u, 620 * ls.u)
-        readonly property real hSide: media.width + 24 * ls.u + media.height
+        readonly property real hSide: media.bigArt + 24 * ls.u + media.height
         // lyrics-only: below the bubble (top spot, filling the room down to the password field) or above it (bottom spot)
         readonly property real belowY: media.y + media.height + 24 * ls.u
         readonly property real belowH: Math.max(140 * ls.u, Math.min(ls.lyricsH, (ls.height - login.height - 78 * ls.u - 24 * ls.u) - belowY))
         readonly property real soloH: ls.lyricsBelow ? belowH : ls.lyricsH
         readonly property real soloY: ls.lyricsBelow ? belowY : media.y - ls.lyricsH - 24 * ls.u
-        readonly property real sideY: media.y - media.width - 24 * ls.u
+        readonly property real sideY: media.y - media.bigArt - 24 * ls.u
         width: wTop + (ls.sideLyrW - wTop) * ls.sideT
         height: soloH + (hSide - soloH) * ls.sideT
         x: (ls.width - wTop) / 2 + ((media.x + media.width + ls.sideGap) - (ls.width - wTop) / 2) * ls.sideT
@@ -1173,6 +1214,22 @@ Item {
 
         // manual scroll (wheel); synced lyrics snap back to the current line a few seconds later
         property real manual: 0
+        property int lineRevision: 0
+        // Plain lyrics follow the reader's scroll; only timestamped lyrics follow
+        // playback. Both retain the original sharp focus and soft nearby lines.
+        readonly property int focusIndex: {
+            var revision = lineRevision;
+            if (ls.lyrStatus === "synced") return ls.lyrCur;
+            if (ls.lyrStatus !== "plain") return -1;
+            var nearest = -1, distance = Infinity;
+            for (var i = 0; i < ls.lyrLines.length; i++) {
+                var line = lyrRep.itemAt(i);
+                if (!line) continue;
+                var delta = Math.abs(line.y - manual);
+                if (delta < distance) { distance = delta; nearest = i; }
+            }
+            return nearest;
+        }
         Timer { id: manualReset; interval: 3500; onTriggered: if (ls.lyrStatus === "synced") lyr.manual = 0 }
         WheelHandler {
             onWheel: ev => { lyr.manual = Math.max(-200 * ls.u, lyr.manual - ev.angleDelta.y * 0.6); manualReset.restart(); ls.st.poke(); }
@@ -1204,12 +1261,17 @@ Item {
                 Repeater {
                     id: lyrRep
                     model: ls.lyrLines
+                    onItemAdded: lyr.lineRevision++
+                    onItemRemoved: lyr.lineRevision++
                     delegate: Item {
                         id: ln
+                        objectName: "lockLyricLine_" + index
                         required property var modelData
                         required property int index
-                        readonly property int rel: ls.lyrCur < 0 ? 0 : index - ls.lyrCur
-                        readonly property bool cur: ls.lyrStatus === "synced" && index === ls.lyrCur
+                        readonly property int rel: lyr.focusIndex < 0 ? 0 : index - lyr.focusIndex
+                        readonly property bool cur: index === lyr.focusIndex
+                        property real focusBlur: LyricFocus.blur(rel)
+                        Behavior on focusBlur { NumberAnimation { duration: 380; easing.type: Easing.OutQuint } }
                         readonly property bool gap: (modelData.text || "") === ""
                         width: lyrCol.width
                         height: gap ? 34 * ls.u : lt.implicitHeight
@@ -1217,9 +1279,9 @@ Item {
                         transform: Translate {
                             id: lnTr
                             y: -lyr.target
-                            Behavior on y { NumberAnimation { duration: 500 + Math.max(0, Math.min(8, ln.rel)) * 20; easing.type: Easing.OutQuint } }
+                            Behavior on y { NumberAnimation { duration: LyricFocus.scrollDuration(ln.rel); easing.type: Easing.OutQuint } }
                         }
-                        opacity: ls.lyrStatus !== "synced" ? 0.9 : (cur ? 1 : (Math.abs(rel) === 1 ? 0.42 : 0.26))
+                        opacity: LyricFocus.opacity(rel)
                         Behavior on opacity { NumberAnimation { duration: 380 } }
                         Text {
                             id: lt
@@ -1228,14 +1290,15 @@ Item {
                             text: ln.modelData.text
                             wrapMode: Text.WordWrap
                             color: "white"
-                            font.family: ls.fam; font.pixelSize: 31 * ls.u; font.weight: Font.Bold
+                            font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 34 * ls.u; font.weight: Font.Bold
                             lineHeight: 1.08
                             transformOrigin: Item.Left
-                            scale: ln.cur || ls.lyrStatus !== "synced" ? 1 : 0.965
+                            scale: LyricFocus.scale(ln.rel)
                             Behavior on scale { NumberAnimation { duration: 420; easing.type: Easing.OutQuint } }
                             // lines away from the current one go soft, like Apple Music (only near lines get a blur layer)
-                            layer.enabled: ls.lyrStatus === "synced" && !ln.cur && Math.abs(ln.rel) <= 6
-                            layer.effect: MultiEffect { blurEnabled: true; blurMax: 16; blur: Math.min(0.55, 0.14 * Math.abs(ln.rel)) }
+                            layer.enabled: ln.focusBlur > 0.001 && Math.abs(ln.rel) <= 6
+                            layer.sourceRect: Qt.rect(-16, -16, width + 32, height + 32)
+                            layer.effect: MultiEffect { blurEnabled: true; blurMax: 16; blur: ln.focusBlur }
                         }
                         // instrumental break: three breathing dots
                         Row {
@@ -1282,7 +1345,7 @@ Item {
             text: ls.lyrStatus === "loading" ? "Loading lyrics…" : (ls.lyrStatus === "instrumental" ? "Instrumental"
                   : (ls.lyrStatus === "offline" ? "Lyrics are unavailable right now" : "No lyrics for this song"))
             color: Qt.rgba(1, 1, 1, 0.55)
-            font.family: ls.fam; font.pixelSize: 20 * ls.u; font.weight: Font.DemiBold
+            font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 20 * ls.u; font.weight: Font.DemiBold
         }
     }
 
@@ -1324,7 +1387,7 @@ Item {
                     anchors.centerIn: parent
                     visible: avatarImg.status !== Image.Ready
                     text: (ls.st.userName || "?").charAt(0).toUpperCase()
-                    color: "white"; font.family: ls.fam; font.pixelSize: 30 * ls.u; font.weight: Font.DemiBold
+                    color: "white"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 30 * ls.u; font.weight: Font.DemiBold
                 }
             }
             Item {
@@ -1352,7 +1415,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: ls.st.userName
-            color: "white"; font.family: ls.fam; font.pixelSize: 15 * ls.u; font.weight: Font.DemiBold
+            color: "white"; font.family: ls.fam; font.styleName: ""; font.italic: ls.fontItalic; font.pixelSize: 15 * ls.u; font.weight: Font.DemiBold
             layer.enabled: true
             layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.5; shadowOpacity: 0.3; shadowVerticalOffset: 1 }
         }
@@ -1360,6 +1423,7 @@ Item {
         // password pill
         Item {
             id: pwBox
+            objectName: "lockPasswordBox"
             anchors.horizontalCenter: parent.horizontalCenter
             width: (ls.st.pass.length > 0 || ls.st.engaged ? 236 : 210) * ls.u
             height: 36 * ls.u
@@ -1403,7 +1467,7 @@ Item {
             Glass { cornerSmoothing: 0;
                 anchors.fill: parent
                 src: glassTex; frame: ls
-                cornerR: height / 2; thickness: 18; tint: 0.50; shadowAmt: 0
+                cornerR: height / 2; shadowAmt: 0
             }
             Corners.ContinuousRectangle { cornerSmoothing: 0;
                 anchors.fill: parent; radius: height / 2; color: "transparent"
@@ -1431,7 +1495,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Enter Password"
                 color: Qt.rgba(1, 1, 1, 0.62)
-                font.family: ls.fam; font.pixelSize: 14 * ls.u
+                font.family: ls.fam; font.styleName: ls.fontStyleName; font.italic: ls.fontItalic; font.pixelSize: 14 * ls.u
                 opacity: ls.st.pass.length === 0 ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 140 } }
             }
@@ -1571,7 +1635,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: ls.st.message !== "" ? ls.st.message : "Enter your password to unlock"
             color: ls.st.message !== "" ? Qt.rgba(1, 0.78, 0.76, 0.95) : Qt.rgba(1, 1, 1, 0.55)
-            font.family: ls.fam; font.pixelSize: 12 * ls.u
+            font.family: ls.fam; font.styleName: ls.fontStyleName; font.italic: ls.fontItalic; font.pixelSize: 12 * ls.u
             opacity: ls.st.engaged || ls.st.message !== "" ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }

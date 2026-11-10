@@ -7,7 +7,7 @@ Item {
     property bool animate: visible
     property real phase: 0
     // Versioned resource avoids Qt reusing the previous material on live reload.
-    property url shaderUrl: Qt.resolvedUrl("luma-mic-clear.frag.qsb")
+    property url shaderUrl: Qt.resolvedUrl("Common/LiquidGlass-voice.frag.qsb")
     property bool failed: false
     property bool glassBackground: true
     property url wallpaper: ""

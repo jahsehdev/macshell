@@ -36,3 +36,11 @@ penolakan login, dan reset. `render` membaca `theme.conf` asli; password dan
 tombol daya pada preview tidak mengakses autentikasi atau layanan sistem.
 
 Dokumentasi API: https://github.com/sddm/sddm/blob/develop/docs/THEMING.md
+
+## Shared Liquid Glass
+
+The lock and clock shaders are generated from
+`config/quickshell/Common/LiquidGlass.frag` by
+`python scripts/build-glass-shaders.py`. This theme carries only the generated
+QSB binaries. Change the shared source and rebuild; do not add a theme-specific
+Liquid Glass shader.

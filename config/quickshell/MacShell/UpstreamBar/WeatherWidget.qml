@@ -139,7 +139,7 @@ Item {
             id: gl
             readonly property real margin: 72           // backdrop captured around the widget (blur + refraction reach)
             readonly property real padPx: 10            // shader item padding (soft shadow)
-            readonly property real materialBlur: GlassCommon.GlassMaterial.blurRadius(w.glassBlur)
+            readonly property real materialBlur: GlassCommon.DesktopPreferences.reduceTransparency ? 0 : GlassCommon.GlassMaterial.surfaceBlur
             readonly property real ds: materialBlur >= 8 ? 0.5 : 1.0
             readonly property real bn: Math.min(1.0, materialBlur * 1.4 * ds / 64.0)
 
@@ -195,7 +195,7 @@ Item {
                 live: true
                 visible: false
             }
-            ShaderEffect {
+            GlassCommon.LiquidGlassSurface {
                 x: -gl.padPx
                 y: -gl.padPx
                 width: w.width + 2 * gl.padPx
@@ -203,28 +203,22 @@ Item {
                 fragmentShader: w.shaderUrl
                 onStatusChanged: if (status === ShaderEffect.Error) w.glassFailed()
 
-                property variant src: blurred
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d glassSize: Qt.vector2d(w.width, w.height)
-                property vector2d srcSize: Qt.vector2d(backdrop.width, backdrop.height)
-                property vector2d srcOffset: Qt.vector2d(gl.margin, gl.margin)
-                property real pad: gl.padPx
-                property real radius: w.radiusPx
-                property real bezel: Math.min(Math.min(w.width, w.height) * 0.36, 26)
-                property real thickness: 30 * w.glassLiquid
-                property real dispersion: 0.06 * w.glassLiquid
-                property real magnify: 0.08 * w.glassLiquid * Math.min(1, 90 / w.height)
-                property real rim: w.glassRim
-                property real grain: w.glassGrain * 0.15   // much finer / quieter than the Dock's noise
-                property real blurPx: 1.0            // tiny residual smoothing; the real blur is the MultiEffect pre-pass
-                property real tintMix: w.glassOpacity * 0.55
-                property real saturation: 1.25
-                property real dark: w.darkGlass ? 1 : 0
-                property real debug: 0
-                property real shadowAmt: 0           // no drop shadow
-                property real flatInner: 1           // no darker inner edge (needs the rebuilt liquidglass shader)
-                property real rimTint: 1             // rim + border follow the glass's own colour
-                property real ringW: 0               // the border is the Control Center CornerBorder below
+                src: blurred
+                itemSize: Qt.vector2d(width, height)
+                glassSize: Qt.vector2d(w.width, w.height)
+                srcSize: Qt.vector2d(backdrop.width, backdrop.height)
+                srcOffset: Qt.vector2d(gl.margin, gl.margin)
+                pad: gl.padPx
+                radius: w.radiusPx
+                bezel: Math.min(Math.min(w.width, w.height) * 0.36, 26)
+                // much finer / quieter than the Dock's noise
+                // tiny residual smoothing; the real blur is the MultiEffect pre-pass
+                dark: w.darkGlass ? 1 : 0
+                debug: 0
+                shadowAmt: 0           // no drop shadow
+                // no darker inner edge (needs the rebuilt liquidglass shader)
+                // rim + border follow the glass's own colour
+                // the border is the Control Center CornerBorder below
             }
         }
     }

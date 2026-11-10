@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 controls_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+case "${1:-}" in
+    ""|--spotify-only) ;;
+    *) echo "usage: $0 [--spotify-only]" >&2; exit 2 ;;
+esac
 controls_build=$(mktemp -d "${TMPDIR:-/tmp}/macshell-controls-build.XXXXXX")
 controls_gtk_tmp=$(mktemp "$controls_root/gtk3/.controls.XXXXXX.so")
 trap 'rm -rf -- "$controls_build"; rm -f -- "$controls_gtk_tmp"' EXIT HUP INT TERM
@@ -12,6 +16,7 @@ mv -f "$controls_root/.spotify-drag.new.so" "$controls_root/spotify-drag.so"
 c++ $(pkg-config --cflags hyprland) -dM -E -x c++ \
     -include hyprland/src/version.h /dev/null \
     | sed -n 's/^#define GIT_COMMIT_HASH "\(.*\)"$/\1/p' > "$controls_root/spotify-drag.so.commit"
+[ "${1:-}" != --spotify-only ] || exit 0
 cmake -S "$controls_root/qt" -B "$controls_build" -DCMAKE_BUILD_TYPE=Release
 cmake --build "$controls_build" -j2
 mkdir -p "$controls_root/qt/plugins/styles"

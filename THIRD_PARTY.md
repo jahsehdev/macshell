@@ -8,6 +8,7 @@ with their source; different components retain their respective licenses.
 | MacShell and MacLock base | https://github.com/0-ss/MacShell | MIT; root LICENSE preserves the upstream copyright |
 | MacTahoe GTK theme | https://github.com/vinceliuice/MacTahoe-gtk-theme | MIT; licenses/MacTahoe-gtk-MIT.txt |
 | MacTahoe icons and cursors | https://github.com/vinceliuice/MacTahoe-icon-theme | GPL-3.0; icons/MacTahoe/COPYING and licenses/MacTahoe-icons-GPL-3.0.txt |
+| macOS 27 application artwork | https://github.com/zagnut531/macOS-27-Icons | Apple artwork; upstream supplies no artwork license. Original rights remain; see icons/macOS-27/README.md and MANIFEST.json. Not covered by this repository's MIT license or MacTahoe's GPL license. |
 | OpenRunde font inherited from MacShell | https://github.com/lauridskern/open-runde | Font authors' license; see licenses/OpenRunde.txt |
 
 The icon collection includes third-party application marks; inclusion does not

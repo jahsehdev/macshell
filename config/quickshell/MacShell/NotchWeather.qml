@@ -23,33 +23,14 @@ Item {
         objectName: "notchWeatherCard"
         anchors.fill: parent
         radius: Geometry.contentRadius
-        color: !page.ready ? "#4E729F" : !page.weather.wxDay ? "#2D456F"
-             : ["rain","storm","fog","snow","cloud"].indexOf(page.info.k)>=0 ? "#5B7FB5" : "#568BC9"
-        Canvas {
-            objectName:"notchWeatherClouds"
-            anchors.fill:parent;visible:page.ready
-            onWidthChanged:requestPaint()
-            onHeightChanged:requestPaint()
-            onPaint: {
-                const c=getContext("2d"),w=width,h=height;
-                c.reset();if(w<=0||h<=0)return;
-                c.save();c.beginPath();c.roundedRect(0,0,w,h,card.radius,card.radius);c.clip();
-                // A pale horizon and overlapping soft cloud banks blend into the sky.
-                const haze=c.createLinearGradient(0,h*0.5,0,h);
-                haze.addColorStop(0,"#00FFFFFF");haze.addColorStop(0.3,"#2EFFFFFF");
-                haze.addColorStop(0.65,"#ADFFFFFF");haze.addColorStop(1,"#F5FFFFFF");
-                c.fillStyle=haze;c.fillRect(0,h*0.5,w,h*0.5);
-                function cloud(x,y,rx,ry) {
-                    c.save();c.translate(x,y);c.scale(rx,ry);
-                    const mist=c.createRadialGradient(0,0,0,0,0,1);
-                    mist.addColorStop(0,"#E6FFFFFF");mist.addColorStop(0.48,"#A8FFFFFF");mist.addColorStop(1,"#00FFFFFF");
-                    c.fillStyle=mist;c.fillRect(-1,-1,2,2);c.restore();
-                }
-                cloud(w*0.08,h,w*0.38,h*0.36);
-                cloud(w*0.5,h*0.99,w*0.4,h*0.44);
-                cloud(w*0.98,h*1.02,w*0.45,h*0.42);
-                c.restore();
-            }
+        color: sky.skyTop
+        NotchWeatherScene {
+            id:sky
+            anchors.fill:parent
+            kind:page.info.k;day:!page.weather || page.weather.wxDay
+            ready:page.ready;radius:card.radius
+            active:page.visible && page.host.available && page.host.expanded && page.host.activity==="weather" && !page.failed
+            reducedMotion:page.host.reducedMotion
         }
         // Inset camera contour, with the same rounded shoulders as the reference.
         Shape {
@@ -69,7 +50,7 @@ Item {
         Button {
             id: locationButton
             objectName: "notchWeatherLocation"
-            x:8;y:28;width:Math.min(cityLabel.implicitWidth+36,parent.width-148);height:28;padding:0
+            x:12;y:28;width:Math.min(cityLabel.implicitWidth+38,parent.width-32);height:26;padding:0
             Accessible.name: "Weather location and units"
             background: Rectangle {
                 radius:8;color:locationButton.down?"#25FFFFFF":locationButton.hovered||locationPopup.visible?"#12FFFFFF":"transparent"
@@ -80,7 +61,7 @@ Item {
                     id:cityLabel;x:8;width:parent.width-30;height:parent.height
                     text:page.ready?page.weather.wxCity:"Weather"
                     color:"white";elide:Text.ElideRight;verticalAlignment:Text.AlignVCenter
-                    font.family:page.host.family;font.pixelSize:15;font.weight:Font.DemiBold
+                    font.family:page.host.family;font.pixelSize:14;font.weight:Font.Medium
                 }
                 NotchIcon {anchors.right:parent.right;anchors.rightMargin:7;anchors.verticalCenter:parent.verticalCenter;width:11;height:11;kind:"chevron";strokeWidth:2.5;ink:"#DAE9FB";rotation:locationPopup.visible?-90:90}
             }
@@ -94,35 +75,43 @@ Item {
         }
         Text {
             objectName:"notchWeatherTemperature"
-            x:16;y:55;width:parent.width-168;height:58
+            x:20;y:51;width:parent.width-206;height:70
             visible:page.ready;text:page.ready ? page.weather.wxTemp+"°" : ""
-            color:"white";font.family:page.host.family;font.pixelSize:48;font.weight:Font.Light
+            color:"white";font.family:page.host.family;font.pixelSize:62;font.weight:Font.Light
+            verticalAlignment:Text.AlignVCenter
+            font.features: { "tnum": 1 }
         }
         Column {
-            x:parent.width-140;y:31;width:124;spacing:3;visible:page.ready
-            WeatherIcon {anchors.right:parent.right;size:25;kind:page.info.k;tint:"white"}
-            Text {width:parent.width;text:page.info.t;color:"white";horizontalAlignment:Text.AlignRight;elide:Text.ElideRight;font.family:page.host.family;font.pixelSize:14;font.weight:Font.DemiBold}
-            Text {width:parent.width;text:page.ready ? "H:"+page.weather.wxHi+"° L:"+page.weather.wxLo+"°" : "";color:"#EAF2FF";horizontalAlignment:Text.AlignRight;font.family:page.host.family;font.pixelSize:12;font.weight:Font.DemiBold}
+            objectName:"notchWeatherConditions"
+            x:parent.width-186;y:60;width:166;spacing:5;visible:page.ready
+            Row {
+                anchors.right:parent.right;spacing:8;height:30
+                WeatherIcon {anchors.verticalCenter:parent.verticalCenter;size:28;kind:page.info.k;tint:"white"}
+                Text {objectName:"notchWeatherConditionLabel";width:Math.min(implicitWidth,130);height:parent.height;text:page.info.t;color:"white";verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight;font.family:page.host.family;font.pixelSize:15;font.weight:Font.Medium}
+            }
+            Text {objectName:"notchWeatherRange";width:parent.width;text:page.ready ? "H: "+page.weather.wxHi+"°   L: "+page.weather.wxLo+"°" : "";color:"#F0F5FC";horizontalAlignment:Text.AlignRight;font.family:page.host.family;font.pixelSize:12;font.weight:Font.Normal;font.features: { "tnum": 1 }}
         }
         Row {
             objectName:"notchWeatherHours"
-            x:8;y:118;width:parent.width-16;height:76;visible:page.ready
+            x:14;y:page.failed?124:132;width:parent.width-28;height:66;visible:page.ready
             Repeater {
                 model:page.hours
                 Item {
                     id:hour
                     required property var modelData
-                    width:(card.width-16)/6;height:76
-                    Text {anchors.horizontalCenter:parent.horizontalCenter;y:0;text:hour.modelData.h;color:"#D9E9FC";font.family:page.host.family;font.pixelSize:12;font.weight:Font.DemiBold}
-                    WeatherIcon {anchors.horizontalCenter:parent.horizontalCenter;y:24;size:25;kind:hour.modelData.k;tint:"#294C73"}
-                    Text {anchors.horizontalCenter:parent.horizontalCenter;y:55;text:hour.modelData.t+"°";color:"#203F62";font.family:page.host.family;font.pixelSize:14;font.weight:Font.DemiBold}
+                    required property int index
+                    objectName:"notchWeatherHour"+index
+                    width:(card.width-28)/Math.max(1,page.hours.length);height:66
+                    Text {objectName:"notchWeatherHourTime";anchors.horizontalCenter:parent.horizontalCenter;y:0;height:16;text:hour.modelData.h;color:sky.darkForecast?"#DFEAF5":hour.index===0?"#193C61":"#304E6C";font.family:page.host.family;font.pixelSize:12;font.weight:hour.index===0?Font.DemiBold:Font.Medium}
+                    WeatherIcon {anchors.horizontalCenter:parent.horizontalCenter;y:21;size:24;kind:hour.modelData.k;tint:sky.darkForecast?"#EAF3FC":"#2A4F76"}
+                    Text {objectName:"notchWeatherHourTemperature";anchors.horizontalCenter:parent.horizontalCenter;y:46;height:20;text:hour.modelData.t+"°";color:sky.darkForecast?"#F7FAFF":"#193C61";font.family:page.host.family;font.pixelSize:15;font.weight:hour.index===0?Font.DemiBold:Font.Medium;font.features: { "tnum": 1 }}
                 }
             }
         }
         Text {
-            x:16;y:190;width:parent.width-32;height:16
+            x:20;y:191;width:parent.width-40;height:15
             visible:page.ready && page.failed;text:"Saved forecast · tap location to refresh"
-            color:"#456281";font.family:page.host.family;font.pixelSize:11;elide:Text.ElideRight
+            color:sky.darkForecast?"#DFEAF5":"#304E6C";font.family:page.host.family;font.pixelSize:11;elide:Text.ElideRight
         }
         Column {
             anchors.centerIn:parent;anchors.verticalCenterOffset:18;width:parent.width-48;spacing:10

@@ -113,14 +113,16 @@ PanelWindow {
         }
     }
 
-    // Preserve the layer host and its order while releasing the hidden UI.
-    // windowVisible remains true until the existing close animation finishes.
-    Loader {
+    // Reuse a recently opened page; release it after 15 seconds of inactivity.
+    // Build cold pages over several frames instead of blocking the opening.
+    Corners.ActivityLoader {
         id: contentLoader
         anchors.fill: parent
         readonly property var hostWindow: win
         focus: true
-        active: LaunchpadState.windowVisible && win.focusedHere
+        requested: LaunchpadState.windowVisible && win.focusedHere
+        releaseDelay: 15000
+        asynchronous: true
         // Resolve the file explicitly so an already-running QML engine can pick
         // up the new component during reload, without a stale module type cache.
         Component.onCompleted: setSource(Qt.resolvedUrl("LaunchpadContent.qml"), { win: contentLoader.hostWindow })

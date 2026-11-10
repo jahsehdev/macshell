@@ -1,3 +1,4 @@
+import "Common" as Common
 import QtQuick
 import QtQuick.Effects
 
@@ -8,7 +9,7 @@ FocusScope {
     required property var t
     property bool tinted: false
     property bool selected: false
-    property url shaderUrl: Qt.resolvedUrl("liquidglass-preview-v1.frag.qsb")
+    property url shaderUrl: Qt.resolvedUrl("Common/LiquidGlass.frag.dock.qsb")
     readonly property string label: tinted ? "Tinted" : "Clear"
     signal clicked()
     width: 120
@@ -65,34 +66,24 @@ FocusScope {
             color: tile.t.dark ? Qt.rgba(0.08, 0.08, 0.10, 0.3) : Qt.rgba(1, 1, 1, 0.35)
             border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.5)
         }
-        ShaderEffect {
+        Common.LiquidGlassSurface {
             id: glass
+            materialIntensity: tile.tinted ? 1 : 0
             x: 14; y: 23; width: 92; height: 34
             visible: tile.shaderUrl.toString() !== ""
             fragmentShader: tile.shaderUrl
-            property variant src: tile.tinted ? blurredBackdrop : backdrop
-            property vector2d itemSize: Qt.vector2d(width, height)
-            property vector2d glassSize: itemSize
-            property vector2d srcSize: Qt.vector2d(preview.width, preview.height)
-            property vector2d srcOffset: Qt.vector2d(x, y)
-            property real pad: 0
-            property real radius: 17
-            property real bezel: 7
-            property real thickness: 8.5
-            property real dispersion: 0.03
-            property real blurPx: tile.tinted ? 1.5 : 0
-            property real tintMix: 0
-            property real saturation: 1.25
-            property real dark: tile.t.dark ? 1 : 0
-            property real debug: 0
-            property real rim: 0.55
-            property real grain: 0
-            property real magnify: 0.05
-            property real shadowAmt: 0
-            property real rimTint: 0
-            property real ringW: 0
-            property real flatInner: 0
-            property real squircle: 0
+            src: tile.tinted ? blurredBackdrop : backdrop
+            itemSize: Qt.vector2d(width, height)
+            glassSize: itemSize
+            srcSize: Qt.vector2d(preview.width, preview.height)
+            srcOffset: Qt.vector2d(x, y)
+            pad: 0
+            radius: 17
+            bezel: 7
+            dark: tile.t.dark ? 1 : 0
+            debug: 0
+            shadowAmt: 0
+            squircle: 0
         }
     }
     Rectangle {

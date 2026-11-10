@@ -12,7 +12,7 @@ import "components"
 //
 //  Everything visual lives in components/; Theme.qml and LaunchpadState.qml are
 //  singletons next to this file.
-//  Dark glass shares Common/DarkGlass.glsl: clear coat and a fine luminous rim.
+//  Dark glass shares Common/LiquidGlass.frag refraction and rim lighting.
 // ─────────────────────────────────────────────────────────────────────────────
 ShellRoot {
     id: shell

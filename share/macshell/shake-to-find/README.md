@@ -27,14 +27,17 @@ installed Hyprland 0.57 build. Complete API hash and function signatures are
 validated at load. Do not combine it with another cursor rendering hook such as
 `dynamic-cursors`.
 
-After updating Hyprland, rebuild and reload from a desktop terminal:
+After updating Hyprland, run from a desktop terminal:
 
 ```sh
-sh ~/.local/share/macshell/shake-to-find/build.sh
 ~/.local/bin/macshell-cursor-reload
 ```
 
 The reload helper checks the running compositor commit before changing plugins.
+If the binary is missing or built for an older commit, it rebuilds automatically
+only when the installed headers match the running session. A header/session
+mismatch stops before rebuilding or unloading. Compilation failure leaves the
+previous binary in place. This handles upgrades such as Hyprland 0.57 → 0.57.1.
 After loading, it reloads the configuration to clear an earlier plugin-load error.
 It only reloads shake to find and leaves applications open. `--ensure` preserves
 an already current instance. The main config also loads it on subsequent login

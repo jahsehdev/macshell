@@ -14,7 +14,7 @@ function normalize(o) {
         stageItems: flag('stageItems', false),
         desktopWidgets: flag('desktopWidgets', true),
         stageWidgets: flag('stageWidgets', true),
-        wallpaperClick: choice('wallpaperClick', ['always', 'stage'], 'stage'),
+        wallpaperClick: choice('wallpaperClick', ['always', 'stage', 'never'], 'stage'),
         stageManager: flag('stageManager', false),
         stageRecent: flag('stageRecent', true),
         stageWindows: choice('stageWindows', ['all', 'one'], 'all'),

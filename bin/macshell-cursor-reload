@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 
@@ -17,6 +18,20 @@ def hypr(*args, expect_ok=False):
     return output
 
 
+def rebuild_for_session(directory, running_commit):
+    """Never compile/load against newer headers than the running compositor."""
+    flags = subprocess.run(['pkg-config', '--cflags', 'hyprland'], text=True, capture_output=True, check=True)
+    macros = subprocess.run(['c++', *shlex.split(flags.stdout), '-dM', '-E', '-x', 'c++',
+                             '-include', 'hyprland/src/version.h', '/dev/null'],
+                            text=True, capture_output=True, check=True)
+    match = re.search(r'^#define GIT_COMMIT_HASH\s+"([0-9a-f]{40})"', macros.stdout, re.M)
+    if not match or match.group(1) != running_commit:
+        raise RuntimeError('Header Hyprland berbeda dengan sesi yang berjalan. '
+                           'Masuk ke sesi versi terpasang dahulu; plugin belum diubah.')
+    print('Membangun ulang shake to find untuk versi Hyprland saat ini...', flush=True)
+    subprocess.run(['sh', str(directory / 'build.sh')], check=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ensure', action='store_true', help='Keep an already current plugin loaded')
@@ -27,14 +42,17 @@ def main():
     stamp = directory / 'shake-to-find.so.commit'
     try:
         match = re.search(r'\b[0-9a-f]{40}\b', hypr('version'))
-        if not match or not library.is_file() or not stamp.is_file():
-            raise RuntimeError(f'Periksa sesi Hyprland dan build plugin: sh "{directory / "build.sh"}"')
-        if match.group() != stamp.read_text().strip():
-            raise RuntimeError('Build plugin berbeda dengan sesi Hyprland. Bangun dengan header versi sesi yang sama.')
+        if not match:
+            raise RuntimeError('Versi sesi Hyprland tidak dapat diperiksa; plugin belum diubah.')
         loaded = {entry['name']: str(entry.get('version', '')) for entry in json.loads(hypr('-j', 'plugin', 'list'))}
         if 'dynamic-cursors' in loaded:
             raise RuntimeError('Plugin dynamic-cursors sudah mengatur kursor. Nonaktifkan sebelum memuat shake to find MacShell.')
-        if args.ensure and loaded.get('macshell-shake-to-find') == '1.1':
+        rebuilt = not library.is_file() or not stamp.is_file() or match.group() != stamp.read_text().strip()
+        if rebuilt:
+            rebuild_for_session(directory, match.group())
+            if not library.is_file() or not stamp.is_file() or stamp.read_text().strip() != match.group():
+                raise RuntimeError('Build tidak menghasilkan plugin untuk versi sesi ini; plugin belum dimuat.')
+        if args.ensure and not rebuilt and loaded.get('macshell-shake-to-find') == '1.1':
             print('Shake to find sudah aktif.')
             return 0
         if 'macshell-shake-to-find' in loaded:
@@ -48,7 +66,7 @@ def main():
             return 1
         print('Shake to find aktif. Gerakkan mouse cepat bolak-balik untuk memperbesar kursor.')
         return 0
-    except (OSError, RuntimeError, ValueError, KeyError, TypeError) as error:
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         print('Shake to find belum dimuat: ' + str(error), file=sys.stderr)
         return 1
 

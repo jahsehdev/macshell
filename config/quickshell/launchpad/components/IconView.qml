@@ -26,6 +26,9 @@ Item {
 
     readonly property bool isFilePath: iconPath !== "" || iconName.indexOf("/") === 0
     readonly property string resolvedPath: {
+        const app = Common.IconStyle.appSource(iconName || iconPath);
+        if (app !== "")
+            return app;
         if (iconPath !== "")
             return iconPath;
         if (iconName === "")
@@ -56,7 +59,7 @@ Item {
         layer.samples: 4
         layer.smooth: true
 
-        Image {
+        Common.AppIcon {
             anchors.fill: parent
             visible: root.hasIcon && !root.useFallback
             source: root.hasIcon ? root.resolvedPath : ""
@@ -122,7 +125,7 @@ Item {
     MultiEffect {
         anchors.fill: parent
         source: content
-        layer.enabled: Common.IconStyle.effectMode !== 0
+        layer.enabled: Common.IconStyle.effectFor(root.resolvedPath) !== 0
         layer.effect: Common.IconStyleEffect {}
         maskEnabled: root.forceMask
         maskSource: maskSource

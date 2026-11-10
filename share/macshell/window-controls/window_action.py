@@ -52,20 +52,34 @@ def begin_spotify_move(pid):
 def minimize_spotify(window):
     # XWayland windows can be absent from Quickshell's focused toplevel list.
     # Its address endpoint targets the same compositor window we just verified.
-    result = subprocess.run(["qs", "-c", "MacShell", "ipc", "call", "minimize", "addr", window["address"]],
-                            capture_output=True, text=True, timeout=3)
-    if result.returncode or result.stdout.strip():
-        return False
-    # IPC acceptance alone does not mean that a window was actually hidden.
-    for _ in range(60):
-        windows = json.loads(hypr("-j", "clients"))
-        match = next((w for w in windows if w.get("address") == window["address"] and
-                      belongs(w, "spotify", window["pid"])), None)
-        if match is None:
-            return False
-        if match.get("workspace", {}).get("name") == "special:minimized":
-            return True
-        time.sleep(0.1)
+    # Quickshell's IPC server pauses during a QML reload (observed >7 s).
+    # A timed-out CLI can also have delivered its request already. Confirm the
+    # window state before retrying the idempotent, explicitly addressed action.
+    deadline = time.monotonic() + 12
+    for _ in range(4):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            result = subprocess.run(
+                ["qs", "-c", "MacShell", "ipc", "call", "minimize", "addr", window["address"]],
+                capture_output=True, text=True, timeout=min(3, remaining))
+            accepted = result.returncode == 0 and not result.stdout.strip()
+        except subprocess.TimeoutExpired:
+            accepted = False
+        # An accepted request can still need a screenshot and its animation.
+        wait_until = deadline if accepted else min(deadline, time.monotonic() + 0.3)
+        while time.monotonic() < wait_until:
+            windows = json.loads(hypr("-j", "clients"))
+            match = next((w for w in windows if w.get("address") == window["address"] and
+                          belongs(w, "spotify", window["pid"])), None)
+            if match is None:
+                return False
+            if match.get("workspace", {}).get("name") == "special:minimized":
+                return True
+            time.sleep(0.1)
+        if accepted:
+            break
     return False
 
 

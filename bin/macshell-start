@@ -46,15 +46,10 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP >/dev/null 2>&1
 fi
 
-# ── wallpaper: awww forgets it at every reboot. If awww was used before (and no other wallpaper tool runs), bring it back
-# now; the shell also re-applies the wallpaper you picked, a few seconds later.
-if command -v awww-daemon >/dev/null 2>&1 && [ -n "$(ls -A "${XDG_CACHE_HOME:-$HOME/.cache}/awww" 2>/dev/null)" ] \
-   && ! pgrep -x hyprpaper >/dev/null 2>&1 && ! pgrep -x swaybg >/dev/null 2>&1 && ! pgrep -x mpvpaper >/dev/null 2>&1; then
-    (
-        awww query >/dev/null 2>&1 || setsid awww-daemon >/dev/null 2>&1 &
-        n=0; while [ "$n" -lt 20 ]; do awww query >/dev/null 2>&1 && break; n=$((n + 1)); sleep 0.25; done
-        awww restore >/dev/null 2>&1
-    ) &
+# Restore the committed picture/video after the compositor socket is ready.
+# MacShell also calls restore; the backend avoids duplicate live players.
+if [ -x "$HOME/.local/bin/macshell-wallpaper" ]; then
+    "$HOME/.local/bin/macshell-wallpaper" restore >>"${XDG_CACHE_HOME:-$HOME/.cache}/macshell-wallpaper-autostart.log" 2>&1 &
 fi
 
 fast=0

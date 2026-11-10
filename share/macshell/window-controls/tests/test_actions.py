@@ -4,6 +4,7 @@ from unittest import TestCase, main
 from unittest.mock import patch
 from types import SimpleNamespace
 import json
+import subprocess
 import tempfile
 from zipfile import ZipFile
 
@@ -43,8 +44,43 @@ class WindowActions(TestCase):
             self.assertTrue(A.perform('minimize','spotify',123))
             self.assertEqual(run.call_args.args[0],['qs','-c','MacShell','ipc','call','minimize','addr','0xab12'])
     def test_minimize_noop_is_not_reported_as_success(self):
-        with patch.object(A,'hypr',return_value=json.dumps([self.window])),patch.object(A.subprocess,'run',return_value=SimpleNamespace(returncode=0,stdout='')),patch.object(A.time,'sleep'):
+        clock = [0.0]
+        with patch.object(A,'hypr',return_value=json.dumps([self.window])),patch.object(A.subprocess,'run',return_value=SimpleNamespace(returncode=0,stdout='')), \
+                patch.object(A.time,'sleep',side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)), \
+                patch.object(A.time,'monotonic',side_effect=lambda: clock[0]):
             self.assertFalse(A.minimize_spotify(self.window))
+            self.assertLessEqual(clock[0], 12.1)
+    def test_minimize_timeout_checks_if_request_was_already_delivered(self):
+        parked=dict(self.window,workspace={'name':'special:minimized'})
+        with patch.object(A,'hypr',return_value=json.dumps([parked])), \
+                patch.object(A.subprocess,'run',side_effect=subprocess.TimeoutExpired('qs',3)) as run:
+            self.assertTrue(A.minimize_spotify(self.window))
+            self.assertEqual(run.call_count,1,'never resend an already completed minimize')
+    def test_minimize_recovers_after_seven_second_shell_reload(self):
+        clock=[0.0];attempts=[]
+        def run(command, **kwargs):
+            attempts.append(command)
+            if len(attempts)<3:
+                clock[0]+=kwargs['timeout']
+                raise subprocess.TimeoutExpired(command,kwargs['timeout'])
+            clock[0]+=1
+            return SimpleNamespace(returncode=0,stdout='')
+        def snapshot(*args):
+            w=dict(self.window,workspace={'name':'special:minimized'}) if len(attempts)>=3 else self.window
+            return json.dumps([w])
+        with patch.object(A,'hypr',side_effect=snapshot),patch.object(A.subprocess,'run',side_effect=run), \
+                patch.object(A.time,'sleep',side_effect=lambda seconds:clock.__setitem__(0,clock[0]+seconds)), \
+                patch.object(A.time,'monotonic',side_effect=lambda:clock[0]):
+            self.assertTrue(A.minimize_spotify(self.window))
+        self.assertEqual(len(attempts),3)
+        self.assertTrue(all(command[-1]=='0xab12' for command in attempts))
+        self.assertLess(clock[0],12)
+    def test_minimize_retry_stops_if_window_address_is_reused(self):
+        replacement=dict(self.window,pid=999)
+        with patch.object(A,'hypr',return_value=json.dumps([replacement])), \
+                patch.object(A.subprocess,'run',side_effect=subprocess.TimeoutExpired('qs',3)) as run:
+            self.assertFalse(A.minimize_spotify(self.window))
+            self.assertEqual(run.call_count,1)
     def test_other_apps_retain_the_existing_minimize_helper(self):
         window=dict(self.window,**{'class':'kitty'})
         with patch.object(A,'hypr',return_value=json.dumps(window)),patch.object(A.subprocess,'run',return_value=SimpleNamespace(returncode=0)) as run:
@@ -97,6 +133,43 @@ class BridgeAuthorization(TestCase):
     def test_get_has_no_action_handler(self): self.assertFalse(hasattr(L.WindowBridge,'do_GET'))
 
 class SpotifyOverlay(TestCase):
+    def test_unknown_spotify_binary_is_retained(self):
+        with tempfile.TemporaryDirectory() as folder:
+            executable = Path(folder) / 'spotify'
+            original = b'unsupported Spotify executable'
+            executable.write_bytes(original)
+            with self.assertRaisesRegex(RuntimeError, 'native menu layout changed'):
+                L.patch_spotify_menu_binary(executable)
+            self.assertEqual(executable.read_bytes(), original)
+
+    def test_supported_menu_patch_changes_only_left_inset(self):
+        context = bytes.fromhex(
+            '807b7100b902000000ba100000000f45d1be100000000f45ce'
+            'c7442408000000008954240cc744241000000000894c2414'
+            '488b08488d7424084889c7ff9198000000')
+        builds = [
+            ('030a6ea5fb2aa791e8acd67703eb7b21f77e8531e70871ebf211b8f9c81a826b', 0x14A2C84),
+            ('136880e2c04ba052df199adadb71c5cb8335a99bf50b111c082c53a6497ffc16', 0x2DF4A84),
+        ]
+        with tempfile.TemporaryDirectory() as folder:
+            executable = Path(folder) / 'spotify'
+            for digest, offset in builds:
+                with self.subTest(digest=digest):
+                    original = b'\0' * offset + context + b'unchanged trailer'
+                    executable.write_bytes(original)
+                    executable.chmod(0o555)
+                    with patch.object(L.hashlib, 'sha256', return_value=SimpleNamespace(hexdigest=lambda: digest)):
+                        L.patch_spotify_menu_binary(executable)
+                    expected = bytearray(original)
+                    expected[offset + 10] = 96
+                    self.assertEqual(executable.read_bytes(), expected)
+                    self.assertEqual(executable.stat().st_mode & 0o777, 0o555)
+                    # A matching hash entry alone must not bypass the guard.
+                    with patch.object(L.hashlib, 'sha256', return_value=SimpleNamespace(hexdigest=lambda: digest)):
+                        with self.assertRaisesRegex(RuntimeError, 'native menu layout changed'):
+                            L.patch_spotify_menu_binary(executable)
+                    executable.chmod(0o755)
+
     def test_artwork_change_invalidates_cached_overlay(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -132,6 +205,25 @@ class SpotifyOverlay(TestCase):
             with patch.object(L,'ROOT',root),patch.object(L.actions,'hypr',side_effect=['compositor '+'a'*40,plugins]) as hypr:
                 self.assertTrue(L.ensure_spotify_drag())
                 self.assertEqual(hypr.call_count,2)
+    def test_stale_drag_plugin_is_rebuilt_before_loading(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);stamp=root/'spotify-drag.so.commit';stamp.write_text('a'*40)
+            def rebuild(commit):
+                stamp.write_text(commit)
+                return True
+            with patch.object(L,'ROOT',root),patch.object(L,'spotify_diagnostic'), \
+                    patch.object(L,'rebuild_spotify_drag',side_effect=rebuild) as build, \
+                    patch.object(L.actions,'hypr',side_effect=['compositor '+'b'*40,'[]','ok']):
+                self.assertTrue(L.ensure_spotify_drag())
+                build.assert_called_once_with('b'*40)
+    def test_drag_rebuild_rejects_headers_for_another_session(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'build.sh').write_text('#!/bin/sh\n')
+            responses=[SimpleNamespace(stdout='-I/usr/include'),
+                       SimpleNamespace(stdout='#define GIT_COMMIT_HASH "'+'a'*40+'"\n')]
+            with patch.object(L,'ROOT',root),patch.object(L.subprocess,'run',side_effect=responses) as run:
+                self.assertFalse(L.rebuild_spotify_drag('b'*40))
+                self.assertEqual(run.call_count,2,'incompatible headers must never build or load a plugin')
     def test_relaunch_uses_different_asset_url_for_new_connection(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);upstream=root/'upstream';local=root/'local'

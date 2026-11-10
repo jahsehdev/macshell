@@ -1,0 +1,237 @@
+{
+  "generated": "2026-11-07T22:21:52",
+  "missing": [],
+  "mapping": {
+    "Finder": {
+      "source": "Beta 5/Finder.png",
+      "targets": [
+        "org.gnome.Nautilus",
+        "org.gnome.nautilus",
+        "system-file-manager",
+        "file-manager"
+      ]
+    },
+    "Calendar": {
+      "source": "Beta 5/Calendar.png",
+      "targets": [
+        "org.gnome.Calendar",
+        "org.gnome.calendar",
+        "gnome-calendar"
+      ]
+    },
+    "System Settings": {
+      "source": "Beta 5/System Settings.png",
+      "targets": [
+        "systemsettings",
+        "system-settings"
+      ]
+    },
+    "Terminal": {
+      "source": "Beta 5/Utilities/Terminal.png",
+      "targets": [
+        "org.gnome.Console",
+        "gnome-terminal",
+        "utilities-terminal",
+        "terminal"
+      ]
+    },
+    "TextEdit": {
+      "source": "Beta 5/TextEdit.png",
+      "targets": [
+        "org.gnome.TextEditor",
+        "accessories-text-editor",
+        "text-editor",
+        "gedit",
+        "org.gnome.gedit"
+      ]
+    },
+    "Calculator": {
+      "source": "Beta 5/Calculator.png",
+      "targets": [
+        "org.gnome.Calculator",
+        "accessories-calculator",
+        "calculator",
+        "gnome-calculator"
+      ]
+    },
+    "Notes": {
+      "source": "Beta 5/Notes.png",
+      "targets": [
+        "notes",
+        "accessories-notes",
+        "org.gnome.Notes"
+      ]
+    },
+    "Clock": {
+      "source": "Beta 5/Clock.png",
+      "targets": [
+        "org.gnome.clocks",
+        "org.gnome.Clocks",
+        "clocks",
+        "clock",
+        "accessories-clock"
+      ]
+    },
+    "Music": {
+      "source": "27.2/Music.png",
+      "targets": [
+        "org.gnome.Music",
+        "org.gnome.music",
+        "gnome-music",
+        "multimedia-audio-player",
+        "rhythmbox",
+        "org.gnome.Rhythmbox"
+      ]
+    },
+    "Photos": {
+      "source": "Beta 5/Photos.png",
+      "targets": [
+        "org.gnome.Photos",
+        "org.gnome.photos",
+        "photos",
+        "shotwell"
+      ]
+    },
+    "App Store": {
+      "source": "Beta 5/App Store.png",
+      "targets": [
+        "org.gnome.Software",
+        "org.gnome.software",
+        "gnome-software",
+        "Appstore",
+        "software-center"
+      ]
+    },
+    "Weather": {
+      "source": "Beta 5/Weather.png",
+      "targets": [
+        "org.gnome.Weather",
+        "org.gnome.weather",
+        "org.gnome.Weather.Application",
+        "org.gnome.weather.application",
+        "weather"
+      ]
+    },
+    "Contacts": {
+      "source": "Beta 5/Contacts.png",
+      "targets": [
+        "org.gnome.Contacts",
+        "contacts"
+      ]
+    },
+    "Maps": {
+      "source": "Beta 5/Maps.png",
+      "targets": [
+        "org.gnome.Maps",
+        "org.gnome.maps",
+        "maps"
+      ]
+    },
+    "Mail": {
+      "source": "Beta 5/Mail.png",
+      "targets": [
+        "org.gnome.Geary",
+        "geary",
+        "thunderbird",
+        "org.gnome.Evolution",
+        "evolution",
+        "internet-mail",
+        "email"
+      ]
+    },
+    "Preview": {
+      "source": "Beta 5/Preview.png",
+      "targets": [
+        "org.gnome.Loupe",
+        "org.gnome.eog",
+        "eog",
+        "image-viewer",
+        "multimedia-photo-viewer"
+      ]
+    },
+    "Podcasts": {
+      "source": "Beta 5/Podcasts.png",
+      "targets": [
+        "org.gnome.Podcasts",
+        "accessories-podcast"
+      ]
+    },
+    "Activity Monitor": {
+      "source": "Beta 5/Utilities/Activity Monitor.png",
+      "targets": [
+        "gnome-system-monitor",
+        "org.gnome.SystemMonitor",
+        "utilities-system-monitor"
+      ]
+    },
+    "Screenshot": {
+      "source": "Beta 5/Utilities/Screenshot.png",
+      "targets": [
+        "accessories-screenshot",
+        "gnome-screenshot"
+      ]
+    },
+    "Passwords": {
+      "source": "Beta 5/Passwords.png",
+      "targets": [
+        "org.gnome.PasswordSafe",
+        "passwords"
+      ]
+    },
+    "Time Machine": {
+      "source": "Beta 5/Time Machine.png",
+      "targets": [
+        "org.gnome.DejaDup",
+        "deja-dup",
+        "preferences-system-backup"
+      ]
+    },
+    "Disk Utility": {
+      "source": "Beta 5/Utilities/Disk Utility.png",
+      "targets": [
+        "org.gnome.DiskUtility",
+        "gnome-disks",
+        "baobab",
+        "org.gnome.baobab"
+      ]
+    },
+    "Dictionary": {
+      "source": "Beta 5/Dictionary.png",
+      "targets": [
+        "gnome-dictionary",
+        "org.gnome.Dictionary"
+      ]
+    },
+    "Font Book": {
+      "source": "Beta 5/Font Book.png",
+      "targets": [
+        "org.gnome.font-viewer",
+        "org.gnome.FontViewer",
+        "font-viewer",
+        "org.gnome.Fonts",
+        "org.gnome.FontManager"
+      ]
+    },
+    "Books": {
+      "source": "Beta 5/Books.png",
+      "targets": [
+        "org.gnome.Books",
+        "org.gnome.books"
+      ]
+    },
+    "TV": {
+      "source": "Beta 5/TV.png",
+      "targets": [
+        "org.gnome.Totem",
+        "org.gnome.totem",
+        "totem"
+      ]
+    },
+    "Messages": {
+      "source": "Beta 5/Messages.png",
+      "targets": [
+        "org.gnome.Polari"
+      ]
+    }
+  }
+}

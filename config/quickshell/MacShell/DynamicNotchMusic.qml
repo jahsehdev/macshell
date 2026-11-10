@@ -3,6 +3,7 @@ import QtQuick
 import "NotchGeometry.js" as Geometry
 import QtQuick.Controls
 import "Common" as GlassCommon
+import "Common/LyricsFocus.js" as LyricFocus
 import QtQuick.Effects
 import Quickshell.Services.Mpris
 import "DynamicNotchState.js" as State
@@ -24,7 +25,8 @@ Item {
     readonly property bool canLyrics: !!widgets && widgets.player === player
     readonly property var lyricLines: canLyrics ? widgets.lyricsLines : []
     readonly property bool lyricsSynced: canLyrics && widgets.lyricsSynced
-    readonly property int lyricIndex: State.lyricIndex(lyricLines, player ? player.position : 0, lyricsSynced)
+    readonly property real lyricPosition: canLyrics && typeof widgets.lyricsPosition === "number" ? widgets.lyricsPosition : player ? player.position : 0
+    readonly property int lyricIndex: State.lyricIndex(lyricLines, lyricPosition, lyricsSynced)
     readonly property string artistAlbum: player ? [player.trackArtist,player.trackAlbum].filter(v=>!!v).join(" · ") || player.identity || "Media player" : "Open a music app to start listening"
     readonly property real fullWidth: host.fullMetrics.width
     readonly property real contentInset:Geometry.inset(host.mode,true)
@@ -249,7 +251,7 @@ Item {
                 onWidthChanged:Qt.callLater(alignPlayback)
                 onVisibleChanged:if(visible)Qt.callLater(alignPlayback)
                 onContentYChanged: {
-                    if(!music.lyricsSynced){const first=indexAt(0,contentY+8);if(first>=0)currentIndex=first;}
+                    if(!music.lyricsSynced)currentIndex=LyricFocus.indexAtFocus(lyricList);
                 }
                 Connections {
                     target:music
@@ -278,14 +280,16 @@ Item {
                     required property var modelData
                     required property int index
                     objectName: "notchLyricLine" + index
-                    readonly property bool active: music.lyricsSynced && index === music.lyricIndex
-                    readonly property real distance: music.lyricsSynced ? Math.abs(index - music.lyricIndex) : 0
+                    readonly property int focusIndex: music.lyricsSynced ? Math.max(0,music.lyricIndex) : lyricList.currentIndex
+                    readonly property int relative: index-focusIndex
+                    readonly property bool active: relative===0
+                    readonly property real distance: Math.abs(relative)
                     // Keep the full model for smooth timed scrolling, but draw
                     // only previous/current/next lyrics. Untimed lyrics scroll
                     // through consecutive groups of three without fake timing.
                     readonly property bool inWindow:music.lyricsSynced?distance<=1:index>=Math.max(0,lyricList.currentIndex)&&index<Math.max(0,lyricList.currentIndex)+3
-                    property real blurAmount: !music.lyricsSynced || active ? 0 : Math.min(1,0.22+distance*0.16)
-                    Behavior on blurAmount {NumberAnimation {duration:music.host.reducedMotion?0:480;easing.type:Easing.OutCubic}}
+                    property real blurAmount: LyricFocus.blur(relative)
+                    Behavior on blurAmount {NumberAnimation {duration:music.host.reducedMotion?0:380;easing.type:Easing.OutQuint}}
                     readonly property real centerY: y - lyricList.contentY + height / 2
                     readonly property real edgeOpacity: Math.max(0, Math.min(1, centerY / 12, (lyricList.height - centerY) / 12))
                     width: ListView.view ? ListView.view.width : lyricPane.width
@@ -302,14 +306,14 @@ Item {
                         wrapMode: Text.Wrap
                         color: "#FAFAFC"; font.family: music.host.family
                         font.pixelSize: 25*lyricPane.typographyScale; font.weight: Font.Bold
-                        opacity: !music.lyricsSynced ? 0.9 : lyricLine.active ? 1 : Math.max(0.16,0.46-lyricLine.distance*0.08)
-                        scale:!music.lyricsSynced || lyricLine.active ? 1 : 0.86
+                        opacity: LyricFocus.opacity(lyricLine.relative)
+                        scale:LyricFocus.scale(lyricLine.relative)
                         transformOrigin:Item.Left
                         Behavior on opacity {NumberAnimation {duration:music.host.reducedMotion?0:480;easing.type:Easing.OutCubic}}
                         Behavior on scale {NumberAnimation {duration:music.host.reducedMotion?0:480;easing.type:Easing.OutCubic}}
                         layer.enabled:lyricPane.effectsAvailable && lyricLine.blurAmount>0.01
                         layer.sourceRect:Qt.rect(-12,-8,width+24,height+16)
-                        layer.effect:MultiEffect {blurEnabled:true;blurMax:24;blur:lyricLine.blurAmount}
+                        layer.effect:MultiEffect {blurEnabled:true;blurMax:16;blur:lyricLine.blurAmount}
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -325,7 +329,7 @@ Item {
                 objectName: "notchLyricsEmpty"
                 anchors.centerIn: parent; width: parent.width - 12
                 visible: music.lyricLines.length === 0
-                text: music.widgets && (music.widgets.lyricsState === "loading" || music.widgets.lyricsState === "idle") ? "Finding lyrics…" : "No lyrics available for this track"
+                text: music.widgets && (music.widgets.lyricsState === "loading" || music.widgets.lyricsState === "idle") ? "Finding lyrics…" : music.widgets && music.widgets.lyricsState === "error" ? "Couldn’t load lyrics. Reopen to retry." : "No lyrics available for this track"
                 color: "#C5CDDD"; font.family: music.host.family; font.pixelSize: 14; font.weight: Font.Medium
                 horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
             }

@@ -62,7 +62,7 @@ local menu        = "hyprlauncher"
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("XCURSOR_THEME", "MacTahoe-cursors")   -- macOS cursors (MacTahoe-icon-theme, light)
-hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")       -- >> qt6ct (widgets = Kvantum/MacTahoe, icons = MacTahoe-dark)
+hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")       -- >> qt6ct (widgets = Kvantum/MacTahoe, icons = macOS-27)
 
 
 -----------------------
@@ -381,9 +381,8 @@ hl.window_rule({
 hl.window_rule({name = "macshell-independent-zoom", match = {tag = "macshell-zoomed"}, sync_fullscreen = false})
 local windowZoom = dofile((os.getenv("HOME") or "~") .. "/.config/hypr/macshell_zoom.lua")
 local launchpadGeometry = dofile((os.getenv("HOME") or "~") .. "/.config/hypr/macshell_launchpad.lua")
--- Focus and render order are separate in Hyprland 0.56: a floating window
--- previously raised over maximize/fullscreen keeps allowed_over_fullscreen=true.
--- Raising the fullscreen target alone does not clear that separate render pass.
+-- Focus raises only the selected window. Never send other app windows to the
+-- bottom or run a delayed fullscreen raise after the user has selected an app.
 local syncingWindowStack = false
 local function syncWindowStack(win)
     if syncingWindowStack or not win or not win.active or not win.mapped or win.hidden then return end
@@ -392,71 +391,18 @@ local function syncWindowStack(win)
     if not win.floating and win.fullscreen == 0 then return end
 
     syncingWindowStack = true
-    if win.fullscreen ~= 0 then
-        local windows = hl.get_windows()
-        -- Reverse traversal preserves the other windows' relative stacking order.
-        for i = #windows, 1, -1 do
-            local other = windows[i]
-            local ws = other.workspace
-            if other ~= win and other.mapped and not other.hidden and other.floating
-                and not other.pinned and other.fullscreen == 0 and other.allowed_over_fullscreen
-                and ws and ws.id == workspace.id then
-                hl.dispatch(hl.dsp.window.alter_zorder({window = other, mode = "bottom"}))
-            end
-        end
-    end
     hl.dispatch(hl.dsp.window.alter_zorder({window = win, mode = "top"}))
     syncingWindowStack = false
 end
 hl.on("window.active", syncWindowStack)
--- Maximize can change while focus stays on the same window. Resolve the current
--- target after the fullscreen transition, rather than retaining an old window.
-local function syncCurrentWindowStack()
-    hl.timer(function() syncWindowStack(hl.get_active_window()) end, {timeout = 1, type = "oneshot"})
-end
-hl.on("window.fullscreen", syncCurrentWindowStack)
 -- <<< macOS-style floating windows <<<
 
--- Window baru yang kebuka kekecilan (contoh Firefox ~552x304) dibesarkan ke 75%
--- layar dan disusun bertingkat. Dialog kecil (<30%) atau window besar (>50%)
--- dibiarkan apa adanya.
-local cascadeIndex = 0
-
-local function sizeAxis(v, axis)
-    if type(v) ~= "table" then return nil end
-    return v[axis] or v[axis == "x" and 1 or 2]
-end
-
-hl.on("window.open", function(win)
-    local addr = win.address
-    hl.timer(function()
-        local w = hl.get_window("address:" .. addr)
-        if not w or not w.floating or w.fullscreen ~= 0 then return end
-        local m = w.monitor
-        if not m then return end
-
-        local sw, sh = sizeAxis(w.size, "x"), sizeAxis(w.size, "y")
-        if not sw or not sh then return end
-
-        -- hanya window yang ukurannya 30-50% dari layar (default kecil)
-        local rw, rh = sw / m.width, sh / m.height
-        if rw < 0.30 or rw > 0.50 or rh < 0.30 or rh > 0.50 then return end
-
-        local nw = math.floor(m.width  * 0.75)
-        local nh = math.floor(m.height * 0.75)
-        local step = 28
-        local idx  = cascadeIndex % 5
-        cascadeIndex = cascadeIndex + 1
-
-        local nx = math.floor((m.width  - nw) / 2) + (idx - 2) * step
-        local ny = math.floor((m.height - nh) / 2) + (idx - 2) * step
-        nx = math.max(20, math.min(nx, m.width  - nw - 20))
-        ny = math.max(40, math.min(ny, m.height - nh - 20))
-
-        hl.dispatch(hl.dsp.window.resize({ window = "address:" .. addr, x = nw, y = nh, exact = true }))
-        hl.dispatch(hl.dsp.window.move({ window = "address:" .. addr, x = nx, y = ny }))
-    end, { timeout = 150, type = "oneshot" })
-end)
+-- All normal app windows open at 75% of the logical work area and cascade.
+-- The native policy distinguishes real dialogs/transients from small main
+-- windows, respects size constraints, and reserves space for fallback controls.
+-- Initial placement runs once; later user moves and Zoom retain their geometry.
+hl.plugin.load((os.getenv("XDG_DATA_HOME") or ((os.getenv("HOME") or "~") .. "/.local/share"))
+    .. "/macshell/window-policy/window-policy.so")
 
 -- ── Top-bar window guard ──────────────────────────────────────────────
 -- Layer-shell exclusive zones keep tiled/maximized windows below the menu
@@ -464,6 +410,15 @@ end)
 -- edge of every mapped floating window to the monitor's reserved top area
 -- (the bar height, 0 when the bar is off), so app windows never punch
 -- through the top bar. Fullscreen windows are left alone on purpose.
+-- The standalone verifier has no event loop for this repeating timer.
+local verifyingConfig = false
+do
+    local commandLine = io.open("/proc/self/cmdline", "r")
+    if commandLine then
+        verifyingConfig = commandLine:read("*a"):find("--verify-config", 1, true) ~= nil
+        commandLine:close()
+    end
+end
 local topBarGuard = true
 local topBarGuardBusy = {}
 
@@ -489,7 +444,7 @@ local function clampWindowBelowBar(w)
     hl.timer(function() topBarGuardBusy[addr] = nil end, { timeout = 120, type = "oneshot" })
 end
 
-if topBarGuard then
+if topBarGuard and not verifyingConfig then
     hl.timer(function()
         for _, w in ipairs(hl.get_windows()) do clampWindowBelowBar(w) end
     end, { timeout = 100, type = "repeat" })
@@ -563,7 +518,8 @@ hl.window_rule({
 hl.layer_rule({ name = "qs-launchpad", match = { namespace = "qs-launchpad" }, no_anim = true })
 -- <<< Quickshell Launchpad <<<
 
--- Use application-owned titlebars only. Do not load compositor titlebar plugins.
+-- Prefer application-owned controls. The window policy supplies a titlebar for
+-- clients without a native MacShell integration, including undecorated apps.
 -- Reference window styles: toolbar 26px, compact toolbar 20px, titlebar 16px.
 -- Unknown applications inherit the toolbar radius; match installed applications
 -- explicitly because Wayland does not expose a universal toolbar-style hint.
@@ -581,6 +537,21 @@ hl.window_rule({
     name = "macshell-titlebar-corners",
     match = { class = "^(org.gnome.Console|org.gnome.Terminal|kgx|kitty|Alacritty|alacritty|foot|footclient|com.mitchellh.ghostty|ghostty|tabby|Tabby|org.macshell.PhotoBooth|Photo Booth|tahoe-photobooth)$" },
     rounding = 16,
+})
+
+-- CEF menus reserve transparent pixels around their own drop shadow.
+-- Blurring that buffer creates a second rounded panel behind Spotify's menu.
+hl.window_rule({
+    name = "macshell-spotify-no-menu-blur",
+    match = { class = "^(spotify|Spotify)$" },
+    no_blur = true,
+})
+-- XWayland CEF popup surfaces can omit both WM_CLASS and the title.
+-- Restrict the fallback to anonymous floating XWayland windows.
+hl.window_rule({
+    name = "macshell-anonymous-xwayland-menu-no-blur",
+    match = { class = "^$", title = "^$", xwayland = true, float = true },
+    no_blur = true,
 })
 
 -- Window yang di-minimize lewat tombol kuning ada di special:minimized.

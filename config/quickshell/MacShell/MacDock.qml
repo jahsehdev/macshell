@@ -254,9 +254,9 @@ Scope {
     readonly property int hPad: Math.round(iconSize * hPadRatio)
     property int topPad: 8
     property int bottomPad: 9            // room under icons (running dots live here)
-    property int cornerRadius: 18
+    property int cornerRadius: 32
     // Dock surface only: 0 = circular corners, 1 = continuous Lamé corners.
-    property real cornerSquircle: 0
+    property real cornerSquircle: 0.57
     Binding { target: Corners.CornerTheme; property: "owner"; value: true }
     Binding { target: Corners.IconStyle; property: "owner"; value: true }
     Binding { target: Corners.IconStyle; property: "systemDark"; value: root.darkMode }
@@ -265,30 +265,31 @@ Scope {
     // the dock glass follows the Light / Dark system appearance (was: a fixed dark look)
     readonly property bool dockDark: darkMode
     property string appearanceMode: "dark"      // light | dark | auto (kept in step with the Menu Bar, see setAppearance)
-    property string dockStyle: "blur"   // legacy saved renderer; the obsolete UI selector was removed
-    // Liquid Glass tuning (settings.json): rim = edge highlight, grain = noise, liquid = refraction depth
-    property real glassRim: 0.45
-    property real glassGrain: 0.03
+    property string dockStyle: "liquid"   // legacy saved renderer; the obsolete UI selector was removed
+    // Glass defaults match the shipped settings.json; tuning is not exposed in System Settings.
+    // rim = edge highlight, grain = noise, liquid = refraction depth
+    property real glassRim: 0.55
+    property real glassGrain: 0
     Behavior on glassLiquid { NumberAnimation { duration: root.reduceMotion ? 0 : 65; easing.type: Easing.OutQuad } }
-    property real glassLiquid: 1.0
+    property real glassLiquid: 0.5
     readonly property bool glassRT: bar ? bar.glassRealtime : true     // real-time glass (Menu Bar settings)
     Behavior on glassBlur { NumberAnimation { duration: root.reduceMotion ? 0 : 65; easing.type: Easing.OutQuad } }
-    property real glassBlur: 5            // Clear backdrop blur radius (0–80), shared with the bar popovers and widgets
+    property real glassBlur: 0            // Clear backdrop blur radius (0–80), shared with the bar popovers and widgets
     readonly property real materialBlur: Corners.GlassMaterial.blurRadius(effGlassBlur)
     property bool glassDebug: false       // settings.json only: draw the raw Liquid Glass backdrop texture
     property string wallpaperPath: ""    // optional override for the wallpaper the Liquid Glass refracts
     Behavior on glassOpacity { NumberAnimation { duration: root.reduceMotion ? 0 : 65; easing.type: Easing.OutQuad } }
-    property real glassOpacity: 0.42     // 0 = fully clear; below the layerrule's ignore_alpha (0.2) the blur turns off
+    property real glassOpacity: 0     // 0 = fully clear; below the layerrule's ignore_alpha (0.2) the blur turns off
 
     // ── Accessibility (GG-07): applied to every Dock / widget surface ──
     readonly property bool reduceTransparency: Corners.DesktopPreferences.reduceTransparency
     readonly property bool increaseContrast: Corners.DesktopPreferences.increaseContrast
     readonly property bool reduceMotion: Corners.DesktopPreferences.reduceMotion
-    readonly property real effGlassOpacity: Corners.DesktopPreferences.glassOpacity(glassOpacity)
-    readonly property real effGlassLiquid: Corners.DesktopPreferences.glassLiquid(glassLiquid)
-    readonly property real effGlassBlur: Corners.DesktopPreferences.glassBlur(glassBlur)
-    readonly property real effGlassRim: Corners.DesktopPreferences.glassRim(glassRim)
-    readonly property real effGlassGrain: Corners.DesktopPreferences.glassGrain(glassGrain)
+    readonly property real effGlassOpacity: Corners.DesktopPreferences.glassOpacity(Corners.GlassMaterial.baseOpacity)
+    readonly property real effGlassLiquid: Corners.DesktopPreferences.glassLiquid(Corners.GlassMaterial.baseLiquid)
+    readonly property real effGlassBlur: Corners.DesktopPreferences.glassBlur(Corners.GlassMaterial.baseBlur)
+    readonly property real effGlassRim: Corners.DesktopPreferences.glassRim(Corners.GlassMaterial.baseRim)
+    readonly property real effGlassGrain: Corners.DesktopPreferences.glassGrain(Corners.GlassMaterial.baseGrain)
     // "smart"  = hide while a non-floating window is open on that monitor's workspace
     // "always" = always auto-hide, "never" = always visible and reserves space
     property string hideMode: "smart"
@@ -453,48 +454,8 @@ Scope {
 
     // Same capsule, thumb and motion as Launchpad's SettingsPanel.ToggleRow.
     // Keep the controlled checked/toggled API shared by every Settings page.
-    component SSwitch: Item {
-        id: sw
-        required property var t
-        property bool checked: false
-        property bool animationsEnabled: true
-        property color tint: t.accent
-        property string accessibleLabel: {
-            let item = parent;
-            while (item) {
-                if (typeof item.title === "string" && item.title) return item.title;
-                item = item.parent;
-            }
-            return "Toggle";
-        }
-        signal toggled(bool value)
-        width: 58; height: 27
-        opacity: enabled ? 1 : 0.4
-
-        AbstractButton {
-            id: switchButton
-            objectName: "settingsSwitchButton"
-            anchors.fill: parent
-            checkable: true
-            checked: sw.checked
-            focusPolicy: Qt.StrongFocus
-            Accessible.name: sw.accessibleLabel
-            onToggled: sw.toggled(checked)
-            background: Corners.ContinuousRectangle {
-                cornerSmoothing: 0
-                radius: height / 2
-                color: switchButton.checked ? sw.tint : (sw.t.dark ? "#444448" : "#c3c3ca")
-                Behavior on color { ColorAnimation { duration: sw.animationsEnabled && !root.reduceMotion ? 140 : 0 } }
-                Corners.ContinuousRectangle {
-                    cornerSmoothing: 0
-                    width: switchButton.down ? 37 : 34; height: 23; radius: height / 2
-                    x: switchButton.checked ? parent.width - width - 2 : 2; y: 2
-                    color: switchButton.checked ? "#e0ecff" : "#e2e2e4"
-                    Behavior on x { NumberAnimation { duration: sw.animationsEnabled && !root.reduceMotion ? 160 : 0; easing.type: Easing.OutCubic } }
-                    Behavior on width { NumberAnimation { duration: sw.animationsEnabled && !root.reduceMotion ? 100 : 0 } }
-                }
-            }
-        }
+    component SSwitch: Corners.SettingsSwitch {
+        reduceMotion: root.reduceMotion
     }
 
     // Settings labels wrap the shared native capsule slider.
@@ -1357,7 +1318,7 @@ Scope {
 
         Component {
             id: paneLuma
-            LumaSettings { controller: root.hub.luma; t: pal }
+            LumaSettings { controller: root.hub.luma; t: pal; reduceMotion: root.reduceMotion }
         }
 
         // ── General ──
@@ -2084,7 +2045,7 @@ Scope {
                 }
                 SLabel {
                     t: pal
-                    text: "Translucency, accent color, appearance and font are in Appearance. Commands (terminal, launcher, files, clipboard) can be edited in ~/.config/macbar/settings.json."
+                    text: "Accent color, appearance and font are in Appearance. Commands (terminal, launcher, files, clipboard) can be edited in ~/.config/macbar/settings.json."
                 }
             }
         }
@@ -2144,7 +2105,7 @@ Scope {
                                 readonly property int mid: Math.min(2, pv.apps.length - 1)
                                 readonly property int d: Math.abs(index - mid)
                                 readonly property real f: d === 0 ? 1 : (d === 1 ? 0.5 : (d === 2 ? 0.12 : 0))
-                                Image {
+                                Corners.AppIcon {
                                     id: pimg
                                     anchors.fill: parent
                                     visible: false
@@ -2157,7 +2118,7 @@ Scope {
                                 MultiEffect {
                                     anchors.fill: pimg
                                     source: pimg
-                                    layer.enabled: Corners.IconStyle.effectMode !== 0
+                                    layer.enabled: Corners.IconStyle.effectFor(pimg.source) !== 0
                                     layer.effect: Corners.IconStyleEffect {}
                                     transformOrigin: Item.Bottom
                                     scale: root.magnificationEnabled ? 1 + (root.magnification - 1) * pi.f : 1
@@ -2400,101 +2361,6 @@ Scope {
                     property string targetKey: "folderColor"
                     title: "Icon and folder color"
                     onAccepted: Corners.IconStyle.setValue(targetKey, selectedColor.toString())
-                }
-
-                SLabel { t: pal; header: true; text: "Glass & Corners" }
-                SCard {
-                    t: pal
-                    SRow {
-                        t: pal
-                        title: "Translucency"
-                        subtitle: root.dockStyle === "liquid" ? "How much tint the glass adds over the refraction"
-                                                              : "How frosted the Dock's glass looks"
-                        SSlider {
-                            t: pal
-                            from: 0.0; to: 0.85; stepSize: 0.01
-                            value: root.glassOpacity
-                            leftLabel: "Clear"; rightLabel: "Frosted"
-                            onMoved: v => root.setLook("glassOpacity", v)
-                        }
-                    }
-                    SRow {
-                        t: pal
-                        title: "Liquid strength"
-                        subtitle: "Refraction, magnification and colour fringing of the glass"
-                        SSlider {
-                            t: pal
-                            from: 0.5; to: 2.5; stepSize: 0.05
-                            value: root.glassLiquid
-                            leftLabel: "Subtle"; rightLabel: "Very liquid"
-                            onMoved: v => root.setLook("glassLiquid", v)
-                        }
-                    }
-                    SRow {
-                        t: pal
-                        title: "Corner radius"
-                        subtitle: "Shared by the blurred Dock and the Liquid Glass shape"
-                        SSlider {
-                            t: pal
-                            from: 0; to: 32; stepSize: 1
-                            value: root.cornerRadius
-                            leftLabel: "Square"; rightLabel: "Round"
-                            onMoved: v => root.cornerRadius = Math.round(v)
-                        }
-                    }
-                    SRow {
-                        t: pal
-                        title: "Preview"
-                        subtitle: "Updates as you move the glass sliders"
-                        Item {
-                            id: glassPreview
-                            width: 230; height: 62
-                            clip: true
-                            Image {
-                                id: glassPreviewScene
-                                anchors.fill: parent
-                                source: Qt.resolvedUrl("assets/settings/appearance-preview.svg")
-                                sourceSize: Qt.size(460, 124)
-                                fillMode: Image.PreserveAspectCrop
-                                smooth: true
-                            }
-                            MultiEffect {
-                                anchors.fill: parent
-                                source: glassPreviewScene
-                                visible: root.materialBlur > 0.5 && !root.reduceTransparency
-                                blurEnabled: true
-                                blurMax: 48
-                                blur: Math.max(0, Math.min(1, root.materialBlur / 40))
-                                autoPaddingEnabled: false
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                color: pal.dark ? Qt.rgba(0.02, 0.02, 0.03, root.reduceTransparency ? 0.90 : root.glassOpacity * 0.55)
-                                                : Qt.rgba(1, 1, 1, root.reduceTransparency ? 0.92 : root.glassOpacity * 0.45)
-                            }
-                            Rectangle {
-                                x: 16; y: 13; width: parent.width - 32; height: 36
-                                radius: 12
-                                color: pal.dark ? Qt.rgba(1, 1, 1, 0.055) : Qt.rgba(1, 1, 1, 0.24)
-                                border.width: 1
-                                border.color: Qt.rgba(1, 1, 1, 0.25 + root.effGlassRim * 0.55)
-                            }
-                            Rectangle {
-                                x: 28; y: 23; width: parent.width - 56; height: 1.5
-                                radius: 1
-                                color: Qt.rgba(1, 1, 1, 0.18 + root.effGlassLiquid * 0.22)
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.reduceTransparency ? "Reduced transparency" : "Liquid Glass"
-                                color: pal.dark ? "white" : "#1d1d1f"
-                                font.family: pal.fam; font.styleName: pal.fontStyleName || ""
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                            }
-                        }
-                    }
-                    CornerSmoothingSettingsRow { host: root; t: pal }
                 }
 
                 SLabel { t: pal; header: true; text: "Accessibility" }
@@ -3191,8 +3057,8 @@ Scope {
                         SSwitch { t: pal; checked: root.desktopPrefs.stageItems; onToggled: v => Corners.DesktopPreferences.setValue("stageItems", v) }
                     }
                     SRow { t: pal; title: "Click wallpaper to show desktop"
-                        SPopUp { t: pal; model: ["Always", "Only in Stage Manager"]; current: root.desktopPrefs.wallpaperClick === "always" ? 0 : 1
-                            onPicked: i => Corners.DesktopPreferences.setValue("wallpaperClick", i === 0 ? "always" : "stage") }
+                        SPopUp { t: pal; model: ["Always", "Only in Stage Manager", "Never"]; current: ["always", "stage", "never"].indexOf(root.desktopPrefs.wallpaperClick)
+                            onPicked: i => Corners.DesktopPreferences.setValue("wallpaperClick", ["always", "stage", "never"][i]) }
                     }
                     SRow { t: pal; title: "Stage Manager"; subtitle: "Keep the current group in view and other apps at the side"
                         SSwitch { t: pal; checked: root.desktopPrefs.stageManager; onToggled: v => Corners.DesktopPreferences.setValue("stageManager", v) }
@@ -4379,8 +4245,8 @@ Scope {
         if (hub && hub.widgets) { hub.widgets.tempUnit = "C"; hub.widgets.locMode = "auto"; hub.widgets.cityName = ""; hub.widgets.widgetScale = 1.0; }
         Quickshell.execDetached(["sh", "-c", "rm -f \"$HOME/.config/maclock/settings.json\""]);
         iconSize = 52; magnification = 1.7; magnificationEnabled = true;
-        spacing = 6; margin = 6; cornerRadius = 18; cornerSquircle = 0;
-        darkMode = true; appearanceMode = "dark"; glassOpacity = 0.42; glassBlur = 5; glassLiquid = 1.0; dockStyle = "blur"; fontFamily = "SF Pro Text"; fontStyleName = "";
+        spacing = 6; margin = 6; cornerRadius = 32; cornerSquircle = 0.57;
+        darkMode = true; appearanceMode = "dark"; glassOpacity = 0; glassBlur = 0; glassLiquid = 0.5; glassRim = 0.55; glassGrain = 0; dockStyle = "liquid"; fontFamily = "SF Pro Text"; fontStyleName = "";
         hideMode = "smart"; hideDelay = 450; monitor = "";
         showTrash = true; showLabels = true; showIndicators = true; bounceOnLaunch = true; showThumbs = true; windowCapture = true;
     }
@@ -4471,6 +4337,7 @@ Scope {
         if (folder) return folder;
         if (/^(file|qrc|image):/.test(icon)) return icon;
         if (icon.charAt(0) === "/") return "file://" + icon;
+        // AppIcon ignores fallback parameters when matching the artwork's padding.
         return Quickshell.iconPath(icon, "application-x-executable");
     }
     // icon of a dock cell; the Trash switches to the "full" icon while there is something in it
@@ -4541,7 +4408,7 @@ Scope {
 
     // MacShell's own windows all have the app id "org.quickshell": the Clock window counts as the Clock app.
     // Utility surfaces do not create Dock apps or window previews.
-    readonly property string settingAppIcon: Quickshell.env("HOME") + "/.local/share/icons/MacTahoe/apps/scalable/preferences-system.svg"
+    readonly property string settingAppIcon: Quickshell.iconPath("systemsettings", true) || Quickshell.iconPath("preferences-system")
     function isSettingApp(appId) { return String(appId) === "systemsettings"; }
     function internalWindow(tl) {
         return !!tl && (tl.title === "qs-launchpad-backdrop"
@@ -4986,9 +4853,9 @@ Scope {
     // glassState: "idle" → "building" (qsb running) → "ready" | "failed". "failed" falls back to Normal Blur.
     property string glassState: "idle"
     readonly property bool liquidActive: dockStyle === "liquid" && glassState === "ready" && !(bar && bar.gaming) && !reduceTransparency
-    readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("liquidglass.frag").toString().replace("file://", ""))
+    readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("Common/LiquidGlass.frag").toString().replace("file://", ""))
     // Use a distinct URL so Qt cannot reuse the previous glowing glass shader.
-    readonly property string glassShaderOut: configDir + "/dock-light-milk-v1.frag.qsb"
+    readonly property string glassShaderOut: configDir + "/dock-shared-v1.frag.qsb"
     readonly property url glassShaderUrl: "file://" + glassShaderOut
 
     onDockStyleChanged: if (dockStyle === "liquid") startGlass()
@@ -5707,7 +5574,7 @@ Scope {
                                 live: !ui.tucked
                                 visible: false
                             }
-                            ShaderEffect {
+                            Corners.LiquidGlassSurface {
                                 id: glassFx
                                 x: -padPx; y: -padPx
                                 width: dock.width + 2 * padPx
@@ -5718,30 +5585,20 @@ Scope {
                                     if (status === ShaderEffect.Error) root.glassState = "failed";
                                 }
 
-                                property variant src: dg.bn > 1.0 ? bblur2 : bblur
+                                src: dg.bn > 1.0 ? bblur2 : bblur
                                 property real padPx: parent.padPx
-                                property vector2d itemSize: Qt.vector2d(width, height)
-                                property vector2d glassSize: Qt.vector2d(dock.width, dock.height)
-                                property vector2d srcSize: Qt.vector2d(bsrc.sourceRect.width, bsrc.sourceRect.height)
-                                property vector2d srcOffset: Qt.vector2d(parent.margin, parent.margin)
-                                property real pad: padPx
-                                property real radius: root.cornerRadius
-                                property real squircle: root.cornerSquircle
-                                property real bezel: Math.min(dock.height * 0.36, 26)
-                                property real thickness: 30 * root.effGlassLiquid
-                                property real dispersion: 0.06 * root.effGlassLiquid
-                                property real magnify: 0.08 * root.effGlassLiquid
-                                property real rim: root.effGlassRim
-                                property real grain: root.effGlassGrain
-                                property real blurPx: 1.5            // tiny residual smoothing; the real blur is the MultiEffect pre-pass
-                                property real tintMix: Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55)
-                                property real saturation: 1.25
-                                property real dark: root.dockDark ? 1 : 0
-                                property real debug: root.glassDebug ? 1 : 0
-                                property real shadowAmt: 0
-                                property real flatInner: 0
-                                property real rimTint: 0
-                                property real ringW: 0
+                                itemSize: Qt.vector2d(width, height)
+                                glassSize: Qt.vector2d(dock.width, dock.height)
+                                srcSize: Qt.vector2d(bsrc.sourceRect.width, bsrc.sourceRect.height)
+                                srcOffset: Qt.vector2d(parent.margin, parent.margin)
+                                pad: padPx
+                                radius: root.cornerRadius
+                                squircle: root.cornerSquircle
+                                bezel: Math.min(dock.height * 0.36, 26)
+                                // tiny residual smoothing; the real blur is the MultiEffect pre-pass
+                                dark: root.dockDark ? 1 : 0
+                                debug: root.glassDebug ? 1 : 0
+                                shadowAmt: 0
                             }
                         }
                     }
@@ -5857,7 +5714,7 @@ Scope {
                                     color: root.dockDark ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(0, 0, 0, 0.22)
                                 }
 
-                                Image {
+                                Corners.AppIcon {
                                     id: img
                                     visible: !cell.isSep && !cell.thumbReady
                                     opacity: ma.pressed ? 0.65 : 1
@@ -5876,7 +5733,7 @@ Scope {
                                     asynchronous: true
                                     // Default stays on the native renderer; other appearances
                                     // share one fixed-size material pass across shell surfaces.
-                                    layer.enabled: Corners.IconStyle.effectMode !== 0 && img.visible
+                                    layer.enabled: Corners.IconStyle.effectFor(source) !== 0 && img.visible
                                     layer.textureSize: img.sourceSize
                                     layer.smooth: true
                                     layer.effect: Corners.IconStyleEffect {}
@@ -5925,7 +5782,7 @@ Scope {
                                     }
                                 }
                                 // small app icon in the corner, so you can tell which app the window belongs to
-                                Image {
+                                Corners.AppIcon {
                                     id: badge
                                     visible: cell.thumbReady
                                     width: img.width * 0.46
@@ -6096,144 +5953,21 @@ Scope {
                     x: Math.max(8, Math.min(ui.width - width - 8, ui.menuCx - width / 2))
                     y: ui.height - root.margin - root.bgHeight - root.iconSize * (root.effMag - 1) - 6 - height
 
-                    // one-piece glass outline: rounded-rect body + rounded tail
-                    // (same curve recipe as DockTooltip, rectangular body flavour)
-                    function outline(inset) {
-                        return Curve.tailPath(width,bodyHeight,menuRadius,tailHeight,width/2,tailHalfWidth,Corners.CornerTheme.smoothing,inset);
-                    }
-
-                    // Normal Blur / flat fallback: the same one-piece outline
-                    // (body + tail), tinted with the Dock's own scheme so the
-                    // menu follows the Dock style (light/dark, opacity).
-                    Shape {
+                    // Share the label's frosted surface and subtle hairlines.
+                    // Its material stays consistent with hover labels in every
+                    // Dock style, including when the Dock itself is Liquid Glass.
+                    DockTooltip {
+                        objectName: "dockMenuSurface"
                         anchors.fill: parent
-                        visible: !root.liquidActive
-                        preferredRendererType: Shape.CurveRenderer
-                        ShapePath {
-                            fillColor: root.dockDark ? Qt.rgba(0.10, 0.10, 0.11, root.effGlassOpacity)
-                                                     : Qt.rgba(1, 1, 1, Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55))
-                            strokeWidth: 1
-                            strokeColor: root.dockDark ? Qt.rgba(0, 0, 0, 0.45) : Qt.rgba(0, 0, 0, 0.12)
-                            PathSvg { path: menu.outline(0.5) }
-                        }
-                        ShapePath {
-                            fillColor: "transparent"
-                            strokeWidth: 1
-                            strokeColor: root.dockDark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(1, 1, 1, 0.45)
-                            PathSvg { path: menu.outline(1.5) }
-                        }
-                    }
-
-                    // ── Apple Liquid Glass slab for the menu — the same pipeline
-                    // as the Dock slab above (backdrop capture → Gaussian
-                    // pre-blur → liquidglass.frag), framed on the menu geometry.
-                    Corners.ActivityLoader {
-                        id: menuGlass
-                        anchors.fill: parent
-                        requested: root.liquidActive && menu.visible
-                        sourceComponent: Item {
-                            id: mg
-                            // blurring at half resolution is visually identical for radii >= 8 px and costs a quarter of the GPU work
-                            readonly property real ds: root.materialBlur >= 8 ? 0.5 : 1.0
-                            readonly property real bn: root.materialBlur * 1.4 * ds / 64.0
-                            readonly property real margin: 72      // extra backdrop captured around the menu (refraction + blur reach)
-                            readonly property real padPx: 10       // shader item padding (drop shadow)
-                            ShaderEffectSource {
-                                id: msrc
-                                sourceItem: glassBackdrop.item
-                                hideSource: true
-                                live: ui.menuOpen
-                                visible: false
-                                sourceRect: Qt.rect(menu.x - mg.padPx - mg.margin,
-                                                    menu.y + (win.modelData.height - ui.height) - mg.padPx - mg.margin,
-                                                    menu.width + 2 * (mg.padPx + mg.margin),
-                                                    menu.height + 2 * (mg.padPx + mg.margin))
-                                textureSize: Qt.size(Math.max(1, Math.round(msrc.sourceRect.width * mg.ds)),
-                                                     Math.max(1, Math.round(msrc.sourceRect.height * mg.ds)))
-                            }
-                            MultiEffect {
-                                id: mblurFx
-                                source: msrc
-                                width: msrc.sourceRect.width * mg.ds; height: msrc.sourceRect.height * mg.ds
-                                blurEnabled: true
-                                blurMax: 64
-                                blur: Math.min(1.0, mg.bn)
-                                autoPaddingEnabled: false
-                                visible: false
-                            }
-                            ShaderEffectSource {
-                                id: mblur
-                                sourceItem: mblurFx
-                                live: ui.menuOpen
-                                visible: false
-                            }
-                            MultiEffect {
-                                id: mblur2Fx
-                                source: mblur
-                                width: msrc.sourceRect.width * mg.ds; height: msrc.sourceRect.height * mg.ds
-                                blurEnabled: mg.bn > 1.0
-                                blurMax: 64
-                                blur: Math.max(0.0, Math.min(1.0, mg.bn - 1.0))
-                                autoPaddingEnabled: false
-                                visible: false
-                            }
-                            ShaderEffectSource {
-                                id: mblur2
-                                sourceItem: mg.bn > 1.0 ? mblur2Fx : null
-                                live: ui.menuOpen
-                                visible: false
-                            }
-                            ShaderEffect {
-                                id: menuGlassFx
-                                x: -mg.padPx; y: -mg.padPx
-                                width: menu.width + 2 * mg.padPx
-                                height: menu.height + 2 * mg.padPx
-                                // dedicated menu variant of the tooltip shader:
-                                // rounded-rect body (radius uniform) + rounded
-                                // tail instead of the capsule silhouette
-                                fragmentShader: Qt.resolvedUrl("dockmenu-light-milk-v1.frag.qsb")
-                                onStatusChanged: {
-                                    console.log("[macdock-glass] menu shader status:", status, "(0 = compiled, 1 = uncompiled, 2 = error)", log);
-                                    if (status === ShaderEffect.Error) root.glassState = "failed";
-                                }
-
-                                property variant src: mg.bn > 1.0 ? mblur2 : mblur
-                                property real padPx: mg.padPx
-                                property vector2d itemSize: Qt.vector2d(width, height)
-                                property vector2d glassSize: Qt.vector2d(menu.width, menu.height)
-                                property vector2d srcSize: Qt.vector2d(msrc.sourceRect.width, msrc.sourceRect.height)
-                                property vector2d srcOffset: Qt.vector2d(mg.margin, mg.margin)
-                                property real pad: mg.padPx
-                                property real radius: menu.menuRadius
-                                property real squircle: Corners.CornerTheme.smoothing
-                                property real bezel: Math.min(menu.bodyHeight * 0.36, 26)
-                                property real thickness: 30 * root.effGlassLiquid
-                                property real dispersion: 0.06 * root.effGlassLiquid
-                                property real magnify: 0.08 * root.effGlassLiquid
-                                property real rim: root.effGlassRim
-                                property real grain: root.effGlassGrain
-                                property real blurPx: 1.5           // tiny residual smoothing; the real blur is the MultiEffect pre-pass
-                                property real tintMix: Corners.DesktopPreferences.glassTint(root.effGlassOpacity, 0.55)
-                                property real saturation: 1.25
-                                property real dark: root.dockDark ? 1 : 0  // glass tint follows the Dock theme (light/dark)
-                                property real debug: root.glassDebug ? 1 : 0
-                                // no drop shadow: like the Dock slab and tooltips, the
-                                // glass gets its depth from the rim + refraction, not
-                                // from a dark halo behind it
-                                property real shadowAmt: 0
-                                property real rimTint: 0
-                                property real ringW: 0
-                                property real flatInner: 0
-                                // the tail: bottom of the slab, under the clicked icon
-                                // (menu is centred on the icon, so this lands at the menu's centre —
-                                // when the menu is clamped near a screen edge it follows the icon instead)
-                                property real bodyHeight: menu.bodyHeight
-                                property real tailHeight: menu.tailHeight
-                                property real tailWidth: menu.tailHalfWidth
-                                property real tailX: Math.max(menu.tailHalfWidth + 15,
-                                    Math.min(menu.width - menu.tailHalfWidth - 15, ui.menuCx - menu.x))
-                            }
-                        }
+                        bodyHeight: menu.bodyHeight
+                        cornerRadius: menu.menuRadius
+                        cornerSmoothing: Corners.CornerTheme.smoothing
+                        pointerX: ui.menuCx - menu.x
+                        frosted: true
+                        liquid: false
+                        dark: root.dockDark
+                        fontFamily: root.fontFamily
+                        fontStyleName: root.fontStyleName
                     }
 
                     Column {

@@ -4,6 +4,7 @@ launchpad_source=$(cd -- "$(dirname -- "$0")/.." && pwd)
 launchpad_test_root=$(mktemp -d /tmp/launchpad-drag-tests.XXXXXX)
 node "$launchpad_source/tests/state-test.cjs"
 cp -a -- "$launchpad_source" "$launchpad_test_root/config"
+ln -s -- "$launchpad_source/../Common" "$launchpad_test_root/Common"
 mkdir -p -- "$launchpad_test_root/runtime" "$launchpad_test_root/state"
 chmod 700 -- "$launchpad_test_root/runtime"
 cat > "$launchpad_test_root/config/shell.qml" <<'QML'

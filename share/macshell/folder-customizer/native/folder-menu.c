@@ -74,25 +74,11 @@ int g_application_run(GApplication *application, int argc, char **argv) {
     return real_run(application, argc, argv);
 }
 
-static void launch_customizer(NautilusMenuItem *item, gpointer path) {
-    (void)item;
-    g_autofree char *launcher = g_build_filename(g_get_home_dir(), ".local/bin/macshell-folder-customize", NULL);
-    g_autoptr(GError) error = NULL;
-    const char *argv[] = {launcher, path, NULL};
-    if (!g_spawn_async(NULL, (gchar **)argv, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, &error))
-        g_warning("macshell-folder-customize: %s", error->message);
-}
-
 typedef struct { GObject parent; } MacShellFolderMenu;
 typedef struct { GObjectClass parent; } MacShellFolderMenuClass;
 static void menu_provider_init(NautilusMenuProviderInterface *iface);
 G_DEFINE_DYNAMIC_TYPE_EXTENDED(MacShellFolderMenu, macshell_folder_menu, G_TYPE_OBJECT, 0,
     G_IMPLEMENT_INTERFACE_DYNAMIC(NAUTILUS_TYPE_MENU_PROVIDER, menu_provider_init))
-
-static void free_path(gpointer path, GClosure *closure) {
-    (void)closure;
-    g_free(path);
-}
 
 static GList *folder_items(NautilusFileInfo *file) {
     g_clear_pointer(&selected_path, g_free);
@@ -103,8 +89,6 @@ static GList *folder_items(NautilusFileInfo *file) {
     selected_path = g_strdup(path);
     NautilusMenuItem *item = nautilus_menu_item_new("MacShell::CustomizeFolder", "Customize Folder…",
         "Change this folder’s color, symbol or emoji", "tag-symbolic");
-    g_signal_connect_data(item, "activate", G_CALLBACK(launch_customizer), g_strdup(path),
-        free_path, 0);
     return g_list_append(NULL, item);
 }
 
@@ -191,6 +175,8 @@ static GtkWidget *find_customize_label(GtkWidget *widget) {
     return NULL;
 }
 
+#include "folder-popover.h"
+
 static void add_palette(GtkPopover *popover) {
     if (!selected_path || g_object_get_data(G_OBJECT(popover), "macshell-folder-palette")) return;
     GtkWidget *label = find_customize_label(GTK_WIDGET(popover));
@@ -230,12 +216,24 @@ static void add_palette(GtkPopover *popover) {
         gtk_box_append(GTK_BOX(palette), button);
     }
     gtk_box_insert_child_after(GTK_BOX(box), palette, gtk_widget_get_prev_sibling(row));
+    /* Replace the launcher action with a real submenu owned by this Nautilus
+     * popover. No toplevel/customizer process is created. */
+    GtkWidget *customize = folder_popover_button(selected_path);
+    gtk_box_insert_child_after(GTK_BOX(box), customize, row);
+    gtk_widget_set_visible(row, FALSE);
+    g_object_set_data_full(G_OBJECT(popover), "macshell-folder-submenu", g_object_ref(customize), g_object_unref);
     g_object_set_data_full(G_OBJECT(popover), "macshell-folder-palette", g_object_ref(palette), g_object_unref);
 }
 
 void gtk_popover_menu_set_menu_model(GtkPopoverMenu *popover, GMenuModel *model) {
     void (*real_set)(GtkPopoverMenu *, GMenuModel *) = dlsym(RTLD_NEXT, "gtk_popover_menu_set_menu_model");
     GtkWidget *palette = g_object_get_data(G_OBJECT(popover), "macshell-folder-palette");
+    GtkWidget *submenu = g_object_get_data(G_OBJECT(popover), "macshell-folder-submenu");
+    if (submenu) {
+        GtkWidget *parent = gtk_widget_get_parent(submenu);
+        if (GTK_IS_BOX(parent)) gtk_box_remove(GTK_BOX(parent), submenu);
+        g_object_set_data(G_OBJECT(popover), "macshell-folder-submenu", NULL);
+    }
     if (palette) {
         GtkWidget *parent = gtk_widget_get_parent(palette);
         if (GTK_IS_BOX(parent)) gtk_box_remove(GTK_BOX(parent), palette);

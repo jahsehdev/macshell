@@ -140,22 +140,22 @@ Scope {
     // The bar-size slider scales its widget groups while the left/right groups stay pinned to their corners.
     readonly property real barWidgetScale: Math.max(0.8, Math.min(1.55, barHeight / 28))
     readonly property real barPopupScale: Math.max(0.9, Math.min(1.25, 1 + (barHeight - 28) / 88))
-    property real glassOpacity: 0.42
+    property real glassOpacity: 0
     property string barStyle: "liquid"        // "liquid" = Apple Liquid Glass popovers, "blur" = flat translucent
     property real glassRim: 0.45
     property real glassGrain: 0.015
-    property real glassLiquid: 1.0
-    property real glassBlur: 5
+    property real glassLiquid: 0.5
+    property real glassBlur: 0
 
     // ── Accessibility (GG-07): shared with the Dock and desktop widgets ──
     readonly property bool reduceTransparency: GlassCommon.DesktopPreferences.reduceTransparency
     readonly property bool increaseContrast: GlassCommon.DesktopPreferences.increaseContrast
     readonly property bool reduceMotion: GlassCommon.DesktopPreferences.reduceMotion
-    readonly property real effGlassOpacity: GlassCommon.DesktopPreferences.glassOpacity(glassOpacity)
-    readonly property real effGlassLiquid: GlassCommon.DesktopPreferences.glassLiquid(glassLiquid)
-    readonly property real effGlassBlur: GlassCommon.DesktopPreferences.glassBlur(glassBlur)
-    readonly property real effGlassRim: GlassCommon.DesktopPreferences.glassRim(glassRim)
-    readonly property real effGlassGrain: GlassCommon.DesktopPreferences.glassGrain(glassGrain)
+    readonly property real effGlassOpacity: GlassCommon.DesktopPreferences.glassOpacity(GlassCommon.GlassMaterial.baseOpacity)
+    readonly property real effGlassLiquid: GlassCommon.DesktopPreferences.glassLiquid(GlassCommon.GlassMaterial.baseLiquid)
+    readonly property real effGlassBlur: GlassCommon.DesktopPreferences.glassBlur(GlassCommon.GlassMaterial.baseBlur)
+    readonly property real effGlassRim: GlassCommon.DesktopPreferences.glassRim(GlassCommon.GlassMaterial.baseRim)
+    readonly property real effGlassGrain: GlassCommon.DesktopPreferences.glassGrain(GlassCommon.GlassMaterial.baseGrain)
     readonly property real effBarBgOpacity: reduceTransparency ? 1.0 : barBgOpacity
 
     // ── Keyboard / Mouse / Trackpad (Settings): applied live to Hyprland with `hyprctl eval`, remembered here ──
@@ -894,6 +894,7 @@ Scope {
         property Item backdrop: null
         property url shaderUrl: ""
         property bool liquid: false
+        property bool frosted: false
         property bool dark: true
         property real bx: 0                 // position of this slab inside the backdrop item
         property real by: 0
@@ -926,7 +927,7 @@ Scope {
                 readonly property real p: 10     // shader padding (drop shadow)
                 // a Gaussian blur of 8 px or more doesn't need full resolution: blurring at half size is visually identical
                 // and costs a quarter of the GPU work, every frame
-                readonly property real materialBlur: GlassCommon.GlassMaterial.blurRadius(g.blur)
+                readonly property real materialBlur: GlassCommon.DesktopPreferences.reduceTransparency ? 0 : (g.frosted ? 32 : GlassCommon.GlassMaterial.surfaceBlur)
                 readonly property real ds: materialBlur >= 8 ? 0.5 : 1.0
                 readonly property real bn: materialBlur * 1.4 * ds / 64.0
                 ShaderEffectSource {
@@ -975,39 +976,29 @@ Scope {
                     live: true
                     visible: false
                 }
-                ShaderEffect {
+                GlassCommon.LiquidGlassSurface {
                     id: fx
                     x: -lg.p; y: -lg.p
                     width: g.width + 2 * lg.p
                     height: g.height + 2 * lg.p
-                    fragmentShader: g.shaderUrl
+                    fragmentShader: g.frosted ? Qt.resolvedUrl("../Common/LiquidGlass-frosted-menu.frag.qsb") : g.shaderUrl
                     onStatusChanged: {
                         console.log("[macbar-glass] shader status:", status, "(0 = compiled, 1 = uncompiled, 2 = error)", log);
                         if (status === ShaderEffect.Error) g.shaderError();
                     }
-                    property variant src: lg.bn > 1.0 ? bblur2 : bblur
+                    src: lg.bn > 1.0 ? bblur2 : bblur
                     property real padPx: lg.p
-                    property vector2d itemSize: Qt.vector2d(width, height)
-                    property vector2d glassSize: Qt.vector2d(g.width, g.height)
-                    property vector2d srcSize: Qt.vector2d(bsrc.sourceRect.width, bsrc.sourceRect.height)
-                    property vector2d srcOffset: Qt.vector2d(lg.m, lg.m)
-                    property real pad: lg.p
-                    property real radius: g.cornerR
-                    property real bezel: Math.min(g.height * 0.36, 26)
-                    property real thickness: g.thickness * g.strength * 1.6      // bar popovers: boosted to match the stronger dock glass
-                    property real dispersion: 0.06 * g.strength * 1.3
-                    property real magnify: 0.05 * g.strength * 1.6
-                    property real rim: g.rim
-                    property real grain: g.grain * 0.2
-                    property real blurPx: 1.5
-                    property real tintMix: g.tint * 0.55
-                    property real saturation: 1.25
-                    property real dark: g.dark ? 1 : 0
-                    property real debug: g.debug ? 1 : 0
-                    property real shadowAmt: 1
-                    property real flatInner: 0
-                    property real rimTint: g.rimTint
-                    property real ringW: g.ringW
+                    itemSize: Qt.vector2d(width, height)
+                    glassSize: Qt.vector2d(g.width, g.height)
+                    srcSize: Qt.vector2d(bsrc.sourceRect.width, bsrc.sourceRect.height)
+                    srcOffset: Qt.vector2d(lg.m, lg.m)
+                    pad: lg.p
+                    radius: g.cornerR
+                    bezel: Math.min(g.height * 0.36, 26)
+                    // bar popovers: boosted to match the stronger dock glass
+                    dark: g.dark ? 1 : 0
+                    debug: g.debug ? 1 : 0
+                    shadowAmt: 1
                 }
             }
         }
@@ -1020,13 +1011,14 @@ Scope {
         property rect srcRect: Qt.rect(0, 0, 1, 1)      // where that texture sits, in `frame` coordinates
         property Item frame: null                       // coordinate space of srcRect (the popover layer)
         property bool liquid: false
+        property bool frosted: false
         property url shaderUrl: ""
         property bool dark: true
         property real tint: 0.4
         property real strength: 1.0
         property real blur: 5               // Clear backdrop blur; Tinted uses the shared maximum preset
         property real blurMul: 1.0          // scales the backdrop blur radius of every slab in this context
-        readonly property real materialBlur: GlassCommon.GlassMaterial.blurRadius(blur * blurMul)
+        readonly property real materialBlur: GlassCommon.DesktopPreferences.reduceTransparency ? 0 : (frosted ? 32 : GlassCommon.GlassMaterial.surfaceBlur)
         property real liquidMul: 1.0        // scales refraction / dispersion / magnify of every slab in this context
         property real paneOpacity: 1.0      // <1 lets the compositor blur show through the shader pane
         property real rim: 0.45
@@ -1049,6 +1041,7 @@ Scope {
         required property var source
         property real fullW: pop.width
         property real fullH: pop.height
+        property bool frosted: false
         property alias ctx: pgc
         // Expose scalar aliases: grouped access through the inline GlassCtx alias fails to load.
         property alias dark: pgc.dark
@@ -1097,6 +1090,7 @@ Scope {
         }
         GlassCtx {
             id: pgc
+            frosted: pg.frosted
             src: pgc.materialBlur * 1.4 > 64 ? pgExtraBlur : pgBlur
             srcRect: pgSrc.sourceRect
             frame: pg.frame
@@ -1129,6 +1123,7 @@ Scope {
         property real tintMul: 1.0
         property real shadowAmt: 0.5
         property real flatInner: 0          // 1 = drop the darker inner edge shading (needs the rebuilt liquidglass shader)
+        property bool frosted: false        // flat menu vibrancy even when the shared context is Liquid Glass
         readonly property real pad: 10
 
         // position inside the popover layer; reads every ancestor's x/y so it re-evaluates when anything moves
@@ -1161,37 +1156,26 @@ Scope {
             anchors.fill: parent
             active: gg.gx.liquid && gg.gx.src !== null && gg.visible
             sourceComponent: Item {
-                ShaderEffect {
+                GlassCommon.LiquidGlassSurface {
                     x: -gg.pad; y: -gg.pad
                     width: gg.width + 2 * gg.pad
                     height: gg.height + 2 * gg.pad
-                    fragmentShader: gg.gx.shaderUrl
+                    fragmentShader: (gg.gx.frosted || gg.frosted) ? Qt.resolvedUrl("../Common/LiquidGlass-frosted-menu.frag.qsb") : gg.gx.shaderUrl
                     onStatusChanged: if (status === ShaderEffect.Error) gg.gx.failed()
                     opacity: gg.gx.paneOpacity
-                    property variant src: gg.gx.src
-                    property vector2d itemSize: Qt.vector2d(width, height)
-                    property vector2d glassSize: Qt.vector2d(gg.width, gg.height)
-                    property vector2d srcSize: Qt.vector2d(gg.gx.srcRect.width, gg.gx.srcRect.height)
-                    property vector2d srcOffset: Qt.vector2d(gg.fp.x - gg.pad - gg.gx.srcRect.x,
+                    src: gg.gx.src
+                    itemSize: Qt.vector2d(width, height)
+                    glassSize: Qt.vector2d(gg.width, gg.height)
+                    srcSize: Qt.vector2d(gg.gx.srcRect.width, gg.gx.srcRect.height)
+                    srcOffset: Qt.vector2d(gg.fp.x - gg.pad - gg.gx.srcRect.x,
                                                              gg.fp.y - gg.pad - gg.gx.srcRect.y)
-                    property real pad: gg.pad
-                    property real radius: gg.cornerR
-                    property real bezel: Math.min(gg.height * 0.36, 26)
-                    property real thickness: gg.thickness * gg.gx.strength * gg.strengthMul * gg.gx.liquidMul * 1.6
-                    property real dispersion: 0.06 * gg.gx.strength * gg.strengthMul * gg.gx.liquidMul * 1.3
-                    property real magnify: 0.05 * gg.gx.strength * gg.strengthMul * gg.gx.liquidMul * 1.6
-                    property real rim: gg.gx.rim
-                    property real grain: gg.gx.grain * 0.2
-                    property real blurPx: 1.5
-                    property real tintMix: gg.gx.tint * 0.55 * gg.tintMul
-                    property real saturation: 1.25
-                    property real dark: gg.gx.dark ? 1 : 0
-                    property real debug: gg.gx.debug ? 1 : 0
-                    property real shadowAmt: gg.shadowAmt
-                    property real flatInner: gg.flatInner
-                    property real squircle: gg.cornerSmoothing
-                    property real rimTint: gg.gx.rimTint
-                    property real ringW: gg.gx.ringW
+                    pad: gg.pad
+                    radius: gg.cornerR
+                    bezel: Math.min(gg.height * 0.36, 26)
+                    dark: gg.gx.dark ? 1 : 0
+                    debug: gg.gx.debug ? 1 : 0
+                    shadowAmt: gg.shadowAmt
+                    squircle: gg.cornerSmoothing
                 }
             }
         }
@@ -1472,12 +1456,12 @@ Scope {
                 color: nb.t.accent
                 Glyph { anchors.centerIn: parent; width: 24; height: 24; kind: "bell"; color: "white" }
             }
-            Image {
+            GlassCommon.AppIcon {
                 id: nimg
                 anchors.fill: parent
                 visible: status === Image.Ready
                 source: nb.icon
-                layer.enabled: GlassCommon.IconStyle.effectMode !== 0
+                layer.enabled: GlassCommon.IconStyle.effectFor(source) !== 0
                 layer.effect: GlassCommon.IconStyleEffect {}
                 sourceSize.width: 96; sourceSize.height: 96
                 fillMode: Image.PreserveAspectFit
@@ -2609,18 +2593,10 @@ Scope {
     property var clipEntries: []              // newest first
     property bool clipLoading: false
     readonly property string clipDir: Quickshell.env("HOME") + "/.cache/macbar"
-    // the system's default colour emoji font (asked from fontconfig); Noto Color Emoji until that answers
-    property string emojiFont: "Noto Color Emoji"
-    Process {
-        running: true
-        command: ["sh", "-c", "fc-match -f '%{family[0]}|%{color}' emoji 2>/dev/null"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var p = text.trim().split("|");
-                if (p.length === 2 && p[0] !== "" && p[1].toLowerCase() === "true") root.emojiFont = p[0];
-            }
-        }
-    }
+    // Match Customize Folder: prefer the installed Apple font, with Noto as fallback.
+    readonly property string emojiFont: Qt.fontFamilies().indexOf("Apple Color Emoji") >= 0 ? "Apple Color Emoji" : "Noto Color Emoji"
+    // Apple's bitmap glyphs occupy less of the font's em than Noto's.
+    readonly property real emojiFontScale: emojiFont === "Apple Color Emoji" ? 40 / 28 : 1
 
     readonly property string clipStoreCmd: "cliphist store; id=$(cliphist list | head -n1 | cut -f1); t=\"$HOME/.cache/macbar/clip-times\"; "
         + "[ -n \"$id\" ] && [ \"$id\" != \"$(tail -n1 \"$t\" 2>/dev/null | cut -f1)\" ] && printf '%s\\t%s\\n' \"$id\" \"$(date +%s)\" >> \"$t\""
@@ -3421,7 +3397,7 @@ Scope {
     // window that merely covers the desktop keeps them alive)
     property var screenFullscreen: ({})
     property var notchFullscreen: ({})   // True fullscreen only; maximized windows keep the menu bar.
-    readonly property string wallPauseScript: Quickshell.env("HOME") + "/.config/hypr-macshell/scripts/macshell-wallpause.sh"
+    readonly property string wallPauseScript: Quickshell.env("HOME") + "/.local/bin/macshell-wallpaper"
     Process {
         id: coverProbe
         command: ["sh", "-c", "printf '{\"m\":'; hyprctl -j monitors; printf ',\"c\":'; hyprctl -j clients; printf '}'"]
@@ -3451,7 +3427,7 @@ Scope {
                 if (!same) root.screenCovered = next;
                 if (!root.videoWall) return;
                 for (var k in next) if (next[k] !== (root.wallPaused[k] === true))
-                    Quickshell.execDetached([root.wallPauseScript, k, next[k] ? "pause" : "resume"]);
+                    Quickshell.execDetached([root.wallPauseScript, "pause", k, next[k] ? "pause" : "resume"]);
                 root.wallPaused = next;
             }
         }
@@ -3466,6 +3442,7 @@ Scope {
             if (n === "openwindow" || n === "closewindow" || n === "movewindowv2" || n === "workspacev2" || n === "fullscreen"
                 || n === "changefloatingmode" || n === "focusedmonv2" || n === "activespecialv2"
                 || n === "monitoradded" || n === "monitorremoved") coverDelay.restart();
+            if (root.videoWall && (n === "monitoradded" || n === "monitorremoved")) wpMonitorRestore.restart();
         }
     }
 
@@ -3537,7 +3514,7 @@ Scope {
         notchIdleEyes = true;
         appsView = "category"; appsSuggestions = true;
         switcherMode = "icons";
-        darkMode = true; appearanceMode = "dark"; fontFamily = "SF Pro Text"; fontStyleName = ""; glassOpacity = 0.42; glassBlur = 5; barBgOpacity = 0.10; glassRealtime = false;
+        darkMode = true; appearanceMode = "dark"; fontFamily = "SF Pro Text"; fontStyleName = ""; glassOpacity = 0; glassBlur = 0; glassLiquid = 0.5; glassRim = 0.45; glassGrain = 0.015; barBgOpacity = 0.10; glassRealtime = false;
         barStyle = "liquid"; use24h = true; showDate = true; showSeconds = false; showBatteryPercent = true;
         showTray = true; showSearch = true;
         spotlightEnabled = true; lumaMenuEnabled = true; ccEnabled = true; notificationsEnabled = true; clockAppEnabled = true; ccStyle = "tiles";
@@ -3591,15 +3568,15 @@ Scope {
     // ═════════════ LIQUID GLASS BACKEND (same pipeline as macdock) ═════════════
     property string glassState: "idle"       // idle → building → ready | failed
     readonly property bool liquidActive: barStyle === "liquid" && glassState === "ready" && !gaming && !reduceTransparency
-    readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("liquidglass.frag").toString().replace("file://", ""))
-    readonly property string glassShaderOut: configDir + "/liquidglass-light-milk-v1.frag.qsb"
+    readonly property string glassShaderSrc: decodeURIComponent(Qt.resolvedUrl("../Common/LiquidGlass.frag").toString().replace("file://", ""))
+    readonly property string glassShaderOut: configDir + "/liquidglass-shared-v1.frag.qsb"
     readonly property url glassShaderUrl: "file://" + glassShaderOut
 
     property bool spotlightGooeyReady: false
     property bool lumaGooeyReady: false
-    readonly property string lumaGooeyOut: configDir + "/luma-gooey-v1.frag.qsb"
-    readonly property string spotlightStaticOut: configDir + "/spotlight-glass-light-milk-v1.frag.qsb"
-    readonly property string spotlightGooeyOut: configDir + "/spotlight-gooey-light-milk-v1.frag.qsb"
+    readonly property string lumaGooeyOut: configDir + "/luma-gooey-shared-v1.frag.qsb"
+    readonly property string spotlightStaticOut: configDir + "/spotlight-glass-shared-v1.frag.qsb"
+    readonly property string spotlightGooeyOut: configDir + "/spotlight-gooey-shared-v1.frag.qsb"
 
     onBarStyleChanged: if (barStyle === "liquid") startGlass()
     onGlassStateChanged: console.log("[macbar-glass] state:", glassState)
@@ -3616,12 +3593,11 @@ Scope {
         command: ["sh", "-c",
             "mkdir -p \"$(dirname \"$2\")\"; "
             + "for q in qsb qsb6 qsb-qt6 /usr/lib/qt6/bin/qsb /usr/lib64/qt6/bin/qsb /usr/lib/qt/bin/qsb; do "
-            + "  if command -v \"$q\" >/dev/null 2>&1; then \"$q\" --qt6 -o \"$2\" \"$1\" && exit 0; fi; "
+            + "  if command -v \"$q\" >/dev/null 2>&1; then \"$q\" --qt6 -D GLASS_BAR -o \"$2\" \"$1\" && exit 0; fi; "
             + "done; "
-            + "[ -f \"$1.qsb\" ] && cp \"$1.qsb\" \"$2\" && exit 0; "
-            + "[ -f \"$HOME/.config/macdock/liquidglass.frag.qsb\" ] && cp \"$HOME/.config/macdock/liquidglass.frag.qsb\" \"$2\" && exit 0; "
+            + "[ -f \"$3\" ] && cp \"$3\" \"$2\" && exit 0; "
             + "exit 1",
-            "sh", root.glassShaderSrc, root.glassShaderOut]
+            "sh", root.glassShaderSrc, root.glassShaderOut, decodeURIComponent(Qt.resolvedUrl("../Common/LiquidGlass-bar.frag.qsb").toString().replace("file://", ""))]
         stderr: StdioCollector { onStreamFinished: if (text.trim() !== "") console.log("[macbar-glass] qsb:", text.trim()) }
         onExited: (code, status) => root.glassState = (code === 0 ? "ready" : "failed")
     }
@@ -3633,7 +3609,7 @@ Scope {
             + "if command -v \"$q\" >/dev/null 2>&1; then \"$q\" --qt6 -D SPOTLIGHT_BORDER_ONLY -o \"$2\" \"$1\" "
             + "&& \"$q\" --qt6 -D SPOTLIGHT_GOOEY -D SPOTLIGHT_BORDER_ONLY -o \"$3\" \"$1\" && exit 0; fi; done; "
             + "[ -s \"$2\" ] && [ -s \"$3\" ]",
-            "sh", decodeURIComponent(Qt.resolvedUrl("../liquidglass.frag").toString().replace("file://", "")),
+            "sh", decodeURIComponent(Qt.resolvedUrl("../Common/LiquidGlass.frag").toString().replace("file://", "")),
             root.spotlightStaticOut, root.spotlightGooeyOut]
         stderr: StdioCollector { onStreamFinished: if (text.trim() !== "") console.log("[spotlight-gooey] qsb:", text.trim()) }
         onExited: (code, status) => {
@@ -3649,8 +3625,8 @@ Scope {
             + "for q in qsb qsb6 qsb-qt6 /usr/lib/qt6/bin/qsb /usr/lib64/qt6/bin/qsb /usr/lib/qt/bin/qsb; do "
             + "if command -v \"$q\" >/dev/null 2>&1; then \"$q\" --qt6 -D LUMA_GOOEY -o \"$2\" \"$1\" && exit 0; fi; done; "
             + "[ -s \"$3\" ] && cp \"$3\" \"$2\"",
-            "sh", decodeURIComponent(Qt.resolvedUrl("../liquidglass.frag").toString().replace("file://", "")),
-            root.lumaGooeyOut, decodeURIComponent(Qt.resolvedUrl("../lumagooey.frag.qsb").toString().replace("file://", ""))]
+            "sh", decodeURIComponent(Qt.resolvedUrl("../Common/LiquidGlass.frag").toString().replace("file://", "")),
+            root.lumaGooeyOut, decodeURIComponent(Qt.resolvedUrl("../Common/LiquidGlass-luma.frag.qsb").toString().replace("file://", ""))]
         stderr: StdioCollector { onStreamFinished: if (text.trim()) console.warn("[luma-gooey]", text.trim()) }
         onExited: (code, status) => { root.lumaGooeyReady = code === 0; console.log("[luma-gooey] ready:", root.lumaGooeyReady); }
     }
@@ -4000,9 +3976,8 @@ Scope {
                 'tc="$HOME/.cache/macshell/thumbs"; mkdir -p "$tc"',
                 'for v do',
                 '  t="$tc/$(printf "%s:%s" "$v" "$(stat -c %Y "$v" 2>/dev/null)" | md5sum | cut -c1-16).jpg"',
-                '  if [ ! -s "$t" ]; then ffmpeg -loglevel error -y -ss 1 -i "$v" -frames:v 1 -vf "scale=360:-2" "$t" </dev/null >/dev/null 2>&1; fi',
+                '  if [ ! -s "$t" ]; then ffmpeg -loglevel error -y -i "$v" -frames:v 1 -vf "scale=360:-2" "$t" </dev/null >/dev/null 2>&1; fi',
                 '  [ -s "$t" ] && printf "T:%s\\t%s\\n" "$v" "$t"',
-                '  w="${t%.jpg}.webp"; if [ ! -s "$w" ] && [ -x "$HOME/.config/hypr-macshell/scripts/macshell-setwall.sh" ]; then setsid nice -n 15 "$HOME/.config/hypr-macshell/scripts/macshell-setwall.sh" --prepare "$v" >/dev/null 2>&1 </dev/null & fi',
                 'done'
             ].join("\n");
             wpThumbBuild.command = ["sh", "-c", script, "sh"].concat(videos);
@@ -4043,7 +4018,7 @@ Scope {
         root.wpRebuild();
     }
     function wpIsVideo(p) { return /[.](mp4|webm|mkv|mov|m4v)$/i.test(p || ""); }
-    readonly property string setwallScript: Quickshell.env("HOME") + "/.config/hypr-macshell/scripts/macshell-setwall.sh"
+    readonly property string setwallScript: Quickshell.env("HOME") + "/.local/bin/macshell-wallpaper"
     // ── light / dark wallpaper pairs (macOS "Automatic / Light / Dark / Dynamic") ──
     property string wallpaperAppearance: "auto"     // auto (follows Dark Mode) | light | dark | dynamic (time of day)
     property string wpPairLight: ""
@@ -4063,32 +4038,9 @@ Scope {
         return m[2].toLowerCase() === "light" ? { light: path, dark: cand } : { light: cand, dark: path };
     }
     function hhmmToMin(t) { var m = /T(\d+):(\d+)/.exec(t || ""); return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : -1; }
-    // Sets a picture as the real desktop wallpaper: awww first (its daemon is started if needed), then the other daemons.
-    // $1 = image path. Also stops a running animated wallpaper (mpvpaper) so it does not stay on top of the picture.
-    readonly property string awwwScript: [
-        'p="$1"',
-        'pkill -x mpvpaper >/dev/null 2>&1',
-        'if command -v awww >/dev/null 2>&1; then',
-        '  if ! awww query >/dev/null 2>&1; then',
-        '    if command -v awww-daemon >/dev/null 2>&1; then setsid awww-daemon >/dev/null 2>&1 & fi',
-        '    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do awww query >/dev/null 2>&1 && break; sleep 0.3; done',
-        '  fi',
-        '  if awww img "$p" --transition-type fade --transition-duration 0.7; then echo "applied with: awww"; exit 0; fi',
-        'fi',
-        'if command -v swww >/dev/null 2>&1 && swww query >/dev/null 2>&1 && swww img "$p" --transition-type fade --transition-duration 0.7; then echo "applied with: swww"; exit 0; fi',
-        'if command -v noctalia >/dev/null 2>&1 && noctalia msg wallpaper-set "$p" >/dev/null 2>&1; then echo "applied with: noctalia"; exit 0; fi',
-        'if pgrep -x hyprpaper >/dev/null 2>&1; then',
-        '  if hyprctl hyprpaper wallpaper ",$p" >/dev/null 2>&1 || { hyprctl hyprpaper preload "$p" >/dev/null 2>&1; hyprctl hyprpaper wallpaper ",$p" >/dev/null 2>&1; }; then echo "applied with: hyprpaper"; exit 0; fi',
-        'fi',
-        'if pgrep -f noctalia-shell >/dev/null 2>&1 && qs -c noctalia-shell ipc call wallpaper set "$p" "" >/dev/null 2>&1; then echo "applied with: noctalia-shell (qs ipc)"; exit 0; fi',
-        'if pgrep -x swaybg >/dev/null 2>&1; then pkill -x swaybg; setsid swaybg -i "$p" -m fill >/dev/null 2>&1 & echo "applied with: swaybg"; exit 0; fi',
-        'echo "no wallpaper daemon accepted the image (tried awww, swww, noctalia, hyprpaper, noctalia-shell, swaybg)" >&2',
-        'notify-send "Wallpaper" "Could not set it: install awww (and start awww-daemon), or set wallpaperCmd in settings.json." 2>/dev/null',
-        'exit 1'
-    ].join("\n")
     property string wpAppliedPair: ""
     function wpApplyAppearance() {
-        if (!wpHasPair) return;
+        if (!settingsReady || !wpHasPair || wallpaperVideo !== "") return;
         var mode = wallpaperAppearance === "auto" ? (darkMode ? "dark" : "light") : wallpaperAppearance;
         var rise = 390, set_ = 1110;
         try {
@@ -4098,13 +4050,8 @@ Scope {
         if (mode === "dynamic") { var d = new Date(), n = d.getHours() * 60 + d.getMinutes(); mode = (n >= rise && n < set_) ? "light" : "dark"; }
         var p = mode === "dark" ? wpPairDark : wpPairLight;
         if (p === "") return;
-        root.wallpaperVideo = "";
-        root.wallpaperPath = p;
-        try { if (root.hub && root.hub.dock) root.hub.dock.wallpaperPath = p; } catch (e) {}
-        if (p === root.wpAppliedPair) return;                         // already on screen
-        root.wpAppliedPair = p;
-        wpApplyProc.command = ["sh", "-c", root.awwwScript, "sh", p];  // the real desktop wallpaper, through awww
-        wpApplyProc.running = true;
+        if (p === root.wpAppliedPair) return;
+        root.wpRequest(p, false);
     }
     onWallpaperAppearanceChanged: wpApplyAppearance()
     onDarkModeChanged: if (wallpaperAppearance === "auto") wpApplyAppearance()
@@ -4112,68 +4059,94 @@ Scope {
     // at start: scan the folder, then pick up a pair for the wallpaper already in use
     Timer { interval: 1500; running: true; onTriggered: root.wpRefresh() }
     onWpDirListChanged: {
-        if (wpHasPair) return;
+        if (!settingsReady || wpHasPair || wallpaperVideo !== "") return;
         var p = wpPairOf(wallpaperPath);
         if (p) { wpPairLight = p.light; wpPairDark = p.dark; wpApplyAppearance(); }
     }
     Timer { interval: 2500; running: true; onTriggered: root.wpApplyAppearance() }
 
-    function wpApply(path) {
-        var pair = wpPairOf(path);
-        if (pair) { wpPairLight = pair.light; wpPairDark = pair.dark; root.wpAppliedPair = ""; wpApplyAppearance(); return; }
-        wpPairLight = ""; wpPairDark = ""; root.wpAppliedPair = "";
-        // animated wallpapers go through macshell-setwall.sh (mpvpaper for videos); pictures are always set with awww below
-        if (root.wpIsVideo(path)) {
-            root.wallpaperVideo = path;
-            setwallProc.command = [root.setwallScript, path];
-            setwallProc.running = true;
-            return;
-        }
-        root.wallpaperVideo = "";
-        root.wpRestorePath = path;
-        root.wallpaperPath = path;                                            // the glass refracts the new image straight away
-        try { if (root.hub && root.hub.dock) root.hub.dock.wallpaperPath = path; } catch (e) {}
-        var cmd = (root.wallpaperCmd || "").trim();
-        var script = cmd !== "" ? cmd.split("{}").join('"$1"') : root.awwwScript;
-        wpApplyProc.command = ["sh", "-c", script, "sh", path];
-        wpApplyProc.running = true;
+    readonly property bool wpBusy: setwallProc.running
+    property string wpPendingPath: ""
+    property bool wpPendingRestore: false
+    property string wpResult: ""
+    property string wpError: ""
+    property bool wpLoginSyncInstalled: false
+    function wpRequest(path, restore) {
+        if (!path) return;
+        if (wpBusy) { wpPendingPath = path; wpPendingRestore = restore; return; }
+        wpStatus = "Applying wallpaper…";
+        wpResult = ""; wpError = "";
+        setwallProc.command = [setwallScript, restore ? "restore" : "apply", path, "--command", wallpaperCmd];
+        setwallProc.running = true;
     }
-    // Wallpaper that survives a reboot: awww / mpvpaper start empty at login, so the shell puts the last choice back.
-    // A picture is skipped when awww already shows it; light/dark pairs are handled by wpApplyAppearance.
-    function wpRestore() {
-        if (wpHasPair) return;
-        if (wallpaperVideo !== "") {
-            setwallProc.command = ["sh", "-c", '[ -x "$1" ] && exec "$1" "$2"', "sh", setwallScript, wallpaperVideo];
-            setwallProc.running = true;
-            return;
+    function wpApply(path) {
+        var pair = wpIsVideo(path) ? null : wpPairOf(path);
+        if (pair) {
+            var mode = wallpaperAppearance === "auto" ? (darkMode ? "dark" : "light") : wallpaperAppearance;
+            if (mode === "dynamic") { var hour = new Date().getHours(); mode = hour >= 6 && hour < 19 ? "light" : "dark"; }
+            path = mode === "dark" ? pair.dark : pair.light;
         }
-        var p = wpRestorePath;
-        if (p === "") return;
-        var cmd = (wallpaperCmd || "").trim();
-        var script = cmd !== "" ? '[ -f "$1" ] || exit 0\n' + cmd.split("{}").join('"$1"')
-                                : '[ -f "$1" ] || exit 0\nif command -v awww >/dev/null 2>&1 && awww query 2>/dev/null | grep -qF -- "$1"; then exit 0; fi\n' + root.awwwScript;
-        wpApplyProc.command = ["sh", "-c", script, "sh", p];
-        wpApplyProc.running = true;
+        wpRequest(path, false);
+    }
+    function wpCommit(media) {
+        if (!media || !media.path || !media.poster) return;
+        wallpaperVideo = media.mode === "live" ? media.path : "";
+        wallpaperPath = media.mode === "live" ? media.poster : media.path;
+        wpRestorePath = media.path;
+        var pair = media.mode === "live" ? null : wpPairOf(media.path);
+        wpPairLight = pair ? pair.light : "";
+        wpPairDark = pair ? pair.dark : "";
+        wpAppliedPair = pair ? media.path : "";
+        wallPaused = ({});
+        coverDelay.restart();
+        wpLoginSyncInstalled = media.loginSyncInstalled === true;
+        wpStatus = media.warning || "";
+        try { if (hub && hub.dock) hub.dock.wallpaperPath = media.mode === "live" ? media.poster : media.path; } catch (e) {}
+        saveSettings();
+        wallpaperSampleForce = true; wallpaperColorTimer.restart();
+    }
+    function wpRestore() {
+        if (!settingsReady || wpBusy) return;
+        // The backend owns the persisted selection; a successful apply is its
+        // commit point, so invalid files never replace the last good choice.
+        wpRequest(wallpaperVideo || wpRestorePath || wallpaperPath, true);
     }
     Timer { interval: 3500; running: true; onTriggered: root.wpRestore() }
+    Timer { id: wpMonitorRestore; interval: 700; onTriggered: root.wpRestore() }
+    Timer {
+        id: wpNext
+        interval: 10
+        onTriggered: {
+            var path = root.wpPendingPath, restore = root.wpPendingRestore;
+            root.wpPendingPath = "";
+            root.wpRequest(path, restore);
+        }
+    }
     Process {
         id: setwallProc
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var l = text.trim().split("\n"), still = (l[l.length - 1] || "").trim();
-                if (still === "") return;
-                root.wallpaperPath = still;
-                try { if (root.hub && root.hub.dock) root.hub.dock.wallpaperPath = still; } catch (e) {}
+        stdout: StdioCollector { onStreamFinished: root.wpResult = text.trim() }
+        stderr: StdioCollector { onStreamFinished: root.wpError = text.trim() }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode === 0 && root.wpResult !== "") {
+                try { root.wpCommit(JSON.parse(root.wpResult)); }
+                catch (error) { root.wpStatus = "Could not read the wallpaper result."; }
+            } else if (exitCode !== 0) {
+                try { root.wpStatus = JSON.parse(root.wpError).error; }
+                catch (error) { root.wpStatus = root.wpError || "Could not apply wallpaper."; }
+                console.warn("[wallpaper]", root.wpStatus);
             }
+            if (root.wpPendingPath !== "") wpNext.restart();
         }
-        stderr: StdioCollector { onStreamFinished: if (text.trim() !== "") console.log("[wallpaper] error:", text.trim()) }
     }
+    function wpCheckLoginSync() { if (!wpLoginCheck.running) wpLoginCheck.running = true; }
     Process {
-        id: wpApplyProc
-        onExited: { root.wallpaperSampleForce = true; wallpaperColorTimer.restart(); }
-        stdout: StdioCollector { onStreamFinished: if (text.trim() !== "") console.log("[wallpaper]", text.trim()) }
-        stderr: StdioCollector { onStreamFinished: if (text.trim() !== "") console.log("[wallpaper] error:", text.trim()) }
+        id: wpLoginCheck
+        command: [root.setwallScript, "status"]
+        stdout: StdioCollector {
+            onStreamFinished: { try { root.wpLoginSyncInstalled = JSON.parse(text).loginSyncInstalled === true; } catch (error) {} }
+        }
     }
+    Timer { interval: 5000; repeat: true; running: root.hub && root.hub.dock && root.hub.dock.settingsVisible; onTriggered: root.wpCheckLoginSync() }
     function wpToggle() {
         root.wpOpen = !root.wpOpen;
         if (root.wpOpen) root.wpRefresh();
@@ -4896,10 +4869,12 @@ Scope {
                 // live backdrop has already been released between popovers.
                 Connections {
                     target: root
-                    function onGlassClientsChanged() {
+                    function invalidateSnapshot() {
                         screenSnap.takenAt = 0;
                         ui.snapFresh = false;
                     }
+                    function onGlassClientsChanged() { invalidateSnapshot(); }
+                    function onMonDataChanged() { invalidateSnapshot(); }
                 }
                 // a moment after a popover starts opening (its rect is known), measure what's behind it
                 Timer {
@@ -4970,11 +4945,32 @@ Scope {
                             smooth: true
                         }
 
-                        // the desktop widgets (they sit on the desktop layer, below every window), drawn from the same
-                        // content as the real ones, so the glass shows them under the live windows
+                        // Reuse the desktop's actual icon renderer, including custom folder icons and selection.
+                        // These visual copies sit below application captures and cannot receive desktop input.
+                        readonly property var desktopWidgets: root.hub ? root.hub.widgets : null
+                        readonly property bool desktopHere: !!desktopWidgets && !!desktopWidgets.desktopScreen
+                            && desktopWidgets.desktopScreen.name === win.modelData.name
                         Repeater {
-                            model: (root.hub && root.hub.widgets && Quickshell.screens.length > 0 && win.modelData.name === Quickshell.screens[0].name)
-                                   ? root.hub.widgets.model : null
+                            model: bd.desktopHere && (GlassCommon.DesktopPreferences.settings.stageManager
+                                ? GlassCommon.DesktopPreferences.settings.stageItems : GlassCommon.DesktopPreferences.settings.desktopItems)
+                                ? bd.desktopWidgets.desktop.items : []
+                            delegate: LocalEffects.DesktopIcon {
+                                required property var modelData
+                                z: -1
+                                enabled: false
+                                file: modelData
+                                desktop: bd.desktopWidgets.desktop
+                                controller: null
+                                fontFamily: bd.desktopWidgets.fontFamily
+                                x: modelData.x; y: modelData.y
+                            }
+                        }
+
+                        // The widgets use the same monitor and visibility preferences as the actual desktop layer.
+                        Repeater {
+                            model: bd.desktopHere && (bd.desktopWidgets.editing || (GlassCommon.DesktopPreferences.settings.stageManager
+                                ? GlassCommon.DesktopPreferences.settings.stageWidgets : GlassCommon.DesktopPreferences.settings.desktopWidgets))
+                                ? bd.desktopWidgets.model : null
                             delegate: Item {
                                 id: mw
                                 required property string wid
@@ -5957,8 +5953,9 @@ Scope {
                         autoPaddingEnabled: true
                     }
 
-                    PopGlassCtx { id: volPopGlass; pop: volPop; frame: ui; source: ui.glassSrc; fullW: volPop.fullW; fullH: volPop.fullH }
+                    PopGlassCtx { id: volPopGlass; frosted: true; pop: volPop; frame: ui; source: ui.glassSrc; fullW: volPop.fullW; fullH: volPop.fullH }
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -6135,6 +6132,7 @@ Scope {
                     Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 110 } }
                     Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic } }
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -6411,6 +6409,7 @@ Scope {
                     }
 
                     LGlass {
+                        frosted: true
                         opacity: notifPop.merging ? notifPop.chromeM : 1
                         anchors.fill: parent
                         backdrop: ui.glassSrc
@@ -6643,6 +6642,7 @@ Scope {
                     Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 110; easing.type: Easing.OutCubic } }
 
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -6778,6 +6778,7 @@ Scope {
                     QsMenuOpener { id: trayOpener; menu: trayPop.cur }
 
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -6971,6 +6972,7 @@ Scope {
                     Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic } }
 
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -7384,8 +7386,9 @@ Scope {
                         autoPaddingEnabled: true
                     }
 
-                    PopGlassCtx { id: wifiPopGlass; pop: wifiPop; frame: ui; source: ui.glassSrc; fullW: wifiPop.fullW; fullH: wifiPop.fullH }
+                    PopGlassCtx { id: wifiPopGlass; frosted: true; pop: wifiPop; frame: ui; source: ui.glassSrc; fullW: wifiPop.fullW; fullH: wifiPop.fullH }
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -7707,8 +7710,9 @@ Scope {
                         autoPaddingEnabled: true
                     }
 
-                    PopGlassCtx { id: btPopGlass; pop: btPop; frame: ui; source: ui.glassSrc; fullW: btPop.fullW; fullH: btPop.fullH }
+                    PopGlassCtx { id: btPopGlass; frosted: true; pop: btPop; frame: ui; source: ui.glassSrc; fullW: btPop.fullW; fullH: btPop.fullH }
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -7767,6 +7771,7 @@ Scope {
                     Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic } }
 
                     LGlass {
+                        frosted: true
                         anchors.fill: parent
                         backdrop: ui.glassSrc
                         shaderUrl: root.glassShaderUrl
@@ -7991,7 +7996,7 @@ Scope {
                         id: ccBlur2Fx
                         source: ccBlur
                         width: ccSrc.sourceRect.width; height: ccSrc.sourceRect.height
-                        blurEnabled: (ccg.blur * ccg.blurMul) * 1.4 / 64.0 > 1.0
+                        blurEnabled: ccg.materialBlur * 1.4 / 64.0 > 1.0
                         blurMax: 64
                         blur: Math.max(0.0, Math.min(1.0, ccg.materialBlur * 1.4 / 64.0 - 1.0))
                         autoPaddingEnabled: false
@@ -8000,17 +8005,17 @@ Scope {
                     // second Gaussian pass: only active when the slider goes past a single pass's 64 px limit
                     ShaderEffectSource {
                         id: ccBlur2
-                        sourceItem: (ccg.blur * ccg.blurMul) * 1.4 / 64.0 > 1.0 ? ccBlur2Fx : null
+                        sourceItem: ccg.materialBlur * 1.4 / 64.0 > 1.0 ? ccBlur2Fx : null
                         live: true
                         visible: false
                     }
                     GlassCtx {
                         id: ccg
-                        src: (blur * blurMul) * 1.4 / 64.0 > 1.0 ? ccBlur2 : ccBlur
+                        src: materialBlur * 1.4 / 64.0 > 1.0 ? ccBlur2 : ccBlur
                         srcRect: ccSrc.sourceRect
                         frame: ui
                         liquid: root.liquidActive
-                        shaderUrl: root.glassShaderUrl
+                        shaderUrl: Qt.resolvedUrl("../Common/LiquidGlass-control-center.frag.qsb")
                         dark: root.ccDark
                         // macOS style: the panel is the glass, so each control only keeps a faint shape on top of it
                         tint: root.ccStyle === "macos" ? root.effGlassOpacity * 0.30 : root.effGlassOpacity
@@ -8019,7 +8024,7 @@ Scope {
                         rimTint: 1
                         ringW: 0                            // the border is the QML CornerBorder now (see component CornerBorder)
                         borderTint: root.menuBorderColor
-                        borderAmount: 1                     // strength of the CornerBorder on every tile / button / the panel
+                        borderAmount: 0.35                  // subtle inset hairline; the glass material adds no outside glow
                         whiteEdge: false                    // no light inner ring on the non-liquid fallback pane
                         grain: root.effGlassGrain
                         blur: root.effGlassBlur
@@ -9204,14 +9209,14 @@ Scope {
                                 x: (index % swPanel.columns) * swPanel.cw
                                 y: Math.floor(index / swPanel.columns) * (swPanel.cellH + swPanel.plan.gap)
                                 width: swPanel.cw; height: swPanel.cellH
-                                Image {
+                                GlassCommon.AppIcon {
                                     visible: !swPanel.previews
                                     anchors.centerIn: parent
                                     width: swPanel.ico; height: swPanel.ico
-                                    scale: root.swIndex === swCell.index ? 1.06 : 0.96
+                                    scale: (root.swIndex === swCell.index ? 1.06 : 0.96) * GlassCommon.IconStyle.scaleFor(source)
                                     Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 320; easing.type: Easing.OutQuint } }
                                     source: root.swIcon(swCell.modelData)
-                                    layer.enabled: GlassCommon.IconStyle.effectMode !== 0 && visible
+                                    layer.enabled: GlassCommon.IconStyle.effectFor(source) !== 0 && visible
                                     layer.effect: GlassCommon.IconStyleEffect {}
                                     sourceSize.width: 128; sourceSize.height: 128
                                     fillMode: Image.PreserveAspectFit
@@ -9492,7 +9497,7 @@ Scope {
                             width: wpGrid.cellWidth; height: wpGrid.cellHeight
                             readonly property bool sel: wpGrid.currentIndex === index
                             readonly property bool cur: modelData.video ? root.wallpaperVideo === modelData.path
-                                                                        : (root.wallpaperVideo === "" && root.wallpaperPath === modelData.path)
+                                                                        : (root.wallpaperVideo === "" && root.wpRestorePath === modelData.path)
                             Item {
                                 id: wcBox
                                 anchors.fill: parent
@@ -9544,14 +9549,8 @@ Scope {
                                     // animated wallpaper: its looping preview plays while hovered or selected
                                     Loader {
                                         anchors.fill: parent
-                                        active: wc.modelData.video && wc.modelData.preview !== "" && (wcMa.containsMouse || wc.sel) && root.wpOpen
-                                        sourceComponent: AnimatedImage {
-                                            source: root.fileUrl(wc.modelData.preview)
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true
-                                            cache: false
-                                            playing: true
-                                        }
+                                        active: wc.modelData.video && wcMa.containsMouse && root.wpOpen
+                                        sourceComponent: GlassCommon.WallpaperVideo { source: root.fileUrl(wc.modelData.path) }
                                     }
                                     Rectangle {
                                         visible: wc.modelData.video
@@ -9816,6 +9815,24 @@ Scope {
                     live: spotWin.openish
                     visible: false
                 }
+                // Menu-bar frost for the Spotlight panels: a dedicated, heavier
+                // blur. The search pill and its round buttons keep Liquid Glass.
+                MultiEffect {
+                    id: spPanelBlurFx
+                    source: spSrc
+                    width: spSrc.sourceRect.width; height: spSrc.sourceRect.height
+                    blurEnabled: true
+                    blurMax: 64
+                    blur: Math.min(1.0, 32 * 1.4 / 64.0)
+                    autoPaddingEnabled: false
+                    visible: false
+                }
+                ShaderEffectSource {
+                    id: spPanelBlur
+                    sourceItem: spPanelBlurFx
+                    live: spotWin.openish && (ui.spFull || resPanel.items.length > 0)
+                    visible: false
+                }
                 GlassCtx {
                     id: spg
                     src: spBlur2
@@ -9837,6 +9854,21 @@ Scope {
                     onFailed: root.glassState = "failed"
                 }
 
+                // Flat menu vibrancy, the same shader as the top-bar dropdowns.
+                GlassCtx {
+                    id: spPanelG
+                    src: spPanelBlur
+                    srcRect: spSrc.sourceRect
+                    frame: spotRoot
+                    liquid: root.liquidActive
+                    frosted: true
+                    shaderUrl: "file://" + root.spotlightStaticOut
+                    dark: root.panelDarkMode
+                    tint: root.effGlassOpacity
+                    borderTint: spg.borderTint
+                    borderAmount: 1
+                }
+
                 // ═════════ Spotlight (Liquid Glass) ═════════
                 Item {
                     id: spot
@@ -9845,8 +9877,8 @@ Scope {
                     readonly property var curPanel: ui.spMode === "apps" ? appsPanel : (ui.spMode === "clip" ? clipPanel : emojiPanel)
                     height: ui.spFull ? curPanel.height : (resPanel.visible ? resPanel.y + resPanel.height : spRow.height)
                     x: Math.round((spotRoot.width - width) / 2)
-                    // the search pill sits a little above the vertical centre of the screen (0.4 of the height; 0.5 = dead centre); the Applications panel centres itself instead
-                    y: Math.round(spotRoot.height * 0.4 - (ui.spFull ? curPanel.height / 2 : 24))
+                    // Keep the search baseline while panels unfold downward; clamp tall panels to the screen.
+                    y: Math.round(Math.min(spotRoot.height * 0.4 - 24, ui.spFull ? Math.max(24, spotRoot.height - curPanel.height - 24) : spotRoot.height))
                     Behavior on y { enabled: spot.vis > 0.99; NumberAnimation { duration: root.reduceMotion ? 0 : 150; easing.type: Easing.OutCubic } }
                     // opens with a springy pop; dismiss: quick fade + shrink
                     property real vis: 0
@@ -9885,6 +9917,7 @@ Scope {
 
                     LocalEffects.SpotlightGooey {
                         id: spGooey
+                        x: spRow.x
                         width: spot.width; height: 48
                         gx: spg
                         pillWidth: spPill.width
@@ -9907,6 +9940,7 @@ Scope {
                     // ── search pill + enabled round buttons ──
                     Row {
                         id: spRow
+                        x: spGooey.openingOffset
                         spacing: 12
                         opacity: !ui.spFull ? 1 : 0
                         visible: opacity > 0
@@ -9973,6 +10007,7 @@ Scope {
                                 surfaceOpacity: spGooey.handoff
                                 borderVisible: false
                                 opacity: spGooey.morphing ? spGooey.smooth(0.12, 0.55, spGooey.phase(index)) : 1
+                                enabled: opacity > 0.1
                                 transform: [
                                     Scale {
                                         origin.x: 24; origin.y: 24
@@ -10023,7 +10058,8 @@ Scope {
                         Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 240; easing.type: Easing.OutCubic } }
                         height: (items.length > 0 ? items.length : keep) * 46 + 16
                         Behavior on height { NumberAnimation { duration: root.reduceMotion ? 0 : 320; easing.type: Easing.OutQuint } }
-                        GGlass { anchors.fill: parent; gx: spg; cornerR: 26; thickness: 26; strengthMul: 1.0; shadowAmt: 0 }
+                        GGlass { anchors.fill: parent; gx: spPanelG; frosted: true; cornerR: 26; thickness: 26; strengthMul: 1.0; shadowAmt: 0 }
+                        MenuBorder { anchors.fill: parent; cornerR: 26; dark: root.panelDarkMode; tint: spPanelG.borderTint; amount: spPanelG.borderAmount }
 
                         Item {
                             x: 8; y: 8
@@ -10055,11 +10091,11 @@ Scope {
                                         x: 12
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: 30; height: 30
-                                        Image {
+                                        GlassCommon.AppIcon {
                                             visible: rr.ico !== ""
                                             anchors.fill: parent
                                             source: rr.ico
-                                            layer.enabled: GlassCommon.IconStyle.effectMode !== 0
+                                            layer.enabled: GlassCommon.IconStyle.effectFor(source) !== 0
                                             layer.effect: GlassCommon.IconStyleEffect {}
                                             sourceSize: Qt.size(64, 64)
                                             fillMode: Image.PreserveAspectFit
@@ -10104,14 +10140,12 @@ Scope {
                     }
 
                     // ── Clipboard history panel (macOS Tahoe style) ──
-                    Item {
+                    LocalEffects.SpotlightPanel {
                         id: clipPanel
-                        opacity: ui.spMode === "clip" ? 1 : 0
-                        visible: opacity > 0
-                        scale: ui.spMode === "clip" ? 1 : 0.96
-                        transformOrigin: Item.Top
-                        Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 240; easing.type: Easing.OutCubic } }
-                        Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 200; easing.type: Easing.OutCubic } }
+                        active: ui.spMode === "clip"
+                        reduceMotion: root.reduceMotion
+                        animateEntrance: !ui.spCalm
+                        capsuleWidth: spPill.width
                         width: spot.width
                         readonly property var items: ui.spMode === "clip" ? ui.spResults : []
                         readonly property int rowH: 56
@@ -10125,7 +10159,8 @@ Scope {
                             : (ui.spQuery.trim() === "" && !root.clipLoading ? "Copy some text or an image and it will show up here" : ""))
                         height: 64 + (items.length > 0 ? shown * rowH + 14 : 118)
                         Behavior on height { NumberAnimation { duration: root.reduceMotion ? 0 : 220; easing.type: Easing.OutCubic } }
-                        GGlass { anchors.fill: parent; gx: spg; cornerR: 32; thickness: 34; strengthMul: 1.0; shadowAmt: 0 }
+                        GGlass { anchors.fill: parent; gx: spPanelG; frosted: true; cornerR: clipPanel.surfaceRadius; thickness: 34; strengthMul: 1.0; shadowAmt: 0 }
+                        MenuBorder { anchors.fill: parent; cornerR: clipPanel.surfaceRadius; dark: root.panelDarkMode; tint: spPanelG.borderTint; amount: spPanelG.borderAmount }
 
 
                         Item {
@@ -10340,7 +10375,8 @@ Scope {
                             y: 58
                             width: 250
                             height: 3 * 40 + 12
-                            GGlass { anchors.fill: parent; gx: spg; cornerR: 20; thickness: 26; strengthMul: 1.0; shadowAmt: 0 }
+                            GGlass { anchors.fill: parent; gx: spPanelG; frosted: true; cornerR: 20; thickness: 26; strengthMul: 1.0; shadowAmt: 0 }
+                            MenuBorder { anchors.fill: parent; cornerR: 20; dark: root.panelDarkMode; tint: spPanelG.borderTint; amount: spPanelG.borderAmount }
 
                             Column {
                                 x: 6; y: 6
@@ -10396,21 +10432,20 @@ Scope {
                     }
 
                     // ── Emoji panel ──
-                    Item {
+                    LocalEffects.SpotlightPanel {
                         id: emojiPanel
-                        opacity: ui.spMode === "emoji" ? 1 : 0
-                        visible: opacity > 0
-                        scale: ui.spMode === "emoji" ? 1 : 0.96
-                        transformOrigin: Item.Top
-                        Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 240; easing.type: Easing.OutCubic } }
-                        Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 200; easing.type: Easing.OutCubic } }
+                        active: ui.spMode === "emoji"
+                        reduceMotion: root.reduceMotion
+                        animateEntrance: !ui.spCalm
+                        capsuleWidth: spPill.width
                         width: spot.width
                         readonly property int cell: 50
                         readonly property int gridRows: 6
                         readonly property var items: ui.spMode === "emoji" ? ui.spResults : []
                         readonly property var cur: items[Math.min(ui.spSel, items.length - 1)]
                         height: 64 + 42 + gridRows * cell + 46
-                        GGlass { anchors.fill: parent; gx: spg; cornerR: 32; thickness: 34; strengthMul: 1.0; shadowAmt: 0 }
+                        GGlass { anchors.fill: parent; gx: spPanelG; frosted: true; cornerR: emojiPanel.surfaceRadius; thickness: 34; strengthMul: 1.0; shadowAmt: 0 }
+                        MenuBorder { anchors.fill: parent; cornerR: emojiPanel.surfaceRadius; dark: root.panelDarkMode; tint: spPanelG.borderTint; amount: spPanelG.borderAmount }
 
 
                         Item {
@@ -10470,7 +10505,7 @@ Scope {
                                     Text {
                                         anchors.centerIn: parent
                                         text: tab.modelData
-                                        font.family: root.emojiFont; font.pixelSize: 22
+                                        font.family: root.emojiFont; font.pixelSize: Math.round(22 * root.emojiFontScale)
                                     }
                                     MouseArea {
                                         id: tabMa
@@ -10520,7 +10555,7 @@ Scope {
                                 Text {
                                     anchors.centerIn: parent
                                     text: ec.modelData ? ec.modelData[0] : ""
-                                    font.family: root.emojiFont; font.pixelSize: 36
+                                    font.family: root.emojiFont; font.pixelSize: Math.round(36 * root.emojiFontScale)
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -10548,11 +10583,19 @@ Scope {
                             width: parent.width - 40; height: 46
                             Rectangle { width: parent.width; height: 1; color: panelPal.sep }
                             Text {
+                                id: emojiFooterGlyph
                                 x: 4
                                 anchors.verticalCenter: parent.verticalCenter
-                                width: parent.width - 180
+                                text: emojiPanel.cur ? emojiPanel.cur[0] : ""
+                                font.family: root.emojiFont
+                                font.pixelSize: Math.round(13 * root.emojiFontScale)
+                            }
+                            Text {
+                                x: emojiFooterGlyph.x + emojiFooterGlyph.width + 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: Math.max(0, parent.width - x - 176)
                                 elide: Text.ElideRight
-                                text: emojiPanel.cur ? (emojiPanel.cur[0] + "  " + emojiPanel.cur[1]) : ""
+                                text: emojiPanel.cur ? emojiPanel.cur[1] : ""
                                 color: panelPal.fg2
                                 font.family: panelPal.fam; font.styleName: panelPal.fontStyleName || ""; font.pixelSize: 13
                             }
@@ -10568,29 +10611,23 @@ Scope {
                     }
 
                     // ── Applications panel ──
-                    Item {
+                    LocalEffects.SpotlightPanel {
                         id: appsPanel
-                        opacity: ui.spMode === "apps" ? 1 : 0
-                        visible: opacity > 0
-                        scale: ui.spMode === "apps" ? 1 : 0.96
-                        transformOrigin: Item.Top
-                        Behavior on opacity { NumberAnimation { duration: root.reduceMotion ? 0 : 240; easing.type: Easing.OutCubic } }
-                        Behavior on scale { NumberAnimation { duration: root.reduceMotion ? 0 : 200; easing.type: Easing.OutCubic } }
+                        active: ui.spMode === "apps"
+                        reduceMotion: root.reduceMotion
+                        animateEntrance: !ui.spCalm
+                        capsuleWidth: spPill.width
                         width: spot.width
                         height: Math.min(64 + appsCol.height + 14, 520)
-                        // Fixed frosted menu material. The macspot layer supplies
-                        // backdrop blur; user Liquid Glass presets never affect it.
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 32
-                            color: root.panelDarkMode ? Qt.rgba(0.12, 0.12, 0.13, 0.86) : Qt.rgba(0.97, 0.97, 0.98, 0.86)
-                            border.width: 1
-                            border.color: root.panelDarkMode ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.55)
-                        }
+                        // Same menu-bar frost as Clipboard and Emoji, so all three
+                        // panels share one material.
+                        GGlass { anchors.fill: parent; gx: spPanelG; frosted: true; cornerR: appsPanel.surfaceRadius; thickness: 34; strengthMul: 1.0; shadowAmt: 0 }
                         MenuBorder {
                             anchors.fill: parent
-                            cornerR: 32
+                            cornerR: appsPanel.surfaceRadius
                             dark: root.panelDarkMode
+                            tint: spPanelG.borderTint
+                            amount: spPanelG.borderAmount
                         }
 
 
@@ -10711,12 +10748,12 @@ Scope {
                                                         radius: 16
                                                         color: cma.containsMouse ? panelPal.hover : "transparent"
                                                     }
-                                                    Image {
+                                                    GlassCommon.AppIcon {
                                                         anchors.horizontalCenter: parent.horizontalCenter
                                                         y: 10
                                                         width: 56; height: 56
                                                         source: root.iconSrc(cell.e.icon)
-                                                        layer.enabled: GlassCommon.IconStyle.effectMode !== 0
+                                                        layer.enabled: GlassCommon.IconStyle.effectFor(source) !== 0
                                                         layer.effect: GlassCommon.IconStyleEffect {}
                                                         sourceSize: Qt.size(128, 128)
                                                         fillMode: Image.PreserveAspectFit

@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+"""Desktop wallpaper entry point, shared by Settings and session autostart."""
+import runpy
+from pathlib import Path
+runpy.run_path(str(Path(__file__).resolve().parents[1] / 'share/macshell/wallpaper.py'), run_name='__main__')

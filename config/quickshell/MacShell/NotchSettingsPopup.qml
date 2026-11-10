@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "NotchGeometry.js" as Geometry
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Shapes
 import "Common" as Common
 
@@ -19,15 +20,9 @@ Popup {
     default property alias settingsContent: fields.data
     signal saveRequested()
     readonly property bool dark: !host.bar || host.bar.effDark !== false
-    // Menu-bar dropdowns use a 42 px clear blur and the shared material preset.
-    readonly property real backdropBlurRadius: Common.GlassMaterial.blurRadius(42)
-    readonly property real materialOpacity: host.bar && host.bar.effGlassOpacity!==undefined ? host.bar.effGlassOpacity : host.glassOpacity
-    readonly property real materialLiquid: host.bar && host.bar.effGlassLiquid!==undefined ? host.bar.effGlassLiquid : host.glassLiquid
-    readonly property real materialRim: host.bar && host.bar.effGlassRim!==undefined ? host.bar.effGlassRim : host.glassRim
-    readonly property real materialGrain: host.bar && host.bar.effGlassGrain!==undefined ? host.bar.effGlassGrain : host.glassGrain
+    // Match menu-bar frost, independently of the notch/Dock optical settings.
+    readonly property real backdropBlurRadius: 32
     readonly property color borderTint: host.bar && host.bar.menuBorderColor!==undefined ? host.bar.menuBorderColor : "#8A9AB5"
-    readonly property url materialShader: Qt.resolvedUrl("notch-menu-tail-v1.frag.qsb")
-    property bool glassFailed:false
     readonly property bool opaque: !!host.bar && host.bar.reduceTransparency
     readonly property color foreground: dark ? "#F5F5F7" : "#202124"
     readonly property color secondary: dark ? "#CBD0DA" : "#535966"
@@ -85,7 +80,7 @@ Popup {
     transformOrigin: Item.Top
     onAboutToShow: {
         if (host.settingsPopup && host.settingsPopup !== popup) host.settingsPopup.close();
-        openingSpring.stop(); motionArmed = false; dragging = false;glassFailed=false;
+        openingSpring.stop(); motionArmed = false; dragging = false;
         offsetX = 0; offsetY = 0; jellyX = 0; jellyY = 0;
         popProgress = host.reducedMotion ? 1 : 0.78;
         contentItem.contentY = 0;
@@ -189,35 +184,37 @@ Popup {
             id:frostLayer;objectName:"notchMenuFrostLayer"
             anchors.fill: parent
             active: popup.visible && !popup.opaque && GraphicsInfo.api !== GraphicsInfo.Software
-            sourceComponent: NotchMenuBarGlass {
-                objectName:"notchMenuBarGlass"
-                backdrop:backdropLayer.item as Item
-                bx:surface.captureMargin;by:surface.captureMargin
-                shaderUrl:popup.materialShader
-                liquid:!!popup.host.bar && popup.host.bar.liquidActive===true && !popup.glassFailed
-                dark:popup.dark
-                tailHeight:popup.tailHeight;pointerX:popup.pointerX;tailAmount:popup.tailAmount
-                cornerR:popup.cornerRadius
-                tint:popup.materialOpacity
-                thickness:22
-                strength:0.55*popup.materialLiquid
-                rim:popup.materialRim
-                grain:popup.materialGrain
-                blur:42
-                rimTint:1;ringW:1.4
-                onShaderError:popup.glassFailed=true
+            sourceComponent: Item {
+                // Apply the existing portal silhouette to the flat shared frost,
+                // not a refractive lens. Include the tail in the same material.
+                Shape {
+                    id:frostMask;anchors.fill:parent;visible:false;layer.enabled:true
+                    preferredRendererType:Shape.CurveRenderer
+                    ShapePath {fillColor:"white";strokeWidth:0;PathSvg {path:surface.path}}
+                }
+                Item {
+                    anchors.fill:parent
+                    layer.enabled:true
+                    layer.effect:MultiEffect {maskEnabled:true;maskSource:frostMask;autoPaddingEnabled:false}
+                    Common.FrostedMenuSurface {
+                        objectName:"notchMenuFrostMaterial"
+                        anchors.fill:parent
+                        backdrop:backdropLayer.item as Item
+                        samplePosition:Qt.point(surface.captureMargin,surface.captureMargin)
+                        dark:popup.dark;opaque:popup.opaque
+                        radius:0;outline:false
+                    }
+                }
             }
         }
         // Use the menu bar's fallback tint and border treatment too.
         Shape {
             anchors.fill:parent
-            visible:!frostLayer.active || popup.glassFailed || !popup.host.bar || popup.host.bar.liquidActive!==true
+            visible:!frostLayer.active
             preferredRendererType:Shape.CurveRenderer
             ShapePath {
-                fillColor:popup.opaque || GraphicsInfo.api===GraphicsInfo.Software || popup.glassFailed
-                    ? (popup.dark?"#29292D":"#F0F0F3")
-                    : popup.dark?Qt.rgba(0.12,0.12,0.13,0.30+popup.materialOpacity*0.9):Qt.rgba(1,1,1,0.30+popup.materialOpacity*0.7)
-                strokeColor:popup.dark?Qt.rgba(1,1,1,0.18):Qt.rgba(1,1,1,0.55);strokeWidth:1
+                fillColor:popup.dark?"#1F1F21":"#F7F7FA"
+                strokeWidth:0
                 PathSvg {path:surface.path}
             }
         }

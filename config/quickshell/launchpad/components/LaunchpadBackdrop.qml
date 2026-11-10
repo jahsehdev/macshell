@@ -38,10 +38,12 @@ FloatingWindow {
     // permanently visible Dock. Keep the bar and Dock in their existing layers.
     minimumSize: Qt.size(implicitWidth, implicitHeight)
     maximumSize: minimumSize
-    // Keep the window host stable; decoded images only live while it is shown.
-    Loader {
+    // Keep the prepared wallpaper through quick reopen, then free the images.
+    Corners.ActivityLoader {
         anchors.fill: parent
-        active: LaunchpadState.windowVisible && root.focusedHere
+        requested: LaunchpadState.windowVisible && root.focusedHere
+        releaseDelay: 15000
+        asynchronous: true
         sourceComponent: Corners.LaunchpadBackground {
             screenName: root.modelData ? root.modelData.name : ""
             imageSource: Theme.backgroundType === "wallpaper" ? "file://" + Theme.tahoeWallpaper

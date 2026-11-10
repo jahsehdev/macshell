@@ -5,7 +5,7 @@
   const invoke = async (action) => {
     const response = await fetch(`${bridge.endpoint}/${bridge.token}/${action}`, {
       method: "POST", mode: "cors", credentials: "omit", referrerPolicy: "no-referrer",
-      cache: "no-store", signal: AbortSignal.timeout(action === "minimize" ? 12000 : 5000)
+      cache: "no-store", signal: AbortSignal.timeout(action === "minimize" ? 18000 : 5000)
     });
     if (!response.ok) throw new Error("Window action unavailable");
     return response.json();

@@ -1,4 +1,4 @@
-# Fixed continuous UI corners and a separate Dock slider
+# Glass defaults and continuous UI corners
 
 ## Theme colors and text selection
 
@@ -34,6 +34,12 @@ Run the behavior/contrast checks with
 `node ~/.config/quickshell/Common/tests/test_theme_colors.cjs`.
 
 ## Icon and widget appearance
+
+`AppIcon.qml` keeps the longest visible artwork edge at 87.5% of its icon cell,
+matching the original MacTahoe Launchpad icon. Dock, Launchpad, Spotlight and switcher icons
+share this default, including icons from inherited themes. `icon_geometry.py`
+measures opaque artwork, excludes soft shadows and caches measurements by file
+timestamp and size. It uses Pillow and `rsvg-convert`; source artwork stays intact.
 
 Appearance → the card below Theme controls **Default / Dark / Clear / Tinted**
 for Dock, Launchpad and folder miniatures, Spotlight app icons, the app switcher,
@@ -86,52 +92,104 @@ Appearance → Liquid Glass offers **Clear** (the existing light blur) and
 Tinted does not darken the material or add a colour overlay. Both retain
 live-backdrop refraction and the existing edge highlights. The
 choice applies immediately to MacShell's liquid Dock, tooltips/menus,
-Spotlight/Clipboard, Control Center/popovers and liquid desktop widgets.
+Spotlight/Clipboard, Control Center/popovers, liquid desktop widgets,
+Launchpad's glass surfaces and MacLock's password, notification and media slabs.
 Normal Blur and non-liquid widget styles are unchanged, as are icon tint,
-native app themes, Launchpad and the lock screen.
+native app themes and each component's layout.
 
 The single preference is saved in `~/.config/macshell/liquidglass.json`;
 missing/unknown modes use Clear, preserving existing installations. The Blur
 slider is removed; old `glassBlur` values are retained only as Clear's baseline
-for backwards compatibility. Translucency and Liquid strength are unchanged.
+for backwards compatibility. Glass tint and refraction defaults are 0 and 0.5.
+The Glass & Corners card and its preview are removed from System Settings;
+these defaults also apply after resetting settings. The Dock uses a 32 px
+corner radius and 57% continuous corner smoothing.
 The material can also be selected
 with `qs -c MacShell ipc call glass material clear` (or `tinted`), and read with
 `qs -c MacShell ipc call glass materialMode`.
 
-`GlassMaterial.qml` and `GlassMaterial.js` share the preset across shell surfaces.
+`GlassMaterial.qml` owns the optical profile and watches the legacy Dock tuning
+(`glassOpacity`, `glassLiquid`, `glassBlur`, `glassRim`, `glassGrain`). Those
+values now apply across all glass surfaces instead of using separate bar,
+Launchpad and lockscreen defaults. Partial settings writes retain the last
+valid profile. `GlassMaterial.js` supplies the intensity interpolation.
+`LiquidGlassSurface.qml` binds that profile to the rectangular shader uniforms;
+components supply their backdrop coordinates, contour and theme. The masked
+notch and slider adapters receive the same profile through vector uniforms.
 Clear / Tinted only changes the backdrop blur passes, never foreground text/icons.
-Light mode adds a 48% white veil before edge lighting on the Dock, menus,
-tooltips, Spotlight and liquid widgets. The translucency slider can add more
-white; dark mode keeps its existing tint and lighting.
-Rebuild `MacShell/dockmenu-light-milk-v1.frag.qsb` and
-`MacShell/docktooltip-light-milk-v1.frag.qsb` with `qsb --qt6` if their sources
-change. Dock, menu-bar, Spotlight and widget main shaders are
-also rebuilt automatically on shell load. Liquid desktop widgets use the same
-`DOCK_THIN_BORDER` shader variant as the Dock: fine inset reflections, with no
-broad white rim, inner glow or outer halo. Their bundled fallback uses the same
-variant. Settings material previews use the bundled
-`MacShell/liquidglass-preview-v1.frag.qsb`, built from `liquidglass.frag` with
-`qsb --qt6 -D DOCK_THIN_BORDER`; they work independently of the live Dock style.
-Clear samples the sharp preview scene and Tinted samples its Gaussian blur.
+The material source is **`Common/LiquidGlass.frag`**. It restores MacShell's
+previous deep lens, backdrop sampling, white veil, rim lighting and grain.
+Dock, bar, menus, widgets, Launchpad and lock-screen slabs all call the same
+`shadeGlass()` implementation and use its fine inset highlight. There are no
+per-component lens, tint or rim recipes. The notch and slider adapters also call it;
+their masks and coordinate mapping remain specific to their geometry.
+
+There are no component-owned Liquid Glass fragment sources. Geometry and
+uniform-layout adapters are selected at build time from this one file:
+
+| Adapter | Purpose |
+| --- | --- |
+| default / Dock | Rounded panel, folder, material preview and inset Dock border |
+| bar / lock | Existing bar and lock-screen uniform layouts |
+| frosted menu | Compatibility layout; uses the shared lens, tint and rim instead of a separate fixed plate |
+| menu / tooltip / portal | Rounded bodies with their existing tails |
+| notch / slider | Canvas-mask and local-track coordinate adapters |
+| Spotlight / Luma | Existing animated unions and connecting necks |
+| text / coat / voice | Glyph, toggle-coat and voice overlays over the shared material |
+
+All `.qsb` adapters live beside the source in `Common/`. They are generated
+artifacts for different masks and input layouts, not independently maintained
+materials. The standalone SDDM package carries only generated lock/text
+binaries; it does not contain another material source.
+
+Each Quickshell configuration accesses these files through its own `Common`
+symlink. For example, MacShell uses `Common/LiquidGlass.frag` and UpstreamBar
+uses `../Common/LiquidGlass.frag`. Do not resolve outside the configuration
+root: Quickshell replaces escaping URLs with `qrc:/qs-blackhole`, even when
+the same path exists on the physical filesystem. The shared-glass tests run
+the production URLs through Quickshell's VFS and compile the resolved source.
+
+Rebuild every adapter after editing the source:
+
+```sh
+python scripts/build-glass-shaders.py
+```
+
+This requires Qt 6 `qsb` from `qt6-shadertools`. Dock, bar, Spotlight/Luma and
+widget runtime builds also read this same source. Shared-v1 cache names avoid
+reusing the replaced material. Settings previews read the bundled Dock adapter.
+Appearance preferences and existing pre-blur passes retain their saved values.
+
+Menu-bar dropdowns (Apple/application menus, tray, sound, keyboard,
+notifications, Wi-Fi, Bluetooth and calendar) explicitly select the frosted
+menu profile. Control Center keeps the shared Liquid Glass material. Frosted
+menu blur and tint do not follow the Liquid Glass intensity preference.
+
+Desktop/file/widget context menus and the side Dock and Stage Manager menus
+use `FrostedMenuSurface.qml` with the same 42 px pre-blur, bundled frosted-menu
+shader, theme tint and MenuBorder hairlines. These surfaces sample a dedicated
+wallpaper/backdrop item so the menu cannot capture itself. Reduced transparency,
+software rendering and unavailable backdrops retain an opaque themed fallback.
 
 ## Corner geometry
 
 Panels, menus, widgets, Launchpad and the lock screen default to a fixed Lamé
 softer curve (`n = 2.7`, smoothing 35%). Round buttons, toggles and slider handles explicitly keep their
 native circular shape. Panels normalize their radius to 20–32 px; small items adapt to their available
-space, while circular controls keep their original radius. The Dock alone reads the adjustable `cornerSquircle`
-setting in `~/.config/macdock/settings.json`.
+space, while circular controls keep their original radius. The Dock alone reads
+`cornerSquircle` from `~/.config/macdock/settings.json`, defaulting to 0.57.
+Dock radius and smoothing have no controls in System Settings.
 
 `ContinuousRectangle.qml` creates its curve renderer only for continuous
 surfaces with a radius of at least 3 px. Round controls, separators and tiny
 radii use native rectangles. Shared normalized samples are cached, and panel
 outlines use 16–48 segments per corner, depending on size. Geometry depends
-only on dimensions, radius and stroke; colour changes and Dock slider movement
-do not recalculate it. Image masks use the same contour.
+only on dimensions, radius and stroke; colour changes do not recalculate it.
+Image masks use the same contour.
 
 `sync_apps.py --once` applies fixed native panel assets and window rounding at
-shell startup, preserving original native button artwork. It never watches the
-Dock slider or regenerates assets while it moves. Native apps may need reopening
+shell startup, preserving original native button artwork. It does not watch Dock
+corner settings or regenerate assets when they change. Native apps may need reopening
 to reload cached theme assets. Original theme files are retained under
 `~/.local/share/macshell/corners/base`.
 
@@ -226,7 +284,7 @@ Rule syntax reference: [Hyprland window rules](https://wiki.hypr.land/configurin
 
 Settings is displayed as **Settings** in the Dock, active application menu and
 Alt+Tab. The switcher uses the Dock's window identity map and `settingAppIcon`
-source, including the MacTahoe Settings artwork. Current and legacy Settings
+source, including the active icon theme's Settings artwork. Current and legacy Settings
 window titles are recognized separately from Clock and other Quickshell apps.
 Regression check: `node ~/.config/quickshell/MacShell/tests/test_switcher_settings.cjs`.
 

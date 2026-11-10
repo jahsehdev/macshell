@@ -1,0 +1,8 @@
+#!/bin/bash
+# Keep the package launcher's per-line user flags when using the local overlay.
+spotify_flags=()
+spotify_flags_file="${XDG_CONFIG_HOME:-$HOME/.config}/spotify-flags.conf"
+if [[ -f "$spotify_flags_file" ]]; then
+    mapfile -t spotify_flags < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$spotify_flags_file")
+fi
+exec python3 "@DATA_HOME@/macshell/window-controls/launch.py" spotify -- "${spotify_flags[@]}" "$@"

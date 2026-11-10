@@ -13,6 +13,7 @@ test('invalid external preferences fall back without truthy string switches', ()
 test('all supported choices survive normalization', () => {
     const p=P.normalize({position:'left',minimizeEffect:'scale',titlebarAction:'minimize',stageManager:true,stageWindows:'one',wallpaperClick:'always'});
     assert.equal(p.position,'left'); assert.equal(p.minimizeEffect,'scale'); assert.equal(p.stageManager,true); assert.equal(p.wallpaperClick,'always');
+    assert.equal(P.normalize({wallpaperClick:'never'}).wallpaperClick, 'never');
 });
 test('recent apps are ordered, unique and bounded', () => {
     assert.deepEqual(P.recent(['a','b','c'],'b'),['b','a','c']);

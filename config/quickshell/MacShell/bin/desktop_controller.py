@@ -297,8 +297,10 @@ class Controller:
         elif action == 'resume':
             self.revealed = []
         elif action == 'desktop':
-            if not message.get('force') and self.preferences.get('wallpaperClick', 'stage') == 'stage' and not self.preferences.get('stageManager'):
-                return
+            if not message.get('force'):
+                policy = self.preferences.get('wallpaperClick', 'stage')
+                if policy == 'never' or (policy == 'stage' and not self.preferences.get('stageManager')):
+                    return
             mon = str(message.get('monitor', 0))
             if mon in self.revealed:
                 self.revealed.remove(mon)

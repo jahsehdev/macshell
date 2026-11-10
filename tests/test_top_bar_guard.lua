@@ -28,4 +28,9 @@ assert(#operations==1,'bar guard must leave Zoom, fullscreen, recovery and overl
 assert(operations[1].window=='address:normal' and operations[1].y==128,
     'normal windows must use the reserved top plus the monitor origin')
 assert(operations[1].exact==true,'bar guard must use absolute screen coordinates')
+-- --verify-config has no event loop; registering its repeating timer crashes
+-- Hyprland instead of reporting whether the window configuration is valid.
+tick=nil;env.verifyingConfig=true
+assert(load(block,'top-bar verifier guard','t',env))()
+assert(tick==nil,'standalone verification must not register runtime timers')
 print('Top-bar guard: Zoom/fullscreen ownership and absolute monitor coordinates passed.')

@@ -164,7 +164,7 @@ Item {
 
             readonly property real margin: 72
             readonly property real padPx: 10
-            readonly property real materialBlur: Corners.GlassMaterial.blurRadius(w.glassBlur)
+            readonly property real materialBlur: Corners.DesktopPreferences.reduceTransparency ? 0 : Corners.GlassMaterial.surfaceBlur
             readonly property real ds: materialBlur >= 8 ? 0.5 : 1.0
             readonly property real bn:
                 Math.min(1.0, materialBlur * 1.4 * ds / 64.0)
@@ -231,7 +231,7 @@ Item {
                 visible: false
             }
 
-            ShaderEffect {
+            Corners.LiquidGlassSurface {
                 x: -gl.padPx
                 y: -gl.padPx
                 width: w.width + 2 * gl.padPx
@@ -244,34 +244,23 @@ Item {
                         w.glassFailed()
                 }
 
-                property variant src: blurred
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d glassSize: Qt.vector2d(w.width, w.height)
-                property vector2d srcSize:
+                src: blurred
+                itemSize: Qt.vector2d(width, height)
+                glassSize: Qt.vector2d(w.width, w.height)
+                srcSize:
                     Qt.vector2d(backdrop.width, backdrop.height)
-                property vector2d srcOffset:
+                srcOffset:
                     Qt.vector2d(gl.margin, gl.margin)
 
-                property real pad: gl.padPx
-                property real radius: Corners.CornerTheme.panelRadius(w.width,w.height,w.radiusPx,Corners.CornerTheme.smoothing)
-                property real bezel:
+                pad: gl.padPx
+                radius: Corners.CornerTheme.panelRadius(w.width,w.height,w.radiusPx,Corners.CornerTheme.smoothing)
+                bezel:
                     Math.min(Math.min(w.width, w.height) * 0.36, 26)
-                property real thickness: 30 * w.glassLiquid
-                property real dispersion: 0.06 * w.glassLiquid
-                property real magnify:
-                    0.08 * w.glassLiquid * Math.min(1, 90 / w.height)
-                property real rim: w.glassRim
-                property real grain: w.glassGrain * 0.15
-                property real blurPx: 1.0
-                property real tintMix: w.tint
-                property real saturation: 1.25
-                property real dark: w.dark ? 1 : 0
-                property real debug: 0
-                property real shadowAmt: 0           // no drop shadow
-                property real flatInner: 1           // no darker inner edge (needs the rebuilt liquidglass shader)
-                property real rimTint: 1
-                property real ringW: 0
-                property real squircle: Corners.CornerTheme.smoothing
+                dark: w.dark ? 1 : 0
+                debug: 0
+                shadowAmt: 0           // no drop shadow
+                // no darker inner edge (needs the rebuilt liquidglass shader)
+                squircle: Corners.CornerTheme.smoothing
             }
         }
     }

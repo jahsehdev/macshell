@@ -9,6 +9,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shlex
 import shutil
@@ -155,19 +156,25 @@ def fingerprint(app):
 def patch_spotify_menu_binary(executable):
     """Move only the native menu's left inset in our private executable copy.
 
-    Spotify 1.3.4.258 builds a CEF overlay with Insets(0, 16, 0, 2).
+    Supported Spotify builds use a CEF overlay with Insets(0, 16, 0, 2).
     The single immediate below changes that left inset to 96 DIP. Docking,
     click handling, menu contents and automatic resize layout remain native.
     A different executable must be inspected again, never patched by guessing.
     """
     data = executable.read_bytes()
-    digest = "030a6ea5fb2aa791e8acd67703eb7b21f77e8531e70871ebf211b8f9c81a826b"
-    offset = 0x14A2C84
+    # File offsets verified against the disassembled Insets construction in
+    # each build. Keep the full executable hash and instruction guard: an
+    # application update must never turn this into a speculative byte search.
+    builds = {
+        "030a6ea5fb2aa791e8acd67703eb7b21f77e8531e70871ebf211b8f9c81a826b": 0x14A2C84,  # 1.3.4.258
+        "136880e2c04ba052df199adadb71c5cb8335a99bf50b111c082c53a6497ffc16": 0x2DF4A84,  # 1.3.8.620
+    }
+    offset = builds.get(hashlib.sha256(data).hexdigest())
     context = bytes.fromhex(
         "807b7100b902000000ba100000000f45d1be100000000f45ce"
         "c7442408000000008954240cc744241000000000894c2414"
         "488b08488d7424084889c7ff9198000000")
-    if hashlib.sha256(data).hexdigest() != digest or data[offset:offset + len(context)] != context:
+    if offset is None or data[offset:offset + len(context)] != context:
         raise RuntimeError("Spotify's native menu layout changed; original application retained")
     mode = executable.stat().st_mode & 0o777
     executable.chmod(mode | 0o200)
@@ -345,13 +352,39 @@ def spotify_bridge():
     return server
 
 
+def rebuild_spotify_drag(running_commit):
+    """Rebuild only when installed headers match this desktop session."""
+    script = ROOT / "build.sh"
+    if not script.is_file():
+        return False
+    flags = subprocess.run(["pkg-config", "--cflags", "hyprland"],
+                           capture_output=True, text=True, check=True, timeout=5)
+    definitions = subprocess.run(
+        ["c++", *shlex.split(flags.stdout), "-dM", "-E", "-x", "c++",
+         "-include", "hyprland/src/version.h", "/dev/null"],
+        capture_output=True, text=True, check=True, timeout=10)
+    header = re.search(r'^#define GIT_COMMIT_HASH\s+"([0-9a-f]{40})"$', definitions.stdout, re.M)
+    if not header or header.group(1) != running_commit:
+        return False
+    subprocess.run(["sh", str(script), "--spotify-only"],
+                   capture_output=True, text=True, check=True, timeout=120)
+    spotify_diagnostic("native-drag-rebuilt", commit=running_commit)
+    return True
+
+
 def ensure_spotify_drag():
     library = ROOT / "spotify-drag.so"
     stamp = library.with_suffix(".so.commit")
     try:
-        commit = stamp.read_text().strip()
-        if len(commit) != 40 or commit not in actions.hypr("version"):
-            raise RuntimeError("Spotify drag plugin does not match the running compositor")
+        version = actions.hypr("version")
+        commit = stamp.read_text().strip() if stamp.exists() else ""
+        if len(commit) != 40 or commit not in version:
+            running = re.search(r'\b[0-9a-f]{40}\b', version)
+            if not running or not rebuild_spotify_drag(running.group()):
+                raise RuntimeError("Spotify drag plugin does not match the running compositor")
+            commit = stamp.read_text().strip()
+            if commit != running.group():
+                raise RuntimeError("Rebuilt Spotify drag plugin does not match the running compositor")
         plugins = json.loads(actions.hypr("-j", "plugin", "list"))
         if any(p.get("name") == "macshell-spotify-drag" and p.get("version") == "1.0" for p in plugins):
             return True
@@ -359,7 +392,7 @@ def ensure_spotify_drag():
             raise RuntimeError("Spotify drag plugin was not loaded")
         spotify_diagnostic("native-drag-loaded")
         return True
-    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         spotify_diagnostic("native-drag-unavailable", error=str(error))
         return False
 

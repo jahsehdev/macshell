@@ -96,7 +96,7 @@ Item {
                 source: crop
                 blurEnabled: true
                 blurMax: 64
-                blur: Math.min(1, 42 * 1.4 * glass.ds / 64)
+                blur: Math.min(1, 32 * 1.4 * glass.ds / 64)
                 autoPaddingEnabled: false
             }
             ShaderEffectSource {
@@ -107,39 +107,28 @@ Item {
                 mipmap: true
                 smooth: true
             }
-            ShaderEffect {
+            Corners.LiquidGlassSurface {
                 anchors.fill: parent
                 visible: glass.ready
                 // The same shader used by MacShell's top-bar menus, bundled
                 // with Launchpad for the folder material as well.
-                fragmentShader: Qt.resolvedUrl("../assets/folder-liquidglass.frag.qsb")
+                fragmentShader: Qt.resolvedUrl("../Common/LiquidGlass-frosted-menu.frag.qsb")
                 onStatusChanged: if (status === ShaderEffect.Error) {
                     console.warn("launchpad: menu glass unavailable; using the neutral surface:", log);
                     root.captureTimedOut = true;
                 }
-                property variant src: frosted
-                property vector2d itemSize: Qt.vector2d(width, height)
-                property vector2d glassSize: Qt.vector2d(width, height)
-                property vector2d srcSize: Qt.vector2d(crop.sourceRect.width, crop.sourceRect.height)
-                property vector2d srcOffset: Qt.vector2d(glass.sx - crop.sourceRect.x, glass.sy - crop.sourceRect.y)
-                property real pad: 0
-                property real radius: Theme.menuRadius
-                property real bezel: Math.min(height * 0.36, 26)
-                property real thickness: 22 * 0.55 * Theme.menuGlassLiquid * 1.6
-                property real dispersion: 0.06 * 0.55 * Theme.menuGlassLiquid * 1.3
-                property real blurPx: 1.5
-                property real tintMix: Theme.menuTintMix
-                property real saturation: 1.25
-                property real dark: Theme.menuDark ? 1 : 0
-                property real debug: 0
-                property real rim: Theme.menuGlassRim
-                property real grain: Theme.menuGlassGrain * 0.2
-                property real magnify: 0.05 * 0.55 * Theme.menuGlassLiquid * 1.6
-                property real shadowAmt: 0
-                property real rimTint: 1
-                property real ringW: 1.4
-                property real flatInner: 0
-                property real squircle: Corners.CornerTheme.smoothing
+                src: frosted
+                itemSize: Qt.vector2d(width, height)
+                glassSize: Qt.vector2d(width, height)
+                srcSize: Qt.vector2d(crop.sourceRect.width, crop.sourceRect.height)
+                srcOffset: Qt.vector2d(glass.sx - crop.sourceRect.x, glass.sy - crop.sourceRect.y)
+                pad: 0
+                radius: Theme.menuRadius
+                bezel: Math.min(height * 0.36, 26)
+                dark: Theme.menuDark ? 1 : 0
+                debug: 0
+                shadowAmt: 0
+                squircle: Corners.CornerTheme.smoothing
             }
         }
     }
